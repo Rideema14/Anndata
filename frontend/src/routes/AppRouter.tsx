@@ -125,6 +125,9 @@ const SellerOrdersPage = lazy(() => import("@/pages/seller/SellerOrdersPage"));
 const SellerAnalyticsPage = lazy(
   () => import("@/pages/seller/SellerAnalyticsPage"),
 );
+const SellerFeedbackPage = lazy(
+  () => import("@/pages/seller/SellerFeedbackPage"),
+);
 const AddLandListingPage = lazy(
   () => import("@/pages/seller/AddLandListingPage"),
 );
@@ -400,6 +403,10 @@ const router = createBrowserRouter([
       {
         path: "/seller/analytics",
         element: <SellerAnalyticsPage />,
+      },
+      {
+        path: "/seller/feedback",
+        element: <SellerFeedbackPage />,
       },
       {
         path: "/seller/add-land",
