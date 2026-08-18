@@ -17,7 +17,7 @@ export function Sidebar() {
   return (
     <aside className="sticky top-0 hidden h-svh w-64 shrink-0 flex-col border-r border-ink-100 bg-surface md:flex">
       <div className="flex items-center px-5 py-5">
-        <Link to="/">
+        <Link to="/home">
           <Logo />
         </Link>
       </div>

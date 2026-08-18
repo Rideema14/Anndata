@@ -14,7 +14,7 @@ export default function LoginPage() {
   const [searchParams] = useSearchParams()
   const { loginWithGoogle } = useAuth()
   const { t } = useLanguage()
-  const next = searchParams.get('next') ?? '/'
+  const next = searchParams.get('next') ?? '/home'
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault()

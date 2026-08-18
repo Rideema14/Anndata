@@ -14,7 +14,7 @@ import ProfilePage from "@/pages/profile/ProfilePage";
 // =====================================================
 
 // Public landing page
-const LandingPage = lazy(() => import("@/pages/landing/LandingPage"));
+// const LandingPage = lazy(() => import("@/pages/landing/LandingPage"));
 
 // Authentication
 const LoginPage = lazy(() => import("@/pages/auth/LoginPage"));
@@ -158,7 +158,7 @@ const router = createBrowserRouter([
   // ===================================================
   {
     path: "/",
-    element: <LandingPage />,
+    element: <HomePage />,
   },
 
   // ===================================================

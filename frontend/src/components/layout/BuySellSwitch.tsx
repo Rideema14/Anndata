@@ -33,7 +33,7 @@ export function BuySellSwitch({ className, compact = false }: BuySellSwitchProps
         className={cn(
           'absolute top-1 bottom-1 rounded-full shadow-card transition-transform duration-200 ease-out',
           compact ? 'w-[calc(50%-4px)]' : 'w-[calc(50%-4px)]',
-          mode === 'buy' ? 'translate-x-0 bg-brand-600' : 'translate-x-[calc(100%+8px)] bg-gold-400',
+          mode === 'buy' ? 'translate-x-0 bg-brand-600' : 'translate-x-[calc(100%)] bg-gold-400',
         )}
         style={{ left: '4px', right: '4px' }}
       />
@@ -43,7 +43,7 @@ export function BuySellSwitch({ className, compact = false }: BuySellSwitchProps
         aria-pressed={mode === 'buy'}
         aria-label={t('mode.switchToBuy')}
         className={cn(
-          'relative z-10 flex items-center justify-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-semibold transition-colors',
+          ' ml-3.5 relative z-10 flex items-center justify-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-semibold transition-colors',
           mode === 'buy' ? 'text-white' : 'text-ink-500',
         )}
       >
@@ -56,7 +56,7 @@ export function BuySellSwitch({ className, compact = false }: BuySellSwitchProps
         aria-pressed={mode === 'sell'}
         aria-label={t('mode.switchToSell')}
         className={cn(
-          'relative z-10 flex items-center justify-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-semibold transition-colors',
+          ' ml-6 relative z-10 flex items-center justify-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-semibold transition-colors',
           mode === 'sell' ? 'text-white' : 'text-ink-500',
         )}
       >
