@@ -1,6 +1,16 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { CheckCircle2, ChevronLeft, Heart, MapPin, Minus, Plus, Sprout, Star, Store } from 'lucide-react'
+import {
+  CheckCircle2,
+  ChevronLeft,
+  Heart,
+  MapPin,
+  Minus,
+  Plus,
+  Star,
+  Store,
+} from 'lucide-react'
+
 import { Button } from '@/components/common/Button'
 import { getProductById } from '@/data/mock/mockProductCatalog'
 import { useCart } from '@/context/CartContext'
@@ -11,191 +21,543 @@ import { cn } from '@/utils/cn'
 
 export default function ProductDetailsPage() {
   const { id } = useParams<{ id: string }>()
-  const product = getProductById(id ?? '')
   const navigate = useNavigate()
+
+  const product = getProductById(id ?? '')
+
   const { addToCart } = useCart()
   const { isWishlisted, toggleWishlist } = useWishlist()
   const { t } = useLanguage()
+
   const [quantity, setQuantity] = useState(1)
-  const [variant, setVariant] = useState(product?.variants?.[product.variants.length - 1] ?? '')
   const [justAdded, setJustAdded] = useState(false)
+
+  /*
+   * ---------------------------------------------------------
+   * PRODUCT NOT FOUND
+   * ---------------------------------------------------------
+   */
 
   if (!product) {
     return (
-      <div className="mx-auto max-w-lg px-6 py-16 text-center">
-        <p className="text-sm text-ink-500">Product not found.</p>
-        <Link to="/market" className="mt-3 inline-block text-sm font-semibold text-brand-600 hover:underline">
-          Back to Marketplace
-        </Link>
+      <div className="mx-auto flex min-h-[60vh] max-w-lg items-center justify-center px-6">
+        <div className="w-full rounded-3xl border border-[#ddd6c6] bg-[#fffdf7] p-8 text-center shadow-sm">
+          <h1 className="text-xl font-bold text-[#292c23]">
+            Product not found
+          </h1>
+
+          <p className="mt-2 text-sm text-[#777265]">
+            The product you are looking for does not exist or may have
+            been removed.
+          </p>
+
+          <Link
+            to="/market"
+            className="mt-5 inline-flex rounded-full bg-[#5c744d] px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-white transition hover:bg-[#4d633f]"
+          >
+            Back to Marketplace
+          </Link>
+        </div>
       </div>
     )
   }
 
-  function handleAddToCart() {
-    addToCart(product!.id, quantity)
-    setJustAdded(true)
-    window.setTimeout(() => setJustAdded(false), 2000)
-  }
+  // Capture the narrowed value for use inside event handlers.
+  const productId = product.id
 
-  function handleBuyNow() {
-    addToCart(product!.id, quantity)
-    navigate('/cart')
-  }
+  /*
+   * ---------------------------------------------------------
+   * SAFE DATA
+   * ---------------------------------------------------------
+   */
+
+  const variants = product.variants ?? []
+  const specifications = product.specifications ?? []
+  const reviews = product.reviews ?? []
+
+  const selectedVariant =
+    variants.length > 0 ? variants[variants.length - 1] : product.unit
+
+  const [variant, setVariant] = useState(selectedVariant)
 
   const wishlisted = isWishlisted(product.id)
 
+  /*
+   * ---------------------------------------------------------
+   * CART
+   * ---------------------------------------------------------
+   */
+
+  function handleAddToCart() {
+    addToCart(productId, quantity)
+
+    setJustAdded(true)
+
+    window.setTimeout(() => {
+      setJustAdded(false)
+    }, 2000)
+  }
+
+  function handleBuyNow() {
+    addToCart(productId, quantity)
+    navigate('/cart')
+  }
+
+  /*
+   * ---------------------------------------------------------
+   * BACK
+   * ---------------------------------------------------------
+   */
+
+  function handleBack() {
+    navigate(-1)
+  }
+
   return (
-    <div className="mx-auto max-w-4xl px-4 py-5 md:px-6 md:py-8">
-      <Link to={`/market/${product.categorySlug}`} className="mb-4 flex items-center gap-1 text-xs font-semibold text-brand-600 hover:underline">
-        <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
-        {t('common.back')}
-      </Link>
+    <div className="min-h-screen bg-[#f4f0e6] px-4 py-5 md:px-6 md:py-8">
+      <div className="mx-auto max-w-6xl">
 
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Gallery placeholder */}
-        <div className="flex h-64 items-center justify-center rounded-2xl bg-surface-sunk md:h-80">
-          <Sprout className="h-16 w-16 text-brand-400" strokeWidth={1.3} aria-hidden="true" />
-        </div>
+        {/* =====================================================
+            BACK BUTTON
+        ===================================================== */}
 
-        <div>
-          <h1 className="text-xl">{product.name}</h1>
-          <div className="mt-1.5 flex items-center gap-3 text-xs text-ink-500">
-            <span className="flex items-center gap-1">
-              <Star className="h-3.5 w-3.5 fill-gold-400 text-gold-400" aria-hidden="true" />
-              {product.rating} ({product.reviewCount} reviews)
-            </span>
-            <span className="flex items-center gap-1">
-              <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
-              {product.location}
-            </span>
+        <button
+          type="button"
+          onClick={handleBack}
+          className="mb-5 flex items-center gap-1.5 text-xs font-bold text-[#5c744d] transition hover:text-[#3f5935]"
+        >
+          <ChevronLeft className="h-4 w-4" />
+
+          {t('common.back')}
+        </button>
+
+
+        {/* =====================================================
+            MAIN PRODUCT
+        ===================================================== */}
+
+        <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+
+          {/* ===================================================
+              PRODUCT IMAGE
+          =================================================== */}
+
+          <div className="overflow-hidden rounded-[28px] border border-[#ddd6c6] bg-[#fffdf7] p-3 shadow-sm">
+
+            <div className="group relative h-[360px] overflow-hidden rounded-[22px] bg-[#e7e2d5] md:h-[480px]">
+
+              {product.image ? (
+                <img
+                  src={product.image}
+                  alt={product.name}
+                  className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center">
+                  <span className="text-sm font-medium text-[#8d877a]">
+                    No image available
+                  </span>
+                </div>
+              )}
+
+              {/* IMAGE OVERLAY */}
+
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
+
+
+              {/* CATEGORY */}
+
+              <div className="absolute bottom-4 left-4 rounded-full bg-white/90 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[#557347] shadow-sm backdrop-blur">
+                {product.category}
+              </div>
+
+
+              {/* RATING */}
+
+              <div className="absolute right-4 top-4 flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold text-[#403e36] shadow-sm backdrop-blur">
+
+                <Star
+                  className="h-3.5 w-3.5 fill-[#b79c36] text-[#b79c36]"
+                />
+
+                {product.rating}
+              </div>
+
+            </div>
+
           </div>
 
-          <p className="mt-3 flex items-baseline gap-1.5">
-            <span className="text-2xl font-bold text-ink-900">{formatINR(product.price)}</span>
-            <span className="text-xs text-ink-400">/ {variant || product.unit}</span>
-          </p>
 
-          <p className="mt-1 flex items-center gap-1.5 text-xs text-ink-500">
-            <Store className="h-3.5 w-3.5" aria-hidden="true" />
-            Sold by <span className="font-medium text-ink-700">{product.sellerName}</span>
-          </p>
+          {/* ===================================================
+              PRODUCT INFORMATION
+          =================================================== */}
 
-          <p
-            className={cn(
-              'mt-2 inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold',
-              product.stock > 0 ? 'bg-brand-50 text-brand-700' : 'bg-danger-50 text-danger-500',
-            )}
-          >
-            {product.stock > 0 ? `In stock (${product.stock} available)` : 'Out of stock'}
-          </p>
+          <div className="rounded-[28px] border border-[#ddd6c6] bg-[#fffdf7] p-5 shadow-sm md:p-7">
 
-          {product.variants && (
-            <div className="mt-4">
-              <p className="mb-1.5 text-xs font-semibold text-ink-600">Pack size</p>
-              <div className="flex flex-wrap gap-2">
-                {product.variants.map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => setVariant(v)}
-                    className={cn(
-                      'rounded-full border px-3 py-1.5 text-xs font-medium',
-                      variant === v ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-ink-200 text-ink-600',
-                    )}
-                  >
-                    {v}
-                  </button>
-                ))}
-              </div>
+            {/* CATEGORY */}
+
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#928a7c]">
+              {product.category}
+            </p>
+
+
+            {/* TITLE */}
+
+            <h1 className="mt-2 text-2xl font-black leading-tight tracking-[-0.035em] text-[#292c23] md:text-3xl">
+              {product.name}
+            </h1>
+
+
+            {/* LOCATION + RATING */}
+
+            <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-[#777265]">
+
+              <span className="flex items-center gap-1.5">
+                <Star className="h-3.5 w-3.5 fill-[#b79c36] text-[#b79c36]" />
+
+                <span className="font-bold text-[#403e36]">
+                  {product.rating}
+                </span>
+
+                <span>
+                  ({product.reviewCount ?? reviews.length} reviews)
+                </span>
+              </span>
+
+
+              <span className="flex items-center gap-1.5">
+                <MapPin className="h-3.5 w-3.5" />
+
+                {product.location}
+              </span>
+
             </div>
+
+
+            {/* PRICE */}
+
+            <div className="mt-6 flex items-end gap-2">
+
+              <span className="text-3xl font-black tracking-[-0.04em] text-[#292c23]">
+                {formatINR(product.price)}
+              </span>
+
+              <span className="mb-1 text-xs text-[#888274]">
+                / {variant || product.unit}
+              </span>
+
+            </div>
+
+
+            {/* SELLER */}
+
+            <div className="mt-3 flex items-center gap-2 text-xs text-[#777265]">
+
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#e6ecdf]">
+                <Store className="h-4 w-4 text-[#5c744d]" />
+              </div>
+
+              <span>
+                Sold by{' '}
+                <strong className="text-[#403e36]">
+                  {product.sellerName}
+                </strong>
+              </span>
+
+            </div>
+
+
+            {/* STOCK */}
+
+            <div className="mt-4">
+
+              <span
+                className={cn(
+                  'inline-flex rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider',
+                  product.stock > 0
+                    ? 'bg-[#e2eadb] text-[#557347]'
+                    : 'bg-[#f0ddd7] text-[#8a513d]',
+                )}
+              >
+                {product.stock > 0
+                  ? `In stock · ${product.stock} available`
+                  : 'Out of stock'}
+              </span>
+
+            </div>
+
+
+            {/* =================================================
+                VARIANTS
+            ================================================= */}
+
+            {variants.length > 0 && (
+              <div className="mt-6">
+
+                <p className="mb-2 text-xs font-bold uppercase tracking-wider text-[#777265]">
+                  Pack size
+                </p>
+
+                <div className="flex flex-wrap gap-2">
+
+                  {variants.map((item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => setVariant(item)}
+                      className={cn(
+                        'rounded-full border px-4 py-2 text-xs font-bold transition',
+                        variant === item
+                          ? 'border-[#5c744d] bg-[#e2eadb] text-[#557347]'
+                          : 'border-[#d8d0bf] bg-white text-[#777265] hover:border-[#9cac8f]',
+                      )}
+                    >
+                      {item}
+                    </button>
+                  ))}
+
+                </div>
+
+              </div>
+            )}
+
+
+            {/* =================================================
+                QUANTITY
+            ================================================= */}
+
+            <div className="mt-6 flex items-center gap-4">
+
+              <p className="text-xs font-bold uppercase tracking-wider text-[#777265]">
+                Quantity
+              </p>
+
+              <div className="flex items-center overflow-hidden rounded-full border border-[#d8d0bf] bg-white">
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setQuantity((current) =>
+                      Math.max(1, current - 1),
+                    )
+                  }
+                  className="flex h-10 w-10 items-center justify-center text-[#777265] transition hover:bg-[#f2eee4] hover:text-[#5c744d]"
+                  aria-label="Decrease quantity"
+                >
+                  <Minus className="h-4 w-4" />
+                </button>
+
+                <span className="w-10 text-center text-sm font-black text-[#292c23]">
+                  {quantity}
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setQuantity((current) => current + 1)
+                  }
+                  className="flex h-10 w-10 items-center justify-center text-[#777265] transition hover:bg-[#f2eee4] hover:text-[#5c744d]"
+                  aria-label="Increase quantity"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+
+              </div>
+
+            </div>
+
+
+            {/* =================================================
+                ACTIONS
+            ================================================= */}
+
+            <div className="mt-6 grid grid-cols-[1fr_1fr_auto] gap-2">
+
+              <Button
+                variant="secondary"
+                fullWidth
+                onClick={handleAddToCart}
+                disabled={product.stock === 0}
+              >
+                {justAdded ? (
+                  <span className="flex items-center justify-center gap-1.5">
+                    <CheckCircle2 className="h-4 w-4" />
+                    Added
+                  </span>
+                ) : (
+                  t('common.addToCart')
+                )}
+              </Button>
+
+
+              <Button
+                fullWidth
+                onClick={handleBuyNow}
+                disabled={product.stock === 0}
+              >
+                {t('common.buyNow')}
+              </Button>
+
+
+              <button
+                type="button"
+                onClick={() => toggleWishlist(product.id)}
+                aria-pressed={wishlisted}
+                aria-label={
+                  wishlisted
+                    ? 'Remove from wishlist'
+                    : 'Add to wishlist'
+                }
+                className="flex h-11 w-11 items-center justify-center rounded-full border border-[#d8d0bf] bg-white transition hover:bg-[#f2eee4]"
+              >
+                <Heart
+                  className={cn(
+                    'h-5 w-5',
+                    wishlisted
+                      ? 'fill-[#b65d4b] text-[#b65d4b]'
+                      : 'text-[#777265]',
+                  )}
+                />
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+        {/* =====================================================
+            DESCRIPTION
+        ===================================================== */}
+
+        <section className="mt-6 rounded-[24px] border border-[#ddd6c6] bg-[#fffdf7] p-5 md:p-6">
+
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#928a7c]">
+            Product information
+          </p>
+
+          <h2 className="mt-2 text-xl font-black tracking-[-0.03em] text-[#292c23]">
+            Description
+          </h2>
+
+          <p className="mt-3 max-w-4xl text-sm leading-7 text-[#777265]">
+            {product.description ||
+              'No description available for this product.'}
+          </p>
+
+        </section>
+
+
+        {/* =====================================================
+            SPECIFICATIONS
+        ===================================================== */}
+
+        <section className="mt-5 rounded-[24px] border border-[#ddd6c6] bg-[#fffdf7] p-5 md:p-6">
+
+          <h2 className="text-xl font-black tracking-[-0.03em] text-[#292c23]">
+            Specifications
+          </h2>
+
+          {specifications.length > 0 ? (
+            <div className="mt-4 overflow-hidden rounded-2xl border border-[#e2dccf]">
+
+              {specifications.map((spec, index) => (
+                <div
+                  key={`${spec.label}-${index}`}
+                  className="flex flex-col gap-1 border-b border-[#e8e2d7] px-4 py-3 last:border-b-0 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <span className="text-xs font-medium text-[#888274]">
+                    {spec.label}
+                  </span>
+
+                  <span className="text-sm font-bold text-[#403e36]">
+                    {spec.value}
+                  </span>
+                </div>
+              ))}
+
+            </div>
+          ) : (
+            <p className="mt-3 text-sm text-[#888274]">
+              No specifications available.
+            </p>
           )}
 
-          <div className="mt-4 flex items-center gap-3">
-            <p className="text-xs font-semibold text-ink-600">Quantity</p>
-            <div className="flex items-center rounded-full border border-ink-200">
-              <button
-                type="button"
-                onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                aria-label="Decrease quantity"
-                className="flex h-9 w-9 items-center justify-center text-ink-600 hover:text-brand-600"
-              >
-                <Minus className="h-3.5 w-3.5" aria-hidden="true" />
-              </button>
-              <span className="w-8 text-center text-sm font-semibold">{quantity}</span>
-              <button
-                type="button"
-                onClick={() => setQuantity((q) => q + 1)}
-                aria-label="Increase quantity"
-                className="flex h-9 w-9 items-center justify-center text-ink-600 hover:text-brand-600"
-              >
-                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-              </button>
+        </section>
+
+
+        {/* =====================================================
+            REVIEWS
+        ===================================================== */}
+
+        <section className="mb-8 mt-5 rounded-[24px] border border-[#ddd6c6] bg-[#fffdf7] p-5 md:p-6">
+
+          <div className="flex items-center justify-between">
+
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#928a7c]">
+                Customer feedback
+              </p>
+
+              <h2 className="mt-1 text-xl font-black tracking-[-0.03em] text-[#292c23]">
+                Reviews
+              </h2>
             </div>
+
+            <div className="flex items-center gap-1.5 rounded-full bg-[#f1e6bb] px-3 py-1.5 text-xs font-bold text-[#786321]">
+
+              <Star className="h-3.5 w-3.5 fill-[#b79c36] text-[#b79c36]" />
+
+              {product.rating}
+
+            </div>
+
           </div>
 
-          <div className="mt-5 flex gap-2">
-            <Button variant="secondary" fullWidth onClick={handleAddToCart} disabled={product.stock === 0}>
-              {justAdded ? (
-                <>
-                  <CheckCircle2 className="h-4 w-4" aria-hidden="true" /> Added
-                </>
-              ) : (
-                t('common.addToCart')
-              )}
-            </Button>
-            <Button fullWidth onClick={handleBuyNow} disabled={product.stock === 0}>
-              {t('common.buyNow')}
-            </Button>
-            <button
-              type="button"
-              onClick={() => toggleWishlist(product.id)}
-              aria-pressed={wishlisted}
-              aria-label={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-ink-200"
-            >
-              <Heart className={cn('h-4.5 w-4.5', wishlisted ? 'fill-danger-500 text-danger-500' : 'text-ink-500')} aria-hidden="true" />
-            </button>
-          </div>
-        </div>
+
+          {reviews.length > 0 ? (
+            <div className="mt-5 grid gap-3 md:grid-cols-2">
+
+              {reviews.map((review) => (
+                <div
+                  key={review.id}
+                  className="rounded-2xl border border-[#e2dccf] bg-[#faf7ef] p-4"
+                >
+
+                  <div className="flex items-center justify-between">
+
+                    <p className="text-sm font-bold text-[#403e36]">
+                      {review.author}
+                    </p>
+
+                    <span className="flex items-center gap-1 text-xs font-bold text-[#786321]">
+
+                      <Star className="h-3.5 w-3.5 fill-[#b79c36] text-[#b79c36]" />
+
+                      {review.rating}
+
+                    </span>
+
+                  </div>
+
+                  <p className="mt-2 text-xs leading-5 text-[#777265]">
+                    {review.comment}
+                  </p>
+
+                </div>
+              ))}
+
+            </div>
+          ) : (
+            <p className="mt-4 text-sm text-[#888274]">
+              No reviews yet.
+            </p>
+          )}
+
+        </section>
+
       </div>
-
-      {/* Description */}
-      <section className="mt-8">
-        <h2 className="mb-2 text-base">Description</h2>
-        <p className="text-sm leading-relaxed text-ink-600">{product.description}</p>
-      </section>
-
-      {/* Specifications */}
-      <section className="mt-6">
-        <h2 className="mb-2 text-base">Specifications</h2>
-        <dl className="divide-y divide-ink-100 rounded-2xl border border-ink-100">
-          {product.specifications.map((spec) => (
-            <div key={spec.label} className="flex justify-between px-4 py-2.5 text-sm">
-              <dt className="text-ink-500">{spec.label}</dt>
-              <dd className="font-medium text-ink-900">{spec.value}</dd>
-            </div>
-          ))}
-        </dl>
-      </section>
-
-      {/* Reviews */}
-      <section className="mt-6 mb-4">
-        <h2 className="mb-2 text-base">Reviews</h2>
-        <div className="space-y-3">
-          {product.reviews.map((review) => (
-            <div key={review.id} className="rounded-2xl border border-ink-100 p-3">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-ink-900">{review.author}</p>
-                <span className="flex items-center gap-1 text-xs text-gold-600">
-                  <Star className="h-3.5 w-3.5 fill-gold-400 text-gold-400" aria-hidden="true" />
-                  {review.rating}
-                </span>
-              </div>
-              <p className="mt-1 text-xs text-ink-500">{review.comment}</p>
-            </div>
-          ))}
-        </div>
-      </section>
     </div>
   )
 }

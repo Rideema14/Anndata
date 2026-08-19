@@ -28,7 +28,7 @@ export interface NavItem {
 
 /** Mobile bottom nav — deliberately fixed at 5 items per the SRS ("do not overcrowd"). */
 export const mobileBottomNavItems: NavItem[] = [
-  { path: '/', labelKey: 'nav.home', icon: Home },
+  { path: '/home', labelKey: 'nav.home', icon: Home },
   { path: '/market', labelKey: 'nav.market', icon: Store },
   { path: '/ai', labelKey: 'nav.ai', icon: Sparkles },
   { path: '/mandi', labelKey: 'nav.mandi', icon: LineChart },
@@ -37,7 +37,7 @@ export const mobileBottomNavItems: NavItem[] = [
 
 /** Desktop sidebar — Buy mode. */
 export const buyNavItems: NavItem[] = [
-  { path: '/', labelKey: 'nav.home', icon: Home },
+  { path: '/home', labelKey: 'nav.home', icon: Home },
   { path: '/market', labelKey: 'nav.market', icon: Store },
   { path: '/cart', labelKey: 'nav.cart', icon: ShoppingCart },
   { path: '/wishlist', labelKey: 'nav.wishlist', icon: Heart },
