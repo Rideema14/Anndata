@@ -1,12 +1,22 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
-import { Sprout, ShieldCheck, Sun, TrendingUp } from 'lucide-react'
+import {
+  Sprout,
+  ShieldCheck,
+  Sun,
+  TrendingUp,
+} from 'lucide-react'
 
 gsap.registerPlugin(ScrollTrigger)
 
 /* =========================================================
-   TYPES & CONFIGURATION
+   TYPES
 ========================================================= */
 
 interface WheatLeafDef {
@@ -23,7 +33,11 @@ interface FeatureCallout {
   category: string
   description: string
   minProgress: number
-  position: 'left-top' | 'left-bottom' | 'right-top' | 'right-bottom'
+  position:
+    | 'left-top'
+    | 'left-bottom'
+    | 'right-top'
+    | 'right-bottom'
   metric: string
   icon: React.ElementType
   theme: 'green' | 'yellow'
@@ -31,12 +45,46 @@ interface FeatureCallout {
   rotateDeg: string
 }
 
+/* =========================================================
+   DATA
+========================================================= */
+
 const WHEAT_LEAVES: WheatLeafDef[] = [
-  { heightRatio: 0.15, side: -1, lengthRatio: 0.45, archFactor: 1.2, hue: 88 },
-  { heightRatio: 0.28, side: 1, lengthRatio: 0.52, archFactor: 1.1, hue: 92 },
-  { heightRatio: 0.42, side: -1, lengthRatio: 0.56, archFactor: 0.95, hue: 85 },
-  { heightRatio: 0.58, side: 1, lengthRatio: 0.50, archFactor: 0.85, hue: 90 },
-  { heightRatio: 0.72, side: -1, lengthRatio: 0.42, archFactor: 0.75, hue: 82 },
+  {
+    heightRatio: 0.15,
+    side: -1,
+    lengthRatio: 0.45,
+    archFactor: 1.2,
+    hue: 88,
+  },
+  {
+    heightRatio: 0.28,
+    side: 1,
+    lengthRatio: 0.52,
+    archFactor: 1.1,
+    hue: 92,
+  },
+  {
+    heightRatio: 0.42,
+    side: -1,
+    lengthRatio: 0.56,
+    archFactor: 0.95,
+    hue: 85,
+  },
+  {
+    heightRatio: 0.58,
+    side: 1,
+    lengthRatio: 0.5,
+    archFactor: 0.85,
+    hue: 90,
+  },
+  {
+    heightRatio: 0.72,
+    side: -1,
+    lengthRatio: 0.42,
+    archFactor: 0.75,
+    hue: 82,
+  },
 ]
 
 const FEATURES: FeatureCallout[] = [
@@ -54,6 +102,7 @@ const FEATURES: FeatureCallout[] = [
     patchRadius: '28px 10px 36px 14px',
     rotateDeg: '-1.8deg',
   },
+
   {
     id: 'roots',
     category: '02 / GERMINATION',
@@ -68,6 +117,7 @@ const FEATURES: FeatureCallout[] = [
     patchRadius: '12px 32px 14px 28px',
     rotateDeg: '1.5deg',
   },
+
   {
     id: 'harvest',
     category: '03 / MATURITY',
@@ -76,12 +126,16 @@ const FEATURES: FeatureCallout[] = [
       'Autonomous crop harvesting triggers activated precisely at peak golden maturity.',
     minProgress: 0.62,
     position: 'right-top',
-    metric: '100% Ready To Sell',
+
+    // Removed "100%"
+    metric: 'Ready To Sell',
+
     icon: ShieldCheck,
     theme: 'yellow',
     patchRadius: '32px 14px 26px 10px',
-    rotateDeg: '2.0deg',
+    rotateDeg: '2deg',
   },
+
   {
     id: 'foliage',
     category: '04 / VEGETATIVE',
@@ -99,32 +153,64 @@ const FEATURES: FeatureCallout[] = [
 ]
 
 /* =========================================================
-   MATH & CANVAS UTILITIES
+   MATH
 ========================================================= */
 
-function clamp(v: number, min = 0, max = 1) {
-  return Math.max(min, Math.min(max, v))
+function clamp(
+  value: number,
+  min = 0,
+  max = 1,
+) {
+  return Math.max(
+    min,
+    Math.min(max, value),
+  )
 }
 
-function lerp(a: number, b: number, t: number) {
+function lerp(
+  a: number,
+  b: number,
+  t: number,
+) {
   return a + (b - a) * t
 }
 
 function easeOutCubic(t: number) {
-  const v = clamp(t)
-  return 1 - Math.pow(1 - v, 3)
+  const value = clamp(t)
+
+  return (
+    1 -
+    Math.pow(
+      1 - value,
+      3,
+    )
+  )
 }
 
-function turbulence(t: number, seed: number) {
+function turbulence(
+  t: number,
+  seed: number,
+) {
   return (
-    Math.sin(t * 1.2 + seed) * 0.55 +
-    Math.sin(t * 2.7 + seed * 1.4) * 0.3 +
-    Math.sin(t * 4.2 + seed * 2.8) * 0.15
+    Math.sin(
+      t * 1.2 + seed,
+    ) *
+      0.55 +
+    Math.sin(
+      t * 2.7 +
+        seed * 1.4,
+    ) *
+      0.3 +
+    Math.sin(
+      t * 4.2 +
+        seed * 2.8,
+    ) *
+      0.15
   )
 }
 
 /* =========================================================
-   CANVAS DRAWING ROUTINES
+   ROOTS
 ========================================================= */
 
 function drawWheatRoots(
@@ -137,40 +223,72 @@ function drawWheatRoots(
 ) {
   if (growth <= 0) return
 
-  const g = easeOutCubic(growth)
+  const g =
+    easeOutCubic(growth)
 
   ctx.save()
+
   ctx.lineCap = 'round'
 
   const rootCount = 20
 
-  for (let i = 0; i < rootCount; i++) {
-    const angleOffset = (i / (rootCount - 1) - 0.5) * 1.7
+  for (
+    let i = 0;
+    i < rootCount;
+    i++
+  ) {
+    const angleOffset =
+      (i /
+        (rootCount - 1) -
+        0.5) *
+      1.7
 
     const maxLen =
       depth *
-      (0.65 + Math.abs(Math.sin(i * 4.3)) * 0.5) *
+      (0.65 +
+        Math.abs(
+          Math.sin(
+            i * 4.3,
+          ),
+        ) *
+          0.5) *
       g
 
     const sideSpread =
-      spread * angleOffset * 0.55 * g
+      spread *
+      angleOffset *
+      0.55 *
+      g
 
     const endX =
       cx +
       sideSpread +
-      Math.sin(i * 2.5) * 18
+      Math.sin(
+        i * 2.5,
+      ) *
+        18
 
-    const endY = soilY + maxLen
+    const endY =
+      soilY + maxLen
 
     const midX =
       cx +
       sideSpread * 0.4 +
-      Math.cos(i * 1.8) * 14
+      Math.cos(
+        i * 1.8,
+      ) *
+        14
 
-    const midY = soilY + maxLen * 0.5
+    const midY =
+      soilY +
+      maxLen * 0.5
 
     ctx.beginPath()
-    ctx.moveTo(cx, soilY)
+
+    ctx.moveTo(
+      cx,
+      soilY,
+    )
 
     ctx.quadraticCurveTo(
       midX,
@@ -179,28 +297,43 @@ function drawWheatRoots(
       endY,
     )
 
-    const rootGrad = ctx.createLinearGradient(
-      cx,
-      soilY,
-      endX,
-      endY,
+    const rootGrad =
+      ctx.createLinearGradient(
+        cx,
+        soilY,
+        endX,
+        endY,
+      )
+
+    rootGrad.addColorStop(
+      0,
+      '#f5bd06',
     )
 
-    /* Smart Krishi green + golden yellow */
-    rootGrad.addColorStop(0, '#f5bd06')
-    rootGrad.addColorStop(0.5, '#65a30f')
+    rootGrad.addColorStop(
+      0.5,
+      '#65a30f',
+    )
+
     rootGrad.addColorStop(
       1,
-      'rgba(16, 39, 1, 0)',
+      'rgba(16,39,1,0)',
     )
 
-    ctx.strokeStyle = rootGrad
+    ctx.strokeStyle =
+      rootGrad
 
     ctx.lineWidth = Math.max(
       0.6,
       2.5 *
-        (1 - (i / rootCount) * 0.3) *
-        (1 - (endY - soilY) / depth),
+        (1 -
+          (i /
+            rootCount) *
+            0.3) *
+        (1 -
+          (endY -
+            soilY) /
+            depth),
     )
 
     ctx.stroke()
@@ -208,6 +341,10 @@ function drawWheatRoots(
 
   ctx.restore()
 }
+
+/* =========================================================
+   LEAF
+========================================================= */
 
 function drawWheatBladeLeaf(
   ctx: CanvasRenderingContext2D,
@@ -224,84 +361,110 @@ function drawWheatBladeLeaf(
 ) {
   if (growth <= 0) return
 
-  const g = easeOutCubic(growth)
+  const g =
+    easeOutCubic(growth)
 
-  const len = bladeLength * g
+  const len =
+    bladeLength * g
 
-  const maxBladeWidth = Math.max(
-    4.0,
-    len * 0.06,
-  )
+  const maxBladeWidth =
+    Math.max(
+      4,
+      len * 0.06,
+    )
 
   const tipX =
     startX +
-    side * len * 0.72 +
+    side *
+      len *
+      0.72 +
     wind * 28
 
   const tipY =
     startY -
-    len * (0.35 / archFactor) +
-    (1 - g * 0.3) * 30 +
-    (1 - ripeness) * 10
+    len *
+      (0.35 /
+        archFactor) +
+    (1 -
+      g * 0.3) *
+      30 +
+    (1 -
+      ripeness) *
+      10
 
   const midX =
     startX +
-    side * len * 0.45 +
+    side *
+      len *
+      0.45 +
     wind * 12
 
   const midY =
     startY -
-    len * (0.6 / archFactor)
+    len *
+      (0.6 /
+        archFactor)
 
   ctx.save()
 
   ctx.beginPath()
 
   ctx.moveTo(
-    startX - stemWidth * 0.5,
+    startX -
+      stemWidth * 0.5,
     startY + 6,
   )
 
   ctx.quadraticCurveTo(
-    midX + side * maxBladeWidth,
+    midX +
+      side *
+        maxBladeWidth,
     midY,
     tipX,
     tipY,
   )
 
   ctx.quadraticCurveTo(
-    midX - side * (maxBladeWidth * 0.3),
+    midX -
+      side *
+        (maxBladeWidth *
+          0.3),
     midY + 8,
-    startX + stemWidth * 0.5,
+    startX +
+      stemWidth * 0.5,
     startY - 4,
   )
 
   ctx.closePath()
 
-  const currentHue = lerp(
-    hue,
-    43,
-    ripeness,
-  )
+  const currentHue =
+    lerp(
+      hue,
+      43,
+      ripeness,
+    )
 
-  const lightness = lerp(
-    28,
-    48,
-    ripeness,
-  )
+  const lightness =
+    lerp(
+      28,
+      48,
+      ripeness,
+    )
 
-  const saturation = lerp(
-    60,
-    85,
-    ripeness,
-  )
+  const saturation =
+    lerp(
+      60,
+      85,
+      ripeness,
+    )
 
-  const leafGrad = ctx.createLinearGradient(
-    startX,
-    startY,
-    tipX,
-    tipY,
-  )
+  const leafGrad =
+    ctx.createLinearGradient(
+      startX,
+      startY,
+      tipX,
+      tipY,
+    )
 
   leafGrad.addColorStop(
     0,
@@ -318,7 +481,9 @@ function drawWheatBladeLeaf(
     `hsl(${currentHue + 12}, ${saturation + 10}%, ${lightness + 12}%)`,
   )
 
-  ctx.fillStyle = leafGrad
+  ctx.fillStyle =
+    leafGrad
+
   ctx.fill()
 
   ctx.beginPath()
@@ -344,6 +509,10 @@ function drawWheatBladeLeaf(
   ctx.restore()
 }
 
+/* =========================================================
+   WHEAT HEAD
+========================================================= */
+
 function drawWheatHead(
   ctx: CanvasRenderingContext2D,
   topX: number,
@@ -355,64 +524,97 @@ function drawWheatHead(
 ) {
   if (growth <= 0) return
 
-  const g = easeOutCubic(growth)
+  const g =
+    easeOutCubic(growth)
 
-  const len = headLength * g
+  const len =
+    headLength * g
 
   const spikeletCount = 15
 
   ctx.save()
 
-  ctx.translate(topX, topY)
-
-  ctx.rotate(wind * 0.15)
-
-  const hue = lerp(
-    85,
-    43,
-    ripeness,
+  ctx.translate(
+    topX,
+    topY,
   )
 
-  const sat = lerp(
-    55,
-    90,
-    ripeness,
+  ctx.rotate(
+    wind * 0.15,
   )
 
-  const light = lerp(
-    32,
-    54,
-    ripeness,
-  )
+  const hue =
+    lerp(
+      85,
+      43,
+      ripeness,
+    )
+
+  const sat =
+    lerp(
+      55,
+      90,
+      ripeness,
+    )
+
+  const light =
+    lerp(
+      32,
+      54,
+      ripeness,
+    )
 
   ctx.beginPath()
 
   ctx.moveTo(0, 0)
 
-  ctx.lineTo(0, -len)
+  ctx.lineTo(
+    0,
+    -len,
+  )
 
   ctx.strokeStyle = `hsl(${hue}, ${sat}%, ${light - 10}%)`
 
-  ctx.lineWidth = 3.0
+  ctx.lineWidth = 3
 
   ctx.stroke()
 
-  for (let i = 0; i < spikeletCount; i++) {
-    const progress = i / spikeletCount
+  for (
+    let i = 0;
+    i < spikeletCount;
+    i++
+  ) {
+    const progress =
+      i /
+      spikeletCount
 
-    if (progress > g) continue
+    if (
+      progress > g
+    ) {
+      continue
+    }
 
-    const sy = -len * progress
+    const sy =
+      -len *
+      progress
 
     const side =
-      i % 2 === 0 ? 1 : -1
+      i % 2 === 0
+        ? 1
+        : -1
 
     const size =
       (1 -
-        Math.abs(progress - 0.5) *
+        Math.abs(
+          progress -
+            0.5,
+        ) *
           0.65) *
       15 *
-      Math.min(1, g * 1.2)
+      Math.min(
+        1,
+        g * 1.2,
+      )
 
     ctx.save()
 
@@ -429,7 +631,8 @@ function drawWheatHead(
     ctx.beginPath()
 
     ctx.ellipse(
-      side * (size * 0.45),
+      side *
+        (size * 0.45),
       0,
       size * 0.52,
       size * 0.88,
@@ -440,7 +643,8 @@ function drawWheatHead(
 
     const grainGrad =
       ctx.createRadialGradient(
-        side * (size * 0.2),
+        side *
+          (size * 0.2),
         -size * 0.2,
         1,
         0,
@@ -463,7 +667,8 @@ function drawWheatHead(
       `hsl(${hue - 8}, ${sat - 10}%, ${light - 15}%)`,
     )
 
-    ctx.fillStyle = grainGrad
+    ctx.fillStyle =
+      grainGrad
 
     ctx.strokeStyle = `hsl(${hue - 12}, ${sat}%, ${light - 20}%)`
 
@@ -476,20 +681,27 @@ function drawWheatHead(
     const awnLength =
       size *
       2.8 *
-      Math.min(1, g * 1.5)
+      Math.min(
+        1,
+        g * 1.5,
+      )
 
     ctx.beginPath()
 
     ctx.moveTo(
-      side * (size * 0.6),
+      side *
+        (size * 0.6),
       -size * 0.6,
     )
 
     ctx.quadraticCurveTo(
-      side * (size * 1.2),
+      side *
+        (size * 1.2),
       -size * 1.8,
-      side * (size * 1.5),
-      -size * 0.6 -
+      side *
+        (size * 1.5),
+      -size *
+          0.6 -
         awnLength,
     )
 
@@ -503,7 +715,11 @@ function drawWheatHead(
   }
 
   if (g > 0.8) {
-    for (let a = -2; a <= 2; a++) {
+    for (
+      let a = -2;
+      a <= 2;
+      a++
+    ) {
       ctx.beginPath()
 
       ctx.moveTo(
@@ -520,7 +736,7 @@ function drawWheatHead(
 
       ctx.strokeStyle = `hsl(${hue + 12}, ${sat + 15}%, ${light + 22}%)`
 
-      ctx.lineWidth = 1.0
+      ctx.lineWidth = 1
 
       ctx.stroke()
     }
@@ -529,6 +745,10 @@ function drawWheatHead(
   ctx.restore()
 }
 
+/* =========================================================
+   COMPLETE WHEAT SCENE
+========================================================= */
+
 function drawWheatScene(
   ctx: CanvasRenderingContext2D,
   width: number,
@@ -536,7 +756,8 @@ function drawWheatScene(
   progress: number,
   time: number,
 ) {
-  const p = clamp(progress)
+  const p =
+    clamp(progress)
 
   ctx.clearRect(
     0,
@@ -545,23 +766,49 @@ function drawWheatScene(
     height,
   )
 
-  const cx = width / 2
+  /*
+   * IMPORTANT:
+   * Desktop = center
+   * Mobile = left side
+   */
+  const isMobile =
+    width < 640
 
-  const soilY = height * 0.88
+  const cx = isMobile
+    ? width * 0.27
+    : width / 2
 
-  const cropMaxHeight = Math.min(
-    height * 0.46,
-    380,
-  )
+  const soilY =
+    height * 0.88
 
-  const cropWidth = Math.min(
-    width * 0.38,
-    320,
-  )
+  /*
+   * Smaller plant on mobile so
+   * it doesn't collide with cards.
+   */
+  const cropMaxHeight =
+    isMobile
+      ? Math.min(
+          height * 0.54,
+          420,
+        )
+      : Math.min(
+          height * 0.46,
+          380,
+        )
 
-  const rootProgress = clamp(
-    p / 0.3,
-  )
+  const cropWidth =
+    isMobile
+      ? Math.min(
+          width * 0.32,
+          150,
+        )
+      : Math.min(
+          width * 0.38,
+          320,
+        )
+
+  const rootProgress =
+    clamp(p / 0.3)
 
   drawWheatRoots(
     ctx,
@@ -572,105 +819,120 @@ function drawWheatScene(
     rootProgress,
   )
 
-  const stemProgress = easeOutCubic(
-    clamp((p - 0.1) / 0.65),
-  )
+  const stemProgress =
+    easeOutCubic(
+      clamp(
+        (p - 0.1) /
+          0.65,
+      ),
+    )
 
   const currentStemHeight =
-    cropMaxHeight * stemProgress
+    cropMaxHeight *
+    stemProgress
 
-  const ripeness = clamp(
-    (p - 0.68) / 0.32,
+  const ripeness =
+    clamp(
+      (p - 0.68) /
+        0.32,
+    )
+
+  if (
+    stemProgress <= 0
+  ) {
+    return
+  }
+
+  const wind =
+    turbulence(
+      time * 0.7,
+      1.2,
+    ) *
+    0.08 *
+    stemProgress
+
+  const stemTopY =
+    soilY -
+    currentStemHeight
+
+  const c1x =
+    cx +
+    wind * 15
+
+  const c1y =
+    soilY -
+    currentStemHeight *
+      0.4
+
+  const c2x =
+    cx +
+    wind * 35
+
+  const c2y =
+    soilY -
+    currentStemHeight *
+      0.75
+
+  const topX =
+    cx +
+    wind * 50
+
+  const topY =
+    stemTopY
+
+  ctx.save()
+
+  ctx.beginPath()
+
+  ctx.moveTo(
+    cx,
+    soilY,
   )
 
-  if (stemProgress > 0) {
-    const wind =
-      turbulence(
-        time * 0.7,
-        1.2,
-      ) *
-      0.08 *
-      stemProgress
+  ctx.bezierCurveTo(
+    c1x,
+    c1y,
+    c2x,
+    c2y,
+    topX,
+    topY,
+  )
 
-    const stemTopY =
-      soilY -
-      currentStemHeight
-
-    const c1x =
-      cx +
-      wind * 15
-
-    const c1y =
-      soilY -
-      currentStemHeight *
-        0.4
-
-    const c2x =
-      cx +
-      wind * 35
-
-    const c2y =
-      soilY -
-      currentStemHeight *
-        0.75
-
-    const topX =
-      cx +
-      wind * 50
-
-    const topY =
-      stemTopY
-
-    ctx.save()
-
-    ctx.beginPath()
-
-    ctx.moveTo(
-      cx,
-      soilY,
-    )
-
-    ctx.bezierCurveTo(
-      c1x,
-      c1y,
-      c2x,
-      c2y,
-      topX,
-      topY,
-    )
-
-    const stemHue = lerp(
+  const stemHue =
+    lerp(
       85,
       44,
       ripeness,
     )
 
-    const stemGrad =
-      ctx.createLinearGradient(
-        cx,
-        soilY,
-        topX,
-        topY,
-      )
-
-    stemGrad.addColorStop(
-      0,
-      `hsl(${stemHue - 10}, 60%, 20%)`,
+  const stemGrad =
+    ctx.createLinearGradient(
+      cx,
+      soilY,
+      topX,
+      topY,
     )
 
-    stemGrad.addColorStop(
-      0.5,
-      `hsl(${stemHue}, 65%, 32%)`,
-    )
+  stemGrad.addColorStop(
+    0,
+    `hsl(${stemHue - 10}, 60%, 20%)`,
+  )
 
-    stemGrad.addColorStop(
-      1,
-      `hsl(${stemHue + 12}, 75%, 45%)`,
-    )
+  stemGrad.addColorStop(
+    0.5,
+    `hsl(${stemHue}, 65%, 32%)`,
+  )
 
-    ctx.strokeStyle = stemGrad
+  stemGrad.addColorStop(
+    1,
+    `hsl(${stemHue + 12}, 75%, 45%)`,
+  )
 
-    ctx.lineWidth = Math.max(
+  ctx.strokeStyle =
+    stemGrad
+
+  ctx.lineWidth =
+    Math.max(
       2.6,
       7.5 *
         (1 -
@@ -678,150 +940,172 @@ function drawWheatScene(
             0.45),
     )
 
-    ctx.lineCap = 'round'
+  ctx.lineCap =
+    'round'
 
-    ctx.stroke()
+  ctx.stroke()
 
-    const nodeRatios = [
-      0.25,
-      0.5,
-      0.72,
-    ]
+  /* =====================================================
+     STEM NODES
+  ===================================================== */
 
-    nodeRatios.forEach(
-      (ratio) => {
-        if (
-          stemProgress >=
-          ratio
-        ) {
-          const t = ratio
+  const nodeRatios = [
+    0.25,
+    0.5,
+    0.72,
+  ]
 
-          const nx =
-            lerp(
-              cx,
-              topX,
-              t,
-            ) +
-            Math.sin(
-              t * Math.PI,
-            ) *
-              wind *
-              20
+  nodeRatios.forEach(
+    (ratio) => {
+      if (
+        stemProgress <
+        ratio
+      ) {
+        return
+      }
 
-          const ny =
-            soilY -
-            currentStemHeight *
-              t
+      const t = ratio
 
-          ctx.beginPath()
+      const nx =
+        lerp(
+          cx,
+          topX,
+          t,
+        ) +
+        Math.sin(
+          t * Math.PI,
+        ) *
+          wind *
+          20
 
-          ctx.arc(
-            nx,
-            ny,
-            Math.max(
-              2.2,
-              5.0 *
-                (1 -
-                  t * 0.3),
-            ),
-            0,
-            Math.PI * 2,
-          )
+      const ny =
+        soilY -
+        currentStemHeight *
+          t
 
-          ctx.fillStyle = `hsl(${stemHue - 12}, 50%, 22%)`
+      ctx.beginPath()
 
-          ctx.fill()
-        }
-      },
-    )
-
-    WHEAT_LEAVES.forEach(
-      (leaf) => {
-        if (
-          stemProgress >=
-          leaf.heightRatio
-        ) {
-          const leafGrowth =
-            clamp(
-              (stemProgress -
-                leaf.heightRatio) /
-                0.22,
-            )
-
-          const t =
-            leaf.heightRatio
-
-          const lx =
-            lerp(
-              cx,
-              topX,
-              t,
-            ) +
-            Math.sin(
-              t * Math.PI,
-            ) *
-              wind *
-              20
-
-          const ly =
-            soilY -
-            currentStemHeight *
-              t
-
-          const currentStemW =
-            6.0 *
+      ctx.arc(
+        nx,
+        ny,
+        Math.max(
+          2.2,
+          5 *
             (1 -
-              t * 0.4)
+              t * 0.3),
+        ),
+        0,
+        Math.PI * 2,
+      )
 
-          drawWheatBladeLeaf(
-            ctx,
-            lx,
-            ly,
-            currentStemW,
-            leaf.side,
-            cropWidth *
-              leaf.lengthRatio,
-            leafGrowth,
-            wind,
-            leaf.archFactor,
-            leaf.hue,
-            ripeness,
-          )
-        }
-      },
-    )
+      ctx.fillStyle = `hsl(${stemHue - 12}, 50%, 22%)`
 
-    if (p > 0.55) {
-      const headGrowth =
+      ctx.fill()
+    },
+  )
+
+  /* =====================================================
+     LEAVES
+  ===================================================== */
+
+  WHEAT_LEAVES.forEach(
+    (leaf) => {
+      if (
+        stemProgress <
+        leaf.heightRatio
+      ) {
+        return
+      }
+
+      const leafGrowth =
         clamp(
-          (p - 0.55) /
-            0.4,
+          (stemProgress -
+            leaf.heightRatio) /
+            0.22,
         )
 
-      const headLength =
-        Math.min(
-          105,
-          cropMaxHeight *
-            0.26,
-        )
+      const t =
+        leaf.heightRatio
 
-      drawWheatHead(
+      const lx =
+        lerp(
+          cx,
+          topX,
+          t,
+        ) +
+        Math.sin(
+          t * Math.PI,
+        ) *
+          wind *
+          20
+
+      const ly =
+        soilY -
+        currentStemHeight *
+          t
+
+      const currentStemW =
+        6 *
+        (1 -
+          t * 0.4)
+
+      drawWheatBladeLeaf(
         ctx,
-        topX,
-        topY,
-        headLength,
-        headGrowth,
+        lx,
+        ly,
+        currentStemW,
+        leaf.side,
+        cropWidth *
+          leaf.lengthRatio,
+        leafGrowth,
         wind,
+        leaf.archFactor,
+        leaf.hue,
         ripeness,
       )
-    }
+    },
+  )
 
-    ctx.restore()
+  /* =====================================================
+     WHEAT HEAD
+  ===================================================== */
+
+  if (p > 0.55) {
+    const headGrowth =
+      clamp(
+        (p - 0.55) /
+          0.4,
+      )
+
+    const headLength =
+      isMobile
+        ? Math.min(
+            78,
+            cropMaxHeight *
+              0.23,
+          )
+        : Math.min(
+            105,
+            cropMaxHeight *
+              0.26,
+          )
+
+    drawWheatHead(
+      ctx,
+      topX,
+      topY,
+      headLength,
+      headGrowth,
+      wind,
+      ripeness,
+    )
   }
+
+  ctx.restore()
 }
 
 /* =========================================================
-   EXPORTED REACT COMPONENT
+   COMPONENT
 ========================================================= */
 
 export function PlantGrowthSection() {
@@ -834,12 +1118,15 @@ export function PlantGrowthSection() {
   const canvasRef =
     useRef<HTMLCanvasElement>(null)
 
-  /* NEW: stores the ScrollTrigger instance */
   const triggerRef =
-    useRef<ScrollTrigger | null>(null)
+    useRef<ScrollTrigger | null>(
+      null,
+    )
 
-  const [scrollProgress, setScrollProgress] =
-    useState(0)
+  const [
+    scrollProgress,
+    setScrollProgress,
+  ] = useState(0)
 
   const targetProgressRef =
     useRef(0)
@@ -848,78 +1135,96 @@ export function PlantGrowthSection() {
     useRef(0)
 
   const animationRef =
-    useRef<number | null>(null)
+    useRef<number | null>(
+      null,
+    )
 
-  const renderCanvas = useCallback(
-    (
-      canvas: HTMLCanvasElement,
-      time: number,
-    ) => {
-      const rect =
-        canvas.getBoundingClientRect()
+  /* =====================================================
+     CANVAS RENDER
+  ===================================================== */
 
-      const dpr = Math.min(
-        window.devicePixelRatio || 1,
-        2,
-      )
+  const renderCanvas =
+    useCallback(
+      (
+        canvas: HTMLCanvasElement,
+        time: number,
+      ) => {
+        const rect =
+          canvas.getBoundingClientRect()
 
-      const width = rect.width
-      const height = rect.height
+        const dpr =
+          Math.min(
+            window.devicePixelRatio ||
+              1,
+            2,
+          )
 
-      const pixelWidth =
-        Math.floor(
-          width * dpr,
+        const width =
+          rect.width
+
+        const height =
+          rect.height
+
+        const pixelWidth =
+          Math.floor(
+            width * dpr,
+          )
+
+        const pixelHeight =
+          Math.floor(
+            height * dpr,
+          )
+
+        if (
+          canvas.width !==
+            pixelWidth ||
+          canvas.height !==
+            pixelHeight
+        ) {
+          canvas.width =
+            pixelWidth
+
+          canvas.height =
+            pixelHeight
+        }
+
+        const ctx =
+          canvas.getContext(
+            '2d',
+          )
+
+        if (!ctx) return
+
+        ctx.setTransform(
+          dpr,
+          0,
+          0,
+          dpr,
+          0,
+          0,
         )
 
-      const pixelHeight =
-        Math.floor(
-          height * dpr,
-        )
+        currentProgressRef.current =
+          lerp(
+            currentProgressRef.current,
+            targetProgressRef.current,
+            0.075,
+          )
 
-      if (
-        canvas.width !==
-          pixelWidth ||
-        canvas.height !==
-          pixelHeight
-      ) {
-        canvas.width =
-          pixelWidth
-
-        canvas.height =
-          pixelHeight
-      }
-
-      const ctx =
-        canvas.getContext('2d')
-
-      if (!ctx) return
-
-      ctx.setTransform(
-        dpr,
-        0,
-        0,
-        dpr,
-        0,
-        0,
-      )
-
-      currentProgressRef.current =
-        lerp(
+        drawWheatScene(
+          ctx,
+          width,
+          height,
           currentProgressRef.current,
-          targetProgressRef.current,
-          0.075,
+          time,
         )
+      },
+      [],
+    )
 
-      drawWheatScene(
-        ctx,
-        width,
-        height,
-        currentProgressRef.current,
-        time,
-      )
-    },
-    [],
-  )
+  /* =====================================================
+     EFFECT
+  ===================================================== */
 
   useEffect(() => {
     const section =
@@ -971,7 +1276,7 @@ export function PlantGrowthSection() {
       )
 
     /* =====================================================
-       GSAP SCROLLTRIGGER
+       SCROLLTRIGGER
     ===================================================== */
 
     const trigger =
@@ -1005,12 +1310,11 @@ export function PlantGrowthSection() {
         },
       })
 
-    /* Store trigger so navbar can use it */
     triggerRef.current =
       trigger
 
     /* =====================================================
-       RESPONSIVE REFRESH
+       RESIZE
     ===================================================== */
 
     const handleResize =
@@ -1025,12 +1329,6 @@ export function PlantGrowthSection() {
 
     /* =====================================================
        GROWTH NAVIGATION
-       
-       Navbar can dispatch:
-       
-       window.dispatchEvent(
-         new Event('growth-final')
-       )
     ===================================================== */
 
     const handleGrowthNavigation =
@@ -1044,35 +1342,18 @@ export function PlantGrowthSection() {
           return
         }
 
-        /*
-         * Feature 4 begins at 0.82.
-         *
-         * 0.86 gives enough progress for
-         * ALL four feature cards to be visible.
-         */
-
         const targetProgress =
           0.86
 
-        /*
-         * Use GSAP's REAL calculated
-         * start/end positions.
-         *
-         * This makes it responsive.
-         */
-
         const targetScroll =
           activeTrigger.start +
-          (
-            activeTrigger.end -
-            activeTrigger.start
-          ) *
+          (activeTrigger.end -
+            activeTrigger.start) *
             targetProgress
 
         window.scrollTo({
           top: targetScroll,
-          behavior:
-            'smooth',
+          behavior: 'smooth',
         })
       }
 
@@ -1114,23 +1395,49 @@ export function PlantGrowthSection() {
     }
   }, [renderCanvas])
 
-  const getPositionClasses = (
-    pos: FeatureCallout['position'],
-  ) => {
-    switch (pos) {
-      case 'left-top':
-        return 'left-4 sm:left-8 md:left-12 top-[26%] sm:top-[28%]'
+  /* =========================================================
+     RESPONSIVE CARD POSITIONS
 
-      case 'left-bottom':
-        return 'left-4 sm:left-8 md:left-12 bottom-[8%] sm:bottom-[10%]'
+     MOBILE:
+     All cards are on RIGHT side.
+     No bottom positioning.
+     This prevents the 4th card from overlapping.
+  ========================================================= */
 
-      case 'right-top':
-        return 'right-4 sm:right-8 md:right-12 top-[24%] sm:top-[26%]'
+  const getPositionClasses =
+    (
+      pos: FeatureCallout['position'],
+    ) => {
+      switch (pos) {
+        case 'left-top':
+          return `
+            right-2 top-[18%]
+            sm:left-8 sm:right-auto sm:top-[28%]
+            md:left-12
+          `
 
-      case 'right-bottom':
-        return 'right-4 sm:right-8 md:right-12 bottom-[10%] sm:bottom-[12%]'
+        case 'left-bottom':
+          return `
+            right-2 top-[38%]
+            sm:left-8 sm:right-auto sm:bottom-[10%] sm:top-auto
+            md:left-12
+          `
+
+        case 'right-top':
+          return `
+            right-2 top-[58%]
+            sm:right-8 sm:top-[26%]
+            md:right-12
+          `
+
+        case 'right-bottom':
+          return `
+            right-2 top-[78%]
+            sm:right-8 sm:bottom-[12%] sm:top-auto
+            md:right-12
+          `
+      }
     }
-  }
 
   const progressPercent =
     Math.round(
@@ -1141,50 +1448,147 @@ export function PlantGrowthSection() {
     <section
       id="growth"
       ref={sectionRef}
-      className="relative w-full bg-[#0a0a0a] text-[#faf5e8]"
+      className="
+        relative
+        w-full
+        overflow-hidden
+        bg-[#0a0a0a]
+        text-[#faf5e8]
+      "
     >
-      {/* SEAMLESS TRANSITION GRADIENT */}
+      {/* TOP TRANSITION */}
 
-      <div className="pointer-events-none absolute left-0 right-0 top-0 z-30 h-28 bg-gradient-to-b from-[#0a0a0a] to-transparent" />
+      <div
+        className="
+          pointer-events-none
+          absolute
+          left-0
+          right-0
+          top-0
+          z-30
+          h-28
+          bg-gradient-to-b
+          from-[#0a0a0a]
+          to-transparent
+        "
+      />
 
       <div
         ref={pinRef}
-        className="relative flex h-screen w-full items-center justify-center overflow-hidden bg-[#0a0a0a]"
+        className="
+          relative
+          flex
+          h-screen
+          w-full
+          items-center
+          justify-center
+          overflow-hidden
+          bg-[#0a0a0a]
+        "
       >
-        {/* BACKGROUND GLOW */}
+        {/* BACKGROUND */}
 
         <div className="pointer-events-none absolute inset-0">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,rgba(245,189,6,0.06),transparent_42%)]" />
+          <div
+            className="
+              absolute
+              inset-0
+              bg-[radial-gradient(circle_at_50%_45%,rgba(245,189,6,0.06),transparent_42%)]
+            "
+          />
         </div>
 
-        {/* HEADER — SAME STICKER STYLE AS LANDING TAGLINE */}
+        {/* =================================================
+            HEADER
+        ================================================= */}
 
-        <div className="pointer-events-none absolute inset-x-0 top-8 sm:top-10 z-30 flex justify-center px-4">
-          <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-5 leading-none select-none">
-
-            <h2 className="brand-sticker-green text-4xl sm:text-6xl md:text-7xl lg:text-[96px] leading-[1.1] sm:leading-none py-1">
+        <div
+          className="
+            pointer-events-none
+            absolute
+            inset-x-0
+            top-7
+            z-30
+            flex
+            justify-center
+            px-3
+            sm:top-10
+            sm:px-4
+          "
+        >
+          <div
+            className="
+              flex
+              items-center
+              justify-center
+              gap-1
+              leading-none
+              select-none
+              sm:gap-3
+              md:gap-5
+            "
+          >
+            <h2
+              className="
+                brand-sticker-green
+                text-3xl
+                leading-none
+                sm:text-6xl
+                md:text-7xl
+                lg:text-[96px]
+              "
+            >
               Why
             </h2>
 
-            <span className=" -ml-4 brand-script-yellow text-3xl sm:text-5xl md:text-6xl lg:text-8xl -rotate-6 transform">
+            <span
+              className="
+                brand-script-yellow
+                -ml-2
+                -rotate-6
+                transform
+                text-2xl
+                sm:-ml-3
+                sm:text-5xl
+                md:text-6xl
+                lg:text-8xl
+              "
+            >
               choose
             </span>
 
-            <h2 className="brand-sticker-green text-4xl sm:text-6xl md:text-7xl lg:text-[96px] leading-[1.1] sm:leading-none">
+            <h2
+              className="
+                brand-sticker-green
+                text-3xl
+                leading-none
+                sm:text-6xl
+                md:text-7xl
+                lg:text-[96px]
+              "
+            >
               Us
             </h2>
-
           </div>
         </div>
 
-        {/* CENTERED CANVAS CROP */}
+        {/* =================================================
+            WHEAT CANVAS
+        ================================================= */}
 
         <canvas
           ref={canvasRef}
-          className="absolute inset-0 h-full w-full"
+          className="
+            absolute
+            inset-0
+            h-full
+            w-full
+          "
         />
 
-        {/* FEATURE CALLOUT PATCHES */}
+        {/* =================================================
+            FEATURE CARDS
+        ================================================= */}
 
         {FEATURES.map(
           (feature) => {
@@ -1202,13 +1606,32 @@ export function PlantGrowthSection() {
             return (
               <div
                 key={feature.id}
-                className={`absolute z-20 w-[260px] sm:w-[310px] transition-all duration-700 ease-out ${getPositionClasses(
-                  feature.position,
-                )} ${
-                  isVisible
-                    ? 'pointer-events-auto scale-100 translate-y-0 opacity-100'
-                    : 'pointer-events-none scale-95 translate-y-8 opacity-0'
-                }`}
+                className={`
+                  absolute
+                  z-20
+
+                  /* MOBILE */
+                  w-[47vw]
+                  max-w-[210px]
+                  min-w-0
+
+                  /* DESKTOP */
+                  sm:w-[310px]
+
+                  ${getPositionClasses(
+                    feature.position,
+                  )}
+
+                  transition-all
+                  duration-700
+                  ease-out
+
+                  ${
+                    isVisible
+                      ? 'pointer-events-auto translate-y-0 scale-100 opacity-100'
+                      : 'pointer-events-none translate-y-4 scale-95 opacity-0'
+                  }
+                `}
                 style={{
                   transform:
                     isVisible
@@ -1216,28 +1639,82 @@ export function PlantGrowthSection() {
                       : undefined,
                 }}
               >
-                {/* ORGANIC ASYMMETRIC PATCH CARD */}
+                {/* CARD */}
 
                 <div
-                  className={`relative p-5 border-2 shadow-[0_16px_36px_rgba(0,0,0,0.8)] ${
-                    isGreen
-                      ? 'border-[#2f6508] bg-[#102701] text-[#faf5e8]'
-                      : 'border-[#f5bd06] bg-[#3a2800] text-[#fff9df]'
-                  }`}
+                  className={`
+                    relative
+
+                    /* MOBILE */
+                    p-2.5
+
+                    /* DESKTOP */
+                    sm:p-5
+
+                    border-2
+
+                    shadow-[0_12px_28px_rgba(0,0,0,0.75)]
+
+                    ${
+                      isGreen
+                        ? `
+                          border-[#2f6508]
+                          bg-[#102701]
+                          text-[#faf5e8]
+                        `
+                        : `
+                          border-[#f5bd06]
+                          bg-[#3a2800]
+                          text-[#fff9df]
+                        `
+                    }
+                  `}
                   style={{
                     borderRadius:
                       feature.patchRadius,
                   }}
                 >
-                  {/* SOLID BADGE & METRIC BAR */}
+                  {/* BADGES */}
 
-                  <div className="mb-3 flex items-center justify-between gap-2">
+                  <div
+                    className="
+                      mb-1.5
+                      flex
+                      items-center
+                      justify-between
+                      gap-1
+                      sm:mb-3
+                      sm:gap-2
+                    "
+                  >
                     <span
-                      className={`rounded-full px-2.5 py-1 font-mono text-[10px] font-black uppercase tracking-wider ${
-                        isGreen
-                          ? 'bg-[#1e4a03] text-[#b5d66a]'
-                          : 'bg-[#5a4000] text-[#fde58a]'
-                      }`}
+                      className={`
+                        max-w-[48%]
+                        truncate
+                        rounded-full
+                        px-1.5
+                        py-1
+                        font-mono
+                        text-[6px]
+                        font-black
+                        uppercase
+                        tracking-tight
+                        sm:px-2.5
+                        sm:text-[10px]
+                        sm:tracking-wider
+
+                        ${
+                          isGreen
+                            ? `
+                              bg-[#1e4a03]
+                              text-[#b5d66a]
+                            `
+                            : `
+                              bg-[#5a4000]
+                              text-[#fde58a]
+                            `
+                        }
+                      `}
                     >
                       {
                         feature.category
@@ -1245,32 +1722,91 @@ export function PlantGrowthSection() {
                     </span>
 
                     <span
-                      className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[10px] font-extrabold ${
-                        isGreen
-                          ? 'border-[#65a30f] bg-[#163801] text-[#dcebb9]'
-                          : 'border-[#f8c92f] bg-[#795600] text-[#fff1b8]'
-                      }`}
-                    >
-                      <IconComponent className="h-3 w-3" />
+                      className={`
+                        flex
+                        max-w-[48%]
+                        items-center
+                        gap-1
+                        truncate
+                        rounded-full
+                        border
+                        px-1.5
+                        py-1
+                        font-mono
+                        text-[6px]
+                        font-extrabold
+                        sm:gap-1.5
+                        sm:px-2.5
+                        sm:text-[10px]
 
-                      {
-                        feature.metric
-                      }
+                        ${
+                          isGreen
+                            ? `
+                              border-[#65a30f]
+                              bg-[#163801]
+                              text-[#dcebb9]
+                            `
+                            : `
+                              border-[#f8c92f]
+                              bg-[#795600]
+                              text-[#fff1b8]
+                            `
+                        }
+                      `}
+                    >
+                      <IconComponent
+                        className="
+                          h-2
+                          w-2
+                          shrink-0
+                          sm:h-3
+                          sm:w-3
+                        "
+                      />
+
+                      <span className="truncate">
+                        {
+                          feature.metric
+                        }
+                      </span>
                     </span>
                   </div>
 
-                  <h3 className="text-base font-black tracking-tight text-[#faf5e8]">
+                  {/* TITLE */}
+
+                  <h3
+                    className="
+                      text-[9px]
+                      font-black
+                      leading-tight
+                      tracking-tight
+                      text-[#faf5e8]
+                      sm:text-base
+                    "
+                  >
                     {
                       feature.title
                     }
                   </h3>
 
+                  {/* DESCRIPTION */}
+
                   <p
-                    className={`mt-2 text-xs font-semibold leading-relaxed ${
-                      isGreen
-                        ? 'text-[#dcebb9]'
-                        : 'text-[#fff1b8]'
-                    }`}
+                    className={`
+                      mt-1
+                      text-[7px]
+                      font-semibold
+                      leading-[1.35]
+                      sm:mt-2
+                      sm:text-xs
+                      sm:leading-relaxed
+
+                      ${
+                        isGreen
+                          ? 'text-[#dcebb9]'
+                          : 'text-[#fff1b8]'
+                      }
+                    `}
                   >
                     {
                       feature.description
