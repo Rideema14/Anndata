@@ -2,6 +2,7 @@ import type { LucideIcon } from 'lucide-react'
 import {
   BarChart3,
   Bell,
+  MessageSquareText,
   CloudSun,
   Heart,
   Home,
@@ -27,7 +28,7 @@ export interface NavItem {
 
 /** Mobile bottom nav — deliberately fixed at 5 items per the SRS ("do not overcrowd"). */
 export const mobileBottomNavItems: NavItem[] = [
-  { path: '/', labelKey: 'nav.home', icon: Home },
+  { path: '/home', labelKey: 'nav.home', icon: Home },
   { path: '/market', labelKey: 'nav.market', icon: Store },
   { path: '/ai', labelKey: 'nav.ai', icon: Sparkles },
   { path: '/mandi', labelKey: 'nav.mandi', icon: LineChart },
@@ -36,7 +37,7 @@ export const mobileBottomNavItems: NavItem[] = [
 
 /** Desktop sidebar — Buy mode. */
 export const buyNavItems: NavItem[] = [
-  { path: '/', labelKey: 'nav.home', icon: Home },
+  { path: '/home', labelKey: 'nav.home', icon: Home },
   { path: '/market', labelKey: 'nav.market', icon: Store },
   { path: '/cart', labelKey: 'nav.cart', icon: ShoppingCart },
   { path: '/wishlist', labelKey: 'nav.wishlist', icon: Heart },
@@ -54,6 +55,11 @@ export const sellNavItems: NavItem[] = [
   { path: '/seller/add-product', labelKey: 'nav.addProduct', icon: PlusSquare },
   { path: '/seller/orders', labelKey: 'nav.sellerOrders', icon: PackageCheck },
   { path: '/seller/analytics', labelKey: 'nav.analytics', icon: BarChart3 },
+]
+
+/** Seller-only utility link, kept above notifications in the sidebar. */
+export const sellerUtilityNavItems: NavItem[] = [
+  { path: '/seller/feedback', labelKey: 'nav.sellerFeedback', icon: MessageSquareText },
 ]
 
 /** Always visible at the foot of the sidebar, regardless of mode. */

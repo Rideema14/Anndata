@@ -12,6 +12,7 @@ import { MachineryProvider } from '@/context/MachineryContext'
 import { AdminProvider } from '@/context/AdminContext'
 import { NotificationProvider } from '@/context/NotificationContext'
 import { SellerProvider } from '@/context/SellerContext'
+
 import { AppRouter } from '@/routes/AppRouter'
 
 export default function App() {
@@ -20,27 +21,34 @@ export default function App() {
       <AuthProvider>
         <AppModeProvider>
           <NotificationProvider>
+
+            {/* CART MUST WRAP APP ROUTER */}
             <CartProvider>
+
               <WishlistProvider>
                 <OrderProvider>
                   <MandiProvider>
-                  <AiProvider>
-                  <SeedCartProvider>
-                  <LandProvider>
-                  <MachineryProvider>
-                  <AdminProvider>
-                  <SellerProvider>
-                    <AppRouter />
-                  </SellerProvider>
-                  </AdminProvider>
-                  </MachineryProvider>
-                  </LandProvider>
-                  </SeedCartProvider>
-                  </AiProvider>
+                    <AiProvider>
+                      <SeedCartProvider>
+                        <LandProvider>
+                          <MachineryProvider>
+                            <AdminProvider>
+                              <SellerProvider>
+
+                                <AppRouter />
+
+                              </SellerProvider>
+                            </AdminProvider>
+                          </MachineryProvider>
+                        </LandProvider>
+                      </SeedCartProvider>
+                    </AiProvider>
                   </MandiProvider>
                 </OrderProvider>
               </WishlistProvider>
+
             </CartProvider>
+
           </NotificationProvider>
         </AppModeProvider>
       </AuthProvider>

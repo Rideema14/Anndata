@@ -75,18 +75,36 @@ export interface CartLine {
   savedForLater: boolean
 }
 
+export interface ProductSpecification {
+  label: string
+  value: string
+}
+
 /** Minimal shape used by Home page teasers (full Product above covers Marketplace/Phase 3 needs). */
 export interface ProductSummary {
   id: string
   name: string
   category: string
+  categorySlug: string
+
   price: number
   unit: string
+
   sellerName: string
   location: string
-  rating: number
-}
 
+  rating: number
+  reviewCount: number
+  stock: number
+
+  description: string
+  image: string
+
+  variants: string[]
+
+  specifications: ProductSpecification[]
+  reviews: ProductReview[]
+}
 export type ListingStatus = 'active' | 'pending' | 'inactive'
 
 export interface Listing {

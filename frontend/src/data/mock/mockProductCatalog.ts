@@ -1,299 +1,359 @@
-import type { Product } from '@/types'
+import type { ProductSummary } from '@/types'
 
-const baseReviews = [
-  { id: 'rv1', author: 'Manoj Patel', rating: 5, comment: 'Good quality, delivered on time.', date: '2026-07-28T00:00:00.000Z' },
-  { id: 'rv2', author: 'Kavita Sharma', rating: 4, comment: 'As described, will order again.', date: '2026-07-15T00:00:00.000Z' },
-]
+/* =========================================================
+   PRODUCT CATALOG
+========================================================= */
 
-export const mockProductCatalog: Product[] = [
+export const mockProductCatalog: ProductSummary[] = [
   {
     id: 'prd_1',
     name: 'Soybean Seeds — JS-9560',
+    category: 'Seeds',
     categorySlug: 'seeds',
     price: 1450,
     unit: '30 kg bag',
-    sellerId: 'sel_1',
     sellerName: 'Madhya Bharat Agro',
     location: 'Katni',
     rating: 4.5,
-    reviewCount: 128,
-    stock: 42,
+    reviewCount: 28,
+    stock: 120,
     description:
-      'High-yield soybean variety suited to Madhya Pradesh soil and rainfall patterns. Certified seed with a strong germination rate, ideal for Kharif sowing.',
+      'High-quality soybean seeds suitable for Madhya Pradesh farming conditions.',
+    image:
+      'https://images.unsplash.com/photo-1589923188900-85dae523342b?auto=format&fit=crop&w=900&q=80',
+    variants: ['10 kg bag', '20 kg bag', '30 kg bag'],
     specifications: [
+      { label: 'Crop', value: 'Soybean' },
       { label: 'Variety', value: 'JS-9560' },
-      { label: 'Germination rate', value: '85%+' },
-      { label: 'Sowing season', value: 'Kharif' },
-      { label: 'Maturity', value: '95–100 days' },
+      { label: 'Pack Size', value: '30 kg' },
     ],
-    variants: ['5 kg', '10 kg', '30 kg'],
-    reviews: baseReviews,
-    createdAt: '2026-06-01T00:00:00.000Z',
+    reviews: [],
   },
+
   {
     id: 'prd_2',
     name: 'NPK 19:19:19 Fertilizer',
+    category: 'Fertilizers',
     categorySlug: 'fertilizers',
     price: 1180,
-    originalPrice: 1420,
     unit: '50 kg bag',
-    sellerId: 'sel_2',
     sellerName: 'Krishi Seva Kendra',
     location: 'Jabalpur',
     rating: 4.3,
-    reviewCount: 76,
-    stock: 15,
+    reviewCount: 19,
+    stock: 85,
     description:
-      'Balanced NPK fertilizer for general crop nutrition. Suitable for wheat, soybean, and vegetable crops at the vegetative growth stage.',
+      'Balanced NPK fertilizer suitable for improving crop growth and nutrient availability.',
+    image:
+      'https://images.unsplash.com/photo-1625246333195-78d9c38ad449?auto=format&fit=crop&w=900&q=80',
+    variants: ['25 kg bag', '50 kg bag'],
     specifications: [
-      { label: 'Composition', value: '19-19-19' },
-      { label: 'Form', value: 'Granular' },
-      { label: 'Application', value: 'Broadcast or drip' },
+      { label: 'Type', value: 'NPK Fertilizer' },
+      { label: 'NPK Ratio', value: '19:19:19' },
+      { label: 'Pack Size', value: '50 kg' },
     ],
-    reviews: baseReviews,
-    createdAt: '2026-06-10T00:00:00.000Z',
+    reviews: [],
   },
+
   {
     id: 'prd_3',
     name: 'Power Weeder 3.5 HP',
-    categorySlug: 'equipment',
+    category: 'Farming Equipment',
+    categorySlug: 'farming-equipment',
     price: 18500,
     unit: 'per unit',
-    sellerId: 'sel_3',
     sellerName: 'Rewa Farm Tools',
     location: 'Rewa',
     rating: 4.6,
     reviewCount: 34,
-    stock: 6,
+    stock: 12,
     description:
-      'Petrol-powered weeder ideal for inter-row weeding in vegetable and row crop fields. Lightweight frame, easy one-person operation.',
+      'Compact power weeder designed for efficient field preparation and weed removal.',
+    image:
+      'https://images.unsplash.com/photo-1592982537447-7440770cbfc9?auto=format&fit=crop&w=900&q=80',
+    variants: ['3.5 HP'],
     specifications: [
-      { label: 'Engine', value: '3.5 HP, 4-stroke' },
-      { label: 'Fuel', value: 'Petrol' },
-      { label: 'Weight', value: '38 kg' },
-      { label: 'Warranty', value: '1 year' },
+      { label: 'Engine', value: '3.5 HP' },
+      { label: 'Type', value: 'Power Weeder' },
+      { label: 'Use', value: 'Weeding and soil preparation' },
     ],
-    reviews: baseReviews,
-    createdAt: '2026-05-20T00:00:00.000Z',
+    reviews: [],
   },
+
   {
     id: 'prd_4',
     name: 'Mustard Seeds — Pusa Bold',
+    category: 'Seeds',
     categorySlug: 'seeds',
     price: 980,
-    originalPrice: 1150,
     unit: '10 kg bag',
-    sellerId: 'sel_4',
     sellerName: 'Seoni Beej Bhandar',
     location: 'Seoni',
     rating: 4.4,
-    reviewCount: 51,
-    stock: 60,
-    description: 'Bold-seeded mustard variety with good oil content, well suited to Rabi sowing across Madhya Pradesh.',
+    reviewCount: 22,
+    stock: 95,
+    description:
+      'Quality Pusa Bold mustard seeds selected for reliable crop performance.',
+    image:
+      'https://images.unsplash.com/photo-1532629345422-7515f3d16bb6?auto=format&fit=crop&w=900&q=80',
+    variants: ['5 kg bag', '10 kg bag'],
     specifications: [
+      { label: 'Crop', value: 'Mustard' },
       { label: 'Variety', value: 'Pusa Bold' },
-      { label: 'Oil content', value: '~40%' },
-      { label: 'Sowing season', value: 'Rabi' },
+      { label: 'Pack Size', value: '10 kg' },
     ],
-    reviews: baseReviews,
-    createdAt: '2026-06-18T00:00:00.000Z',
+    reviews: [],
   },
+
   {
     id: 'prd_5',
-    name: 'Mini Tractor Trailer',
-    categorySlug: 'machinery',
-    price: 62000,
-    unit: 'per unit',
-    sellerId: 'sel_5',
-    sellerName: 'Indore Farm Equipment Co.',
-    location: 'Indore',
-    rating: 4.2,
-    reviewCount: 19,
-    stock: 3,
-    description: 'Heavy-duty hydraulic tipping trailer compatible with mini tractors up to 25 HP. Ideal for produce and input transport.',
+    name: 'Organic Vermicompost',
+    category: 'Fertilizers',
+    categorySlug: 'fertilizers',
+    price: 650,
+    unit: '25 kg bag',
+    sellerName: 'Narmada Organic Farms',
+    location: 'Jabalpur',
+    rating: 4.7,
+    reviewCount: 41,
+    stock: 150,
+    description:
+      'Organic vermicompost made from natural materials to improve soil structure and fertility.',
+    image:
+      'https://images.unsplash.com/photo-1598512752271-33f913a5af13?auto=format&fit=crop&w=900&q=80',
+    variants: ['10 kg bag', '25 kg bag'],
     specifications: [
-      { label: 'Capacity', value: '1.5 tonne' },
-      { label: 'Tipping', value: 'Hydraulic' },
-      { label: 'Compatible HP', value: 'Up to 25 HP' },
+      { label: 'Type', value: 'Organic Vermicompost' },
+      { label: 'Pack Size', value: '25 kg' },
+      { label: 'Suitable For', value: 'All crops' },
     ],
-    reviews: baseReviews,
-    createdAt: '2026-05-02T00:00:00.000Z',
+    reviews: [],
   },
+
   {
     id: 'prd_6',
-    name: 'Galvanized Steel Roofing Sheets',
-    categorySlug: 'building-materials',
-    price: 420,
-    unit: 'per sheet',
-    sellerId: 'sel_6',
-    sellerName: 'Bhopal Steel Traders',
-    location: 'Bhopal',
-    rating: 4.1,
-    reviewCount: 22,
-    stock: 500,
-    description: 'Corrosion-resistant galvanized sheets for farm shed and storage roofing. Standard 8-foot length.',
+    name: 'Drip Irrigation Kit',
+    category: 'Irrigation',
+    categorySlug: 'irrigation',
+    price: 4200,
+    unit: 'per kit',
+    sellerName: 'Jabalpur Irrigation Solutions',
+    location: 'Jabalpur',
+    rating: 4.5,
+    reviewCount: 31,
+    stock: 25,
+    description:
+      'Water-efficient drip irrigation kit suitable for small and medium-sized farms.',
+    image:
+      'https://images.unsplash.com/photo-1586771107445-d3ca888129ff?auto=format&fit=crop&w=900&q=80',
+    variants: ['Small Farm Kit', 'Medium Farm Kit'],
     specifications: [
-      { label: 'Length', value: '8 ft' },
-      { label: 'Gauge', value: '26' },
-      { label: 'Coating', value: 'Galvanized' },
+      { label: 'Type', value: 'Drip Irrigation' },
+      { label: 'Water Saving', value: 'High' },
+      { label: 'Suitable For', value: 'Field and horticulture crops' },
     ],
-    reviews: baseReviews,
-    createdAt: '2026-04-28T00:00:00.000Z',
+    reviews: [],
   },
+
   {
     id: 'prd_7',
-    name: 'Cold-Pressed Mustard Oil',
-    categorySlug: 'oil-products',
-    price: 210,
-    originalPrice: 260,
-    unit: '1 litre',
-    sellerId: 'sel_7',
-    sellerName: 'Katni Oil Mill',
-    location: 'Katni',
-    rating: 4.7,
-    reviewCount: 214,
-    stock: 300,
-    description: 'Traditional cold-pressed (kachi ghani) mustard oil, no chemical refining, packed fresh at the mill.',
+    name: 'Hybrid Maize Seeds',
+    category: 'Seeds',
+    categorySlug: 'seeds',
+    price: 1250,
+    unit: '10 kg bag',
+    sellerName: 'Vindhya Agro Seeds',
+    location: 'Rewa',
+    rating: 4.4,
+    reviewCount: 25,
+    stock: 110,
+    description:
+      'Hybrid maize seeds selected for good crop establishment and yield potential.',
+    image:
+      'https://images.unsplash.com/photo-1551754655-cd27e38d2076?auto=format&fit=crop&w=900&q=80',
+    variants: ['5 kg bag', '10 kg bag'],
     specifications: [
-      { label: 'Extraction', value: 'Cold-pressed' },
-      { label: 'Packaging', value: 'Sealed PET bottle' },
+      { label: 'Crop', value: 'Maize' },
+      { label: 'Type', value: 'Hybrid' },
+      { label: 'Pack Size', value: '10 kg' },
     ],
-    reviews: baseReviews,
-    createdAt: '2026-07-01T00:00:00.000Z',
+    reviews: [],
   },
+
   {
     id: 'prd_8',
-    name: 'Fresh Cow Milk — Daily Subscription',
-    categorySlug: 'dairy',
-    price: 60,
-    unit: 'per litre',
-    sellerId: 'sel_8',
-    sellerName: 'Seoni Dairy Farm',
-    location: 'Seoni',
-    rating: 4.8,
-    reviewCount: 302,
-    stock: 999,
-    description: 'Farm-fresh cow milk delivered daily. Subscribe for a fixed morning delivery slot.',
-    specifications: [
-      { label: 'Fat content', value: '~4.2%' },
-      { label: 'Delivery', value: 'Daily, morning' },
-    ],
-    reviews: baseReviews,
-    createdAt: '2026-07-10T00:00:00.000Z',
-  },
-  {
-    id: 'prd_9',
-    name: 'Wheat Seeds — HD-3086',
-    categorySlug: 'seeds',
-    price: 1650,
-    unit: '40 kg bag',
-    sellerId: 'sel_1',
-    sellerName: 'Madhya Bharat Agro',
+    name: 'Battery Sprayer 16L',
+    category: 'Farming Equipment',
+    categorySlug: 'farming-equipment',
+    price: 2800,
+    unit: 'per unit',
+    sellerName: 'Kisan Equipment Hub',
     location: 'Katni',
     rating: 4.6,
-    reviewCount: 187,
-    stock: 80,
-    description: 'Disease-resistant, high-yielding wheat variety recommended for irrigated Rabi conditions in central India.',
+    reviewCount: 37,
+    stock: 30,
+    description:
+      'Portable battery-operated sprayer suitable for pesticides, fertilizers and crop care.',
+    image:
+      'https://images.unsplash.com/photo-1625246333195-78d9c38ad449?auto=format&fit=crop&w=900&q=80',
+    variants: ['12L', '16L', '20L'],
     specifications: [
-      { label: 'Variety', value: 'HD-3086' },
-      { label: 'Sowing season', value: 'Rabi' },
-      { label: 'Maturity', value: '140–145 days' },
+      { label: 'Capacity', value: '16 Litres' },
+      { label: 'Power', value: 'Battery operated' },
+      { label: 'Type', value: 'Agricultural Sprayer' },
     ],
-    reviews: baseReviews,
-    createdAt: '2026-06-25T00:00:00.000Z',
+    reviews: [],
   },
+
   {
-    id: 'prd_10',
-    name: 'Drip Irrigation Starter Kit — 1 Acre',
-    categorySlug: 'equipment',
-    price: 24500,
-    unit: 'per kit',
-    sellerId: 'sel_9',
-    sellerName: 'AquaFarm Systems',
-    location: 'Indore',
-    rating: 4.5,
-    reviewCount: 41,
-    stock: 12,
-    description: 'Complete drip irrigation kit for 1 acre, including laterals, drippers, filters and a control valve.',
-    specifications: [
-      { label: 'Coverage', value: '1 acre' },
-      { label: 'Includes', value: 'Filter, laterals, drippers, valve' },
-    ],
-    reviews: baseReviews,
-    createdAt: '2026-05-15T00:00:00.000Z',
-  },
-  {
-    id: 'prd_11',
-    name: 'Vermicompost — Organic Manure',
+    id: 'prd_9',
+    name: 'Urea Fertilizer',
+    category: 'Fertilizers',
     categorySlug: 'fertilizers',
-    price: 380,
-    originalPrice: 460,
-    unit: '25 kg bag',
-    sellerId: 'sel_2',
+    price: 590,
+    unit: '45 kg bag',
     sellerName: 'Krishi Seva Kendra',
     location: 'Jabalpur',
-    rating: 4.4,
-    reviewCount: 63,
-    stock: 90,
-    description: 'Fully composted organic vermicompost, improves soil structure and water retention over time.',
+    rating: 4.2,
+    reviewCount: 18,
+    stock: 200,
+    description:
+      'Nitrogen-rich urea fertilizer for supporting healthy crop growth.',
+    image:
+      'https://images.unsplash.com/photo-1530836369250-ef72a3f5cda8?auto=format&fit=crop&w=900&q=80',
+    variants: ['45 kg bag'],
     specifications: [
-      { label: 'Type', value: 'Organic' },
-      { label: 'NPK (approx.)', value: '1.5-0.5-1.2' },
+      { label: 'Type', value: 'Urea' },
+      { label: 'Pack Size', value: '45 kg' },
+      { label: 'Nutrient', value: 'Nitrogen' },
     ],
-    reviews: baseReviews,
-    createdAt: '2026-06-05T00:00:00.000Z',
+    reviews: [],
   },
+
   {
-    id: 'prd_12',
-    name: 'Diesel Water Pump — 5 HP',
-    categorySlug: 'machinery',
-    price: 32500,
-    unit: 'per unit',
-    sellerId: 'sel_5',
-    sellerName: 'Indore Farm Equipment Co.',
-    location: 'Indore',
-    rating: 4.3,
-    reviewCount: 28,
-    stock: 9,
-    description: 'Reliable 5 HP diesel water pump for field irrigation, self-priming with a robust cast-iron body.',
+    id: 'prd_10',
+    name: 'Pusa Mustard Seeds',
+    category: 'Seeds',
+    categorySlug: 'seeds',
+    price: 1050,
+    unit: '10 kg bag',
+    sellerName: 'Seoni Beej Bhandar',
+    location: 'Seoni',
+    rating: 4.5,
+    reviewCount: 29,
+    stock: 75,
+    description:
+      'Reliable Pusa mustard seed variety suitable for winter cultivation.',
+    image:
+      'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=900&q=80',
+    variants: ['5 kg bag', '10 kg bag'],
     specifications: [
-      { label: 'Power', value: '5 HP' },
-      { label: 'Fuel', value: 'Diesel' },
-      { label: 'Priming', value: 'Self-priming' },
+      { label: 'Crop', value: 'Mustard' },
+      { label: 'Type', value: 'Pusa Variety' },
+      { label: 'Pack Size', value: '10 kg' },
     ],
-    reviews: baseReviews,
-    createdAt: '2026-05-28T00:00:00.000Z',
+    reviews: [],
   },
 ]
 
-export function getProductById(id: string): Product | undefined {
-  return mockProductCatalog.find((p) => p.id === id)
+/* =========================================================
+   GET PRODUCT BY ID
+========================================================= */
+
+export function getProductById(
+  id: string,
+): ProductSummary | undefined {
+  return mockProductCatalog.find(
+    (product) => product.id === id,
+  )
 }
 
-export function getProductsByCategory(slug: string): Product[] {
-  return mockProductCatalog.filter((p) => p.categorySlug === slug)
-}
+/* =========================================================
+   GET ALL PRODUCTS
+========================================================= */
 
-/** Products with an originalPrice > price are "Top Deals" — sorted by biggest discount first. */
-export function getTopDeals(): Product[] {
+export function getAllProducts(): ProductSummary[] {
   return mockProductCatalog
-    .filter((p) => p.originalPrice && p.originalPrice > p.price)
-    .sort((a, b) => (b.originalPrice! - b.price) / b.originalPrice! - (a.originalPrice! - a.price) / a.originalPrice!)
 }
 
-export function getDiscountPercent(product: Product): number | null {
-  if (!product.originalPrice || product.originalPrice <= product.price) return null
-  return Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+/* =========================================================
+   GET PRODUCTS BY CATEGORY
+========================================================= */
+
+export function getProductsByCategory(
+  category: string,
+): ProductSummary[] {
+  const normalizedCategory = category
+    .trim()
+    .toLowerCase()
+
+  return mockProductCatalog.filter(
+    (product) =>
+      product.category.toLowerCase() === normalizedCategory ||
+      product.categorySlug.toLowerCase() === normalizedCategory,
+  )
 }
 
-/**
- * "Nearby" products — same city as the given location first, then the rest.
- * All mock listings sit in Madhya Pradesh, so this approximates real
- * geo-distance sorting until the backend provides coordinates.
- */
-export function getNearbyProducts(userLocation: string, limit = 8): Product[] {
-  const city = userLocation.split(',')[0]?.trim().toLowerCase()
-  const sameCity = mockProductCatalog.filter((p) => p.location.toLowerCase() === city)
-  const rest = mockProductCatalog.filter((p) => p.location.toLowerCase() !== city)
-  return [...sameCity, ...rest].slice(0, limit)
+/* =========================================================
+   DISCOUNT
+========================================================= */
+
+export function getDiscountPercent(
+  product: ProductSummary,
+): number {
+  // Products with no originalPrice have no discount.
+  // Kept at 0 so existing components don't break.
+  return 0
 }
+
+/* =========================================================
+   TOP DEALS
+========================================================= */
+
+export function getTopDeals(): ProductSummary[] {
+  return [...mockProductCatalog]
+    .sort((a, b) => {
+      if (b.rating !== a.rating) {
+        return b.rating - a.rating
+      }
+
+      return b.reviewCount - a.reviewCount
+    })
+    .slice(0, 6)
+}
+
+/* =========================================================
+   NEARBY PRODUCTS
+========================================================= */
+
+export function getNearbyProducts(
+  location: string,
+): ProductSummary[] {
+  if (!location.trim()) {
+    return mockProductCatalog.slice(0, 6)
+  }
+
+  const searchLocation = location
+    .split(',')[0]
+    .trim()
+    .toLowerCase()
+
+  const nearby = mockProductCatalog.filter(
+    (product) =>
+      product.location.toLowerCase() === searchLocation,
+  )
+
+  // If no exact location matches, return products
+  // instead of returning an empty rail.
+  if (nearby.length === 0) {
+    return mockProductCatalog.slice(0, 6)
+  }
+
+  return nearby.slice(0, 6)
+}
+
+/* =========================================================
+   DEFAULT EXPORT
+========================================================= */
+
+export default mockProductCatalog

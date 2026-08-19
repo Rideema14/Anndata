@@ -14,7 +14,7 @@ import ProfilePage from "@/pages/profile/ProfilePage";
 // =====================================================
 
 // Public landing page
-// const LandingPage = lazy(() => import("@/pages/landing/LandingPage"));
+const LandingPage = lazy(() => import("@/pages/landing/LandingPage"));
 
 // Authentication
 const LoginPage = lazy(() => import("@/pages/auth/LoginPage"));
@@ -125,6 +125,9 @@ const SellerOrdersPage = lazy(() => import("@/pages/seller/SellerOrdersPage"));
 const SellerAnalyticsPage = lazy(
   () => import("@/pages/seller/SellerAnalyticsPage"),
 );
+const SellerFeedbackPage = lazy(
+  () => import("@/pages/seller/SellerFeedbackPage"),
+);
 const AddLandListingPage = lazy(
   () => import("@/pages/seller/AddLandListingPage"),
 );
@@ -158,7 +161,7 @@ const router = createBrowserRouter([
   // ===================================================
   {
     path: "/",
-    element: <HomePage />,
+    element: <LandingPage />,
   },
 
   // ===================================================
@@ -400,6 +403,10 @@ const router = createBrowserRouter([
       {
         path: "/seller/analytics",
         element: <SellerAnalyticsPage />,
+      },
+      {
+        path: "/seller/feedback",
+        element: <SellerFeedbackPage />,
       },
       {
         path: "/seller/add-land",
