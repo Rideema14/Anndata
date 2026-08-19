@@ -1,5 +1,9 @@
 import type { ProductSummary } from '@/types'
 
+/* =========================================================
+   PRODUCT CATALOG
+========================================================= */
+
 export const mockProductCatalog: ProductSummary[] = [
   {
     id: 'prd_1',
@@ -11,35 +15,19 @@ export const mockProductCatalog: ProductSummary[] = [
     sellerName: 'Madhya Bharat Agro',
     location: 'Katni',
     rating: 4.5,
-    reviewCount: 24,
+    reviewCount: 28,
     stock: 120,
     description:
-      'High-quality JS-9560 soybean seeds suitable for Madhya Pradesh farming conditions. Good yield potential and reliable crop performance.',
+      'High-quality soybean seeds suitable for Madhya Pradesh farming conditions.',
     image:
-      'https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?auto=format&fit=crop&w=900&q=85',
+      'https://images.unsplash.com/photo-1589923188900-85dae523342b?auto=format&fit=crop&w=900&q=80',
     variants: ['10 kg bag', '20 kg bag', '30 kg bag'],
     specifications: [
       { label: 'Crop', value: 'Soybean' },
       { label: 'Variety', value: 'JS-9560' },
-      { label: 'Pack size', value: '30 kg' },
-      { label: 'Suitable region', value: 'Madhya Pradesh' },
+      { label: 'Pack Size', value: '30 kg' },
     ],
-    reviews: [
-      {
-        id: 'rev_1',
-        author: 'Rajesh Patel',
-        rating: 5,
-        comment: 'Good quality seeds and healthy germination.',
-        date: ''
-      },
-      {
-        id: 'rev_2',
-        author: 'Amit Kumar',
-        rating: 4,
-        comment: 'Good product for the price.',
-        date: ''
-      },
-    ],
+    reviews: [],
   },
 
   {
@@ -52,35 +40,19 @@ export const mockProductCatalog: ProductSummary[] = [
     sellerName: 'Krishi Seva Kendra',
     location: 'Jabalpur',
     rating: 4.3,
-    reviewCount: 18,
+    reviewCount: 19,
     stock: 85,
     description:
-      'Balanced NPK fertilizer containing nitrogen, phosphorus and potassium for healthy crop growth and improved plant development.',
+      'Balanced NPK fertilizer suitable for improving crop growth and nutrient availability.',
     image:
-      'https://images.unsplash.com/photo-1589923188900-85dae523342b?auto=format&fit=crop&w=900&q=85',
-    variants: ['10 kg bag', '25 kg bag', '50 kg bag'],
+      'https://images.unsplash.com/photo-1625246333195-78d9c38ad449?auto=format&fit=crop&w=900&q=80',
+    variants: ['25 kg bag', '50 kg bag'],
     specifications: [
       { label: 'Type', value: 'NPK Fertilizer' },
-      { label: 'Composition', value: '19:19:19' },
-      { label: 'Pack size', value: '50 kg' },
-      { label: 'Application', value: 'Field crops' },
+      { label: 'NPK Ratio', value: '19:19:19' },
+      { label: 'Pack Size', value: '50 kg' },
     ],
-    reviews: [
-      {
-        id: 'rev_3',
-        author: 'Suresh Verma',
-        rating: 4,
-        comment: 'Works well for my crops.',
-        date: ''
-      },
-      {
-        id: 'rev_4',
-        author: 'Mohan Singh',
-        rating: 5,
-        comment: 'Good quality fertilizer.',
-        date: ''
-      },
-    ],
+    reviews: [],
   },
 
   {
@@ -93,35 +65,19 @@ export const mockProductCatalog: ProductSummary[] = [
     sellerName: 'Rewa Farm Tools',
     location: 'Rewa',
     rating: 4.6,
-    reviewCount: 31,
+    reviewCount: 34,
     stock: 12,
     description:
-      'Compact 3.5 HP power weeder designed for efficient soil preparation, intercultural operations and weed management.',
+      'Compact power weeder designed for efficient field preparation and weed removal.',
     image:
-      'https://images.unsplash.com/photo-1592982537447-7440770cbfc9?auto=format&fit=crop&w=900&q=85',
+      'https://images.unsplash.com/photo-1592982537447-7440770cbfc9?auto=format&fit=crop&w=900&q=80',
     variants: ['3.5 HP'],
     specifications: [
+      { label: 'Engine', value: '3.5 HP' },
       { label: 'Type', value: 'Power Weeder' },
-      { label: 'Power', value: '3.5 HP' },
-      { label: 'Fuel', value: 'Petrol' },
-      { label: 'Usage', value: 'Weeding & soil preparation' },
+      { label: 'Use', value: 'Weeding and soil preparation' },
     ],
-    reviews: [
-      {
-        id: 'rev_5',
-        author: 'Vijay Yadav',
-        rating: 5,
-        comment: 'Very useful machine for my farm.',
-        date: ''
-      },
-      {
-        id: 'rev_6',
-        author: 'Deepak Patel',
-        rating: 4,
-        comment: 'Good performance and easy to operate.',
-        date: ''
-      },
-    ],
+    reviews: [],
   },
 
   {
@@ -134,28 +90,19 @@ export const mockProductCatalog: ProductSummary[] = [
     sellerName: 'Seoni Beej Bhandar',
     location: 'Seoni',
     rating: 4.4,
-    reviewCount: 21,
+    reviewCount: 22,
     stock: 95,
     description:
-      'Pusa Bold mustard seeds selected for strong crop growth and good oilseed production.',
+      'Quality Pusa Bold mustard seeds selected for reliable crop performance.',
     image:
-      'https://images.unsplash.com/photo-1501426026826-31c667bdf23d?auto=format&fit=crop&w=900&q=85',
-    variants: ['5 kg bag', '10 kg bag', '20 kg bag'],
+      'https://images.unsplash.com/photo-1532629345422-7515f3d16bb6?auto=format&fit=crop&w=900&q=80',
+    variants: ['5 kg bag', '10 kg bag'],
     specifications: [
       { label: 'Crop', value: 'Mustard' },
       { label: 'Variety', value: 'Pusa Bold' },
-      { label: 'Pack size', value: '10 kg' },
-      { label: 'Season', value: 'Rabi' },
+      { label: 'Pack Size', value: '10 kg' },
     ],
-    reviews: [
-      {
-        id: 'rev_7',
-        author: 'Ramesh Sharma',
-        rating: 5,
-        comment: 'Very good germination.',
-        date: ''
-      },
-    ],
+    reviews: [],
   },
 
   {
@@ -168,28 +115,19 @@ export const mockProductCatalog: ProductSummary[] = [
     sellerName: 'Narmada Organic Farms',
     location: 'Jabalpur',
     rating: 4.7,
-    reviewCount: 42,
+    reviewCount: 41,
     stock: 150,
     description:
-      'Natural organic vermicompost made from decomposed organic material to improve soil health and fertility.',
+      'Organic vermicompost made from natural materials to improve soil structure and fertility.',
     image:
-      'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&w=900&q=85',
-    variants: ['10 kg bag', '25 kg bag', '50 kg bag'],
+      'https://images.unsplash.com/photo-1598512752271-33f913a5af13?auto=format&fit=crop&w=900&q=80',
+    variants: ['10 kg bag', '25 kg bag'],
     specifications: [
-      { label: 'Type', value: 'Organic manure' },
-      { label: 'Pack size', value: '25 kg' },
-      { label: 'Application', value: 'Soil enrichment' },
-      { label: 'Organic', value: 'Yes' },
+      { label: 'Type', value: 'Organic Vermicompost' },
+      { label: 'Pack Size', value: '25 kg' },
+      { label: 'Suitable For', value: 'All crops' },
     ],
-    reviews: [
-      {
-        id: 'rev_8',
-        author: 'Anil Tiwari',
-        rating: 5,
-        comment: 'Excellent compost for vegetables.',
-        date: ''
-      },
-    ],
+    reviews: [],
   },
 
   {
@@ -202,28 +140,19 @@ export const mockProductCatalog: ProductSummary[] = [
     sellerName: 'Jabalpur Irrigation Solutions',
     location: 'Jabalpur',
     rating: 4.5,
-    reviewCount: 16,
-    stock: 30,
+    reviewCount: 31,
+    stock: 25,
     description:
-      'Water-efficient drip irrigation kit designed to provide controlled water delivery directly to plant roots.',
+      'Water-efficient drip irrigation kit suitable for small and medium-sized farms.',
     image:
-      'https://images.unsplash.com/photo-1622383563227-04401ab4e5ea?auto=format&fit=crop&w=900&q=85',
-    variants: ['Small farm kit', 'Medium farm kit'],
+      'https://images.unsplash.com/photo-1586771107445-d3ca888129ff?auto=format&fit=crop&w=900&q=80',
+    variants: ['Small Farm Kit', 'Medium Farm Kit'],
     specifications: [
-      { label: 'Type', value: 'Drip irrigation' },
-      { label: 'Water saving', value: 'High' },
-      { label: 'Usage', value: 'Field & horticulture' },
-      { label: 'Installation', value: 'Easy installation' },
+      { label: 'Type', value: 'Drip Irrigation' },
+      { label: 'Water Saving', value: 'High' },
+      { label: 'Suitable For', value: 'Field and horticulture crops' },
     ],
-    reviews: [
-      {
-        id: 'rev_9',
-        author: 'Harish Patel',
-        rating: 5,
-        comment: 'Very useful for reducing water usage.',
-        date: ''
-      },
-    ],
+    reviews: [],
   },
 
   {
@@ -236,28 +165,19 @@ export const mockProductCatalog: ProductSummary[] = [
     sellerName: 'Vindhya Agro Seeds',
     location: 'Rewa',
     rating: 4.4,
-    reviewCount: 19,
-    stock: 75,
+    reviewCount: 25,
+    stock: 110,
     description:
-      'Hybrid maize seeds selected for strong plant growth and reliable field performance.',
+      'Hybrid maize seeds selected for good crop establishment and yield potential.',
     image:
-      'https://images.unsplash.com/photo-1551754655-cd27e38d2076?auto=format&fit=crop&w=900&q=85',
-    variants: ['5 kg bag', '10 kg bag', '20 kg bag'],
+      'https://images.unsplash.com/photo-1551754655-cd27e38d2076?auto=format&fit=crop&w=900&q=80',
+    variants: ['5 kg bag', '10 kg bag'],
     specifications: [
       { label: 'Crop', value: 'Maize' },
       { label: 'Type', value: 'Hybrid' },
-      { label: 'Pack size', value: '10 kg' },
-      { label: 'Season', value: 'Kharif' },
+      { label: 'Pack Size', value: '10 kg' },
     ],
-    reviews: [
-      {
-        id: 'rev_10',
-        author: 'Ravi Kushwaha',
-        rating: 4,
-        comment: 'Good seeds with healthy plants.',
-        date: ''
-      },
-    ],
+    reviews: [],
   },
 
   {
@@ -270,28 +190,19 @@ export const mockProductCatalog: ProductSummary[] = [
     sellerName: 'Kisan Equipment Hub',
     location: 'Katni',
     rating: 4.6,
-    reviewCount: 27,
-    stock: 40,
+    reviewCount: 37,
+    stock: 30,
     description:
-      'Rechargeable 16-litre battery sprayer designed for convenient and efficient crop spraying.',
+      'Portable battery-operated sprayer suitable for pesticides, fertilizers and crop care.',
     image:
-      'https://images.unsplash.com/photo-1598512752271-33f913a5af13?auto=format&fit=crop&w=900&q=85',
+      'https://images.unsplash.com/photo-1625246333195-78d9c38ad449?auto=format&fit=crop&w=900&q=80',
     variants: ['12L', '16L', '20L'],
     specifications: [
-      { label: 'Type', value: 'Battery sprayer' },
-      { label: 'Capacity', value: '16 litres' },
-      { label: 'Power', value: 'Rechargeable battery' },
-      { label: 'Usage', value: 'Crop spraying' },
+      { label: 'Capacity', value: '16 Litres' },
+      { label: 'Power', value: 'Battery operated' },
+      { label: 'Type', value: 'Agricultural Sprayer' },
     ],
-    reviews: [
-      {
-        id: 'rev_11',
-        author: 'Manoj Jain',
-        rating: 5,
-        comment: 'Battery lasts well and spraying is easy.',
-        date: ''
-      },
-    ],
+    reviews: [],
   },
 
   {
@@ -304,28 +215,19 @@ export const mockProductCatalog: ProductSummary[] = [
     sellerName: 'Krishi Seva Kendra',
     location: 'Jabalpur',
     rating: 4.2,
-    reviewCount: 14,
-    stock: 100,
+    reviewCount: 18,
+    stock: 200,
     description:
-      'Nitrogen-rich urea fertilizer suitable for improving vegetative growth and crop development.',
+      'Nitrogen-rich urea fertilizer for supporting healthy crop growth.',
     image:
-      'https://images.unsplash.com/photo-1615811361523-6bd03d7748e7?auto=format&fit=crop&w=900&q=85',
+      'https://images.unsplash.com/photo-1530836369250-ef72a3f5cda8?auto=format&fit=crop&w=900&q=80',
     variants: ['45 kg bag'],
     specifications: [
-      { label: 'Type', value: 'Nitrogen fertilizer' },
-      { label: 'Pack size', value: '45 kg' },
-      { label: 'Application', value: 'Field crops' },
-      { label: 'N content', value: '46%' },
+      { label: 'Type', value: 'Urea' },
+      { label: 'Pack Size', value: '45 kg' },
+      { label: 'Nutrient', value: 'Nitrogen' },
     ],
-    reviews: [
-      {
-        id: 'rev_12',
-        author: 'Dinesh Patel',
-        rating: 4,
-        comment: 'Good quality and properly packed.',
-        date: ''
-      },
-    ],
+    reviews: [],
   },
 
   {
@@ -338,34 +240,25 @@ export const mockProductCatalog: ProductSummary[] = [
     sellerName: 'Seoni Beej Bhandar',
     location: 'Seoni',
     rating: 4.5,
-    reviewCount: 23,
-    stock: 80,
+    reviewCount: 29,
+    stock: 75,
     description:
-      'Quality Pusa mustard seeds suitable for Rabi cultivation with good crop establishment.',
+      'Reliable Pusa mustard seed variety suitable for winter cultivation.',
     image:
-      'https://images.unsplash.com/photo-1501004318641-b39e6451bec6?auto=format&fit=crop&w=900&q=85',
+      'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=900&q=80',
     variants: ['5 kg bag', '10 kg bag'],
     specifications: [
       { label: 'Crop', value: 'Mustard' },
-      { label: 'Type', value: 'Pusa variety' },
-      { label: 'Pack size', value: '10 kg' },
-      { label: 'Season', value: 'Rabi' },
+      { label: 'Type', value: 'Pusa Variety' },
+      { label: 'Pack Size', value: '10 kg' },
     ],
-    reviews: [
-      {
-        id: 'rev_13',
-        author: 'Sunil Verma',
-        rating: 5,
-        comment: 'Good quality mustard seeds.',
-        date: ''
-      },
-    ],
+    reviews: [],
   },
 ]
 
-// =====================================================
-// GET PRODUCT BY ID
-// =====================================================
+/* =========================================================
+   GET PRODUCT BY ID
+========================================================= */
 
 export function getProductById(
   id: string,
@@ -375,38 +268,92 @@ export function getProductById(
   )
 }
 
-// =====================================================
-// GET ALL PRODUCTS
-// =====================================================
+/* =========================================================
+   GET ALL PRODUCTS
+========================================================= */
 
 export function getAllProducts(): ProductSummary[] {
   return mockProductCatalog
 }
 
-// =====================================================
-// GET PRODUCTS BY CATEGORY
-// =====================================================
+/* =========================================================
+   GET PRODUCTS BY CATEGORY
+========================================================= */
 
 export function getProductsByCategory(
   category: string,
 ): ProductSummary[] {
+  const normalizedCategory = category
+    .trim()
+    .toLowerCase()
+
   return mockProductCatalog.filter(
     (product) =>
-      product.category.toLowerCase() === category.toLowerCase() ||
-      product.categorySlug?.toLowerCase() === category.toLowerCase(),
+      product.category.toLowerCase() === normalizedCategory ||
+      product.categorySlug.toLowerCase() === normalizedCategory,
   )
 }
 
-// =====================================================
-// DISCOUNT
-// =====================================================
+/* =========================================================
+   DISCOUNT
+========================================================= */
 
 export function getDiscountPercent(
   product: ProductSummary,
 ): number {
-  if (product.price >= 15000) return 10
-  if (product.price >= 5000) return 7
-  if (product.price >= 1000) return 5
-
-  return 3
+  // Products with no originalPrice have no discount.
+  // Kept at 0 so existing components don't break.
+  return 0
 }
+
+/* =========================================================
+   TOP DEALS
+========================================================= */
+
+export function getTopDeals(): ProductSummary[] {
+  return [...mockProductCatalog]
+    .sort((a, b) => {
+      if (b.rating !== a.rating) {
+        return b.rating - a.rating
+      }
+
+      return b.reviewCount - a.reviewCount
+    })
+    .slice(0, 6)
+}
+
+/* =========================================================
+   NEARBY PRODUCTS
+========================================================= */
+
+export function getNearbyProducts(
+  location: string,
+): ProductSummary[] {
+  if (!location.trim()) {
+    return mockProductCatalog.slice(0, 6)
+  }
+
+  const searchLocation = location
+    .split(',')[0]
+    .trim()
+    .toLowerCase()
+
+  const nearby = mockProductCatalog.filter(
+    (product) =>
+      product.location.toLowerCase() === searchLocation,
+  )
+
+  // If no exact location matches, return products
+  // instead of returning an empty rail.
+  if (nearby.length === 0) {
+    return mockProductCatalog.slice(0, 6)
+  }
+
+  return nearby.slice(0, 6)
+}
+
+/* =========================================================
+   DEFAULT EXPORT
+========================================================= */
+
+export default mockProductCatalog
