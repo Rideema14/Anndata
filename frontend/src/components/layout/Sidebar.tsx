@@ -2,7 +2,7 @@ import { NavLink, Link } from 'react-router-dom'
 import { ChevronRight } from 'lucide-react'
 import { Logo } from '@/components/common/Logo'
 import { BuySellSwitch } from '@/components/layout/BuySellSwitch'
-import { buyNavItems, sellNavItems, utilityNavItems } from '@/routes/navConfig'
+import { buyNavItems, sellNavItems, sellerUtilityNavItems, utilityNavItems } from '@/routes/navConfig'
 import { useAppMode } from '@/context/AppModeContext'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
@@ -63,6 +63,22 @@ export function Sidebar() {
 
       <div className="border-t border-ink-100 px-3 py-3">
         <ul className="space-y-0.5">
+          {isSeller && sellerUtilityNavItems.map(({ path, labelKey, icon: Icon }) => (
+            <li key={path}>
+              <NavLink
+                to={path}
+                className={({ isActive }) =>
+                  cn(
+                    'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
+                    isActive ? 'bg-brand-50 text-brand-700' : 'text-ink-600 hover:bg-surface-sunk hover:text-ink-900',
+                  )
+                }
+              >
+                <Icon className="h-4.5 w-4.5" aria-hidden="true" />
+                {t(labelKey)}
+              </NavLink>
+            </li>
+          ))}
           {utilityNavItems.map(({ path, labelKey, icon: Icon }) => (
             <li key={path}>
               <NavLink

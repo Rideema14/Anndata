@@ -2,6 +2,7 @@ import type { LucideIcon } from 'lucide-react'
 import {
   BarChart3,
   Bell,
+  MessageSquareText,
   CloudSun,
   Heart,
   Home,
@@ -54,6 +55,11 @@ export const sellNavItems: NavItem[] = [
   { path: '/seller/add-product', labelKey: 'nav.addProduct', icon: PlusSquare },
   { path: '/seller/orders', labelKey: 'nav.sellerOrders', icon: PackageCheck },
   { path: '/seller/analytics', labelKey: 'nav.analytics', icon: BarChart3 },
+]
+
+/** Seller-only utility link, kept above notifications in the sidebar. */
+export const sellerUtilityNavItems: NavItem[] = [
+  { path: '/seller/feedback', labelKey: 'nav.sellerFeedback', icon: MessageSquareText },
 ]
 
 /** Always visible at the foot of the sidebar, regardless of mode. */
