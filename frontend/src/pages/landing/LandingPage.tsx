@@ -1,9 +1,50 @@
-
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import {ArrowRight,ShoppingBag,Sprout,User,} from 'lucide-react'
-import { WheatGrowthSection } from '@/pages/landing/PlantGrowthSection'
+import {
+  ArrowRight,
+  ShoppingBag,
+  Sprout,
+  User,
+  Menu,
+  X,
+  ChevronRight,
+} from 'lucide-react'
+import { PlantGrowthSection } from '@/components/layout/PlantGrowthSection'
+import { ServicesSection } from '@/components/layout/ServiceSection'
+
 export default function LandingPage() {
-  
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [scrolled, setScrolled] = useState(false)
+  const [isVisible, setIsVisible] = useState(true)
+  const [lastScrollY, setLastScrollY] = useState(0)
+
+  // Smart Hide on Scroll Down / Reveal on Scroll Up
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY
+
+      setScrolled(currentScrollY > 30)
+
+      if (mobileMenuOpen) {
+        setIsVisible(true)
+        return
+      }
+
+      if (currentScrollY < 40) {
+        setIsVisible(true)
+      } else if (currentScrollY > lastScrollY && currentScrollY > 80) {
+        setIsVisible(false) // Hide when scrolling down
+      } else if (currentScrollY < lastScrollY) {
+        setIsVisible(true) // Show when scrolling up
+      }
+
+      setLastScrollY(currentScrollY)
+    }
+
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [lastScrollY, mobileMenuOpen])
+
   return (
     <div className="min-h-screen bg-stone-950 text-stone-100 selection:bg-amber-500 selection:text-stone-950 font-['Plus_Jakarta_Sans',sans-serif] antialiased overflow-x-hidden">
       {/* Responsive Custom Typography & Sticker Outline Styling */}
@@ -52,39 +93,136 @@ export default function LandingPage() {
         }
       `}</style>
 
-      {/* HEADER NAVIGATION */}
-      <header className="absolute inset-x-0 top-0 z-50 flex items-center justify-between bg-gradient-to-b from-black/90 via-black/50 to-transparent px-4 py-4 sm:px-8 sm:py-6 md:px-12">
-        <div className="flex items-center space-x-2.5 sm:space-x-3">
-          <div className="flex items-center justify-center rounded-xl bg-green-900 p-2 sm:p-2.5 shadow-lg shadow-emerald-950/50">
-            <Sprout className="h-5 w-5 sm:h-7 sm:w-7 text-white" />
+      {/* ================= CLEAN & SLEEK AWWWARDS NAVBAR ================= */}
+      <header
+        className={`fixed inset-x-0 top-0 z-50 transition-all duration-500 ease-in-out ${
+          isVisible ? 'translate-y-0' : '-translate-y-full'
+        } ${
+          scrolled
+            ? 'bg-stone-950/85 backdrop-blur-xl py-3 shadow-2xl shadow-black/80'
+            : 'bg-gradient-to-b from-stone-950/90 via-stone-950/40 to-transparent py-4'
+        }`}
+      >
+        <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-12 flex items-center justify-between">
+          
+          {/* Logo with Live Indicator */}
+          <Link to="/" className="flex items-center gap-3 group">
+            <div className="relative flex h-9 w-9 items-center justify-center rounded-full bg-[#102701] border border-white/30 group-hover:border-emerald-400 group-hover:bg-emerald-500/20 transition-all duration-300">
+              <Sprout className="h-5 w-5 text-white" />
+              <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
+              </span>
+            </div>
+            
+            <div className="flex flex-col">
+              <span className="text-xl font-black tracking-tight text-white group-hover:text-amber-400 transition-colors duration-300">
+                Anndataa
+              </span>
+    
+            </div>
+          </Link>
+
+          {/* Center Links (Bigger Fonts, Pure Transparent Borderless) */}
+          <nav className="hidden md:flex items-center gap-8 text-xs lg:text-sm font-bold tracking-[0.18em] text-stone-200 uppercase">
+            <a
+              href="#hero"
+              className="relative py-1 transition-colors duration-300 hover:text-white group"
+            >
+              <span>Home</span>
+              <span className="absolute bottom-0 left-0 w-0 h-[2px] bg-amber-400 group-hover:w-full transition-all duration-300 ease-out" />
+            </a>
+
+            <button
+              type="button"
+              onClick={() => {
+                window.dispatchEvent(new Event('growth-final'))
+              }}
+              className="relative py-1 uppercase transition-colors duration-300 hover:text-white group cursor-pointer"
+            >
+              <span>Features</span>
+              <span className="absolute bottom-0 left-0 w-0 h-[2px] bg-amber-400 group-hover:w-full transition-all duration-300 ease-out" />
+            </button>
+
+            <a
+              href="#about"
+              className="relative py-1 transition-colors duration-300 hover:text-white group"
+            >
+              <span>Our Mission</span>
+              <span className="absolute bottom-0 left-0 w-0 h-[2px] bg-amber-400 group-hover:w-full transition-all duration-300 ease-out" />
+            </a>
+
+            <a
+              href="#features"
+              className="relative py-1 transition-colors duration-300 hover:text-white group"
+            >
+              <span>Ecosystem</span>
+              <span className="absolute bottom-0 left-0 w-0 h-[2px] bg-amber-400 group-hover:w-full transition-all duration-300 ease-out" />
+            </a>
+          </nav>
+
+          {/* Right Action CTA */}
+          <div className="flex items-center gap-3">
+            <Link
+              to="/login"
+              className="group relative inline-flex items-center gap-2 rounded-full bg-stone-900/80 hover:bg-amber-400 px-5 py-2.5 text-xs sm:text-sm font-extrabold tracking-wider uppercase text-stone-100 hover:text-stone-950 backdrop-blur-md transition-all duration-300 active:scale-95 shadow-md"
+            >
+              <User className="h-4 w-4 transition-transform duration-300 group-hover:scale-110" />
+              <span>Login / Register</span>
+            </Link>
+
+            {/* Mobile Menu Toggle */}
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-stone-900/80 text-stone-300 hover:text-white md:hidden focus:outline-none backdrop-blur-md transition-colors"
+              aria-label="Toggle Navigation"
+            >
+              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
           </div>
-          <span className="text-xl sm:text-2xl font-black tracking-wider text-white drop-shadow-md">
-            AANDATA<span className="text-amber-400">.</span>
-          </span>
         </div>
 
-        <nav className="hidden items-center space-x-8 text-xs font-bold tracking-widest text-stone-200 uppercase md:flex">
-          <a href="#hero" className="transition-colors hover:text-amber-400">
-            Home
-          </a>
-          <a href="#growth" className="transition-colors hover:text-amber-400">
-            Growth
-          </a>
-          <a href="#about" className="transition-colors hover:text-amber-400">
-            Our Mission
-          </a>
-          <a href="#features" className="transition-colors hover:text-amber-400">
-            Ecosystem
-          </a>
-        </nav>
-
-        <Link
-          to="/login"
-          className="flex items-center gap-2 rounded-lg border-2 border-dashed border-amber-300 bg-amber-500 px-3.5 py-2 sm:px-5 sm:py-2.5 text-[11px] sm:text-xs font-black uppercase tracking-wider text-stone-950 shadow-lg transition-all hover:bg-amber-400 hover:shadow-amber-500/30 active:scale-95"
-        >
-          <User className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-          <span>Login / Register</span>
-        </Link>
+        {/* Mobile Dropdown */}
+        {mobileMenuOpen && (
+          <div className="max-w-7xl mx-auto px-6 pt-4 pb-2 md:hidden">
+            <div className="bg-stone-950/98 rounded-2xl p-4 space-y-2 shadow-2xl backdrop-blur-2xl">
+              <a
+                href="#hero"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center justify-between rounded-xl px-4 py-3 text-sm font-bold uppercase tracking-wider text-stone-300 hover:bg-stone-900 hover:text-amber-400 transition-all"
+              >
+                <span>Home</span>
+                <ChevronRight className="h-4 w-4 text-stone-500" />
+              </a>
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false)
+                  window.dispatchEvent(new Event('growth-final'))
+                }}
+                className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-sm font-bold uppercase tracking-wider text-stone-300 hover:bg-stone-900 hover:text-amber-400 transition-all text-left"
+              >
+                <span>Features</span>
+                <ChevronRight className="h-4 w-4 text-stone-500" />
+              </button>
+              <a
+                href="#about"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center justify-between rounded-xl px-4 py-3 text-sm font-bold uppercase tracking-wider text-stone-300 hover:bg-stone-900 hover:text-amber-400 transition-all"
+              >
+                <span>Our Mission</span>
+                <ChevronRight className="h-4 w-4 text-stone-500" />
+              </a>
+              <a
+                href="#features"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center justify-between rounded-xl px-4 py-3 text-sm font-bold uppercase tracking-wider text-stone-300 hover:bg-stone-900 hover:text-amber-400 transition-all"
+              >
+                <span>Ecosystem</span>
+                <ChevronRight className="h-4 w-4 text-stone-500" />
+              </a>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* HERO SECTION */}
@@ -122,9 +260,9 @@ export default function LandingPage() {
             <Link
               to="/login"
               className="flex items-center justify-center gap-2 rounded-xl border border-[#102701]/80
-               bg-[#102701] px-6 sm:px-8 py-3.5 sm:py-4 text-xs font-bold uppercase tracking-wider text-emerald-100 shadow-xl backdrop-blur-sm transition-all hover:bg-[#102701]-80 hover:shadow-emerald-900/40 active:scale-98"
+               bg-[#102701] px-6 sm:px-8 py-3.5 sm:py-4 text-xs font-bold uppercase tracking-wider text-white shadow-xl backdrop-blur-sm transition-all hover:bg-[#102701]-80 hover:shadow-[#102701]/20 active:scale-98"
             >
-              <ShoppingBag className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-400" />
+              <ShoppingBag className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
               Explore Marketplace
             </Link>
 
@@ -138,7 +276,8 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
-      <WheatGrowthSection />
+      <PlantGrowthSection />
+      <ServicesSection />
     </div>
   )
 }
