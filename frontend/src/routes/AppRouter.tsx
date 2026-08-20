@@ -461,8 +461,4 @@ const router = createBrowserRouter([
 
 export function AppRouter() {
   return <RouterProvider router={router} />;
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a

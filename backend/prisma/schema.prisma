@@ -46,8 +46,6 @@ enum PaymentStatus {
   REFUNDED
 }
 
-<<<<<<< HEAD
-=======
 enum SellerVerificationStatus {
   UNSUBMITTED
   PENDING
@@ -83,7 +81,6 @@ enum FeedbackStatus {
   CLOSED
 }
 
->>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a
 // ---------------------------------------------------------------------------
 // 3.1 User Management & Authentication
 // ---------------------------------------------------------------------------
@@ -125,14 +122,11 @@ model User {
   orders                 Order[]
   payments               Payment[]
   orderStatusChanges     OrderStatusHistory[] @relation("StatusChangedBy")
-<<<<<<< HEAD
-=======
   sellerProfile          SellerProfile?
   notifications          Notification[]
   notificationPreference NotificationPreference?
   feedbacks              Feedback[]
   verificationsReviewed  SellerProfile[] @relation("VerificationReviewedBy")
->>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a
 
   @@index([email])
   @@map("users")
@@ -456,8 +450,6 @@ model Payment {
   @@index([razorpayOrderId])
   @@map("payments")
 }
-<<<<<<< HEAD
-=======
 
 // ---------------------------------------------------------------------------
 // 3.11 Seller Management & Analytics
@@ -545,4 +537,3 @@ model Feedback {
   @@index([status])
   @@map("feedback")
 }
->>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a

@@ -2,13 +2,6 @@
   "name": "agri-marketplace-backend",
   "version": "1.0.0",
   "description": "Backend for the multi-category agricultural marketplace platform",
-<<<<<<< HEAD
-  "main": "src/server.js",
-  "type": "commonjs",
-  "scripts": {
-    "dev": "nodemon src/server.js",
-    "start": "node src/server.js",
-=======
   "main": "src/server.ts",
   "type": "commonjs",
   "scripts": {
@@ -16,16 +9,11 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
->>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
-<<<<<<< HEAD
-    "prisma:seed": "node prisma/seed.js",
-=======
     "prisma:seed": "tsx prisma/seed.ts",
->>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a
     "postinstall": "prisma generate"
   },
   "dependencies": {
@@ -51,10 +39,6 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-<<<<<<< HEAD
-    "nodemon": "^3.1.7",
-    "prisma": "5.22.0"
-=======
     "@types/bcryptjs": "^2.4.6",
     "@types/compression": "^1.7.5",
     "@types/cors": "^2.8.17",
@@ -69,7 +53,6 @@
     "prisma": "5.22.0",
     "tsx": "^4.19.1",
     "typescript": "^5.6.3"
->>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a
   },
   "engines": {
     "node": ">=18.0.0"

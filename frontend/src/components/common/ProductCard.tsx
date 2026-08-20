@@ -1,16 +1,9 @@
-<<<<<<< HEAD
 import { Link, useNavigate } from 'react-router-dom'
-=======
-import { Link } from 'react-router-dom'
->>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a
 import { Heart, Sprout, Star } from 'lucide-react'
 import type { Product } from '@/types'
 import { useCart } from '@/context/CartContext'
 import { useWishlist } from '@/context/WishlistContext'
-<<<<<<< HEAD
 import { useAuth } from '@/context/AuthContext'
-=======
->>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a
 import { getDiscountPercent } from '@/data/mock/mockProductCatalog'
 import { formatINR } from '@/utils/format'
 import { cn } from '@/utils/cn'
@@ -18,12 +11,16 @@ import { cn } from '@/utils/cn'
 export function ProductCard({ product }: { product: Product }) {
   const { addToCart } = useCart()
   const { isWishlisted, toggleWishlist } = useWishlist()
-<<<<<<< HEAD
   const { isAuthenticated } = useAuth()
   const navigate = useNavigate()
   const wishlisted = isWishlisted(product.id)
-  const discountPercent = getDiscountPercent(product)
   const image = product.images?.[0]
+  const discountPercent = getDiscountPercent({
+    ...product,
+    category: '',
+    image: image ?? '',
+    variants: product.variants ?? [],
+  })
 
   function requireAuth(action: () => void) {
     if (!isAuthenticated) {
@@ -32,10 +29,6 @@ export function ProductCard({ product }: { product: Product }) {
     }
     action()
   }
-=======
-  const wishlisted = isWishlisted(product.id)
-  const discountPercent = getDiscountPercent(product)
->>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a
 
   return (
     <div className="group relative rounded-2xl border border-ink-100 bg-surface p-3 transition-shadow hover:shadow-card">
@@ -46,11 +39,7 @@ export function ProductCard({ product }: { product: Product }) {
       )}
       <button
         type="button"
-<<<<<<< HEAD
         onClick={() => requireAuth(() => toggleWishlist(product.id))}
-=======
-        onClick={() => toggleWishlist(product.id)}
->>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a
         aria-pressed={wishlisted}
         aria-label={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
         className="absolute right-4 top-4 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-surface/90 shadow-card"
@@ -58,7 +47,6 @@ export function ProductCard({ product }: { product: Product }) {
         <Heart className={cn('h-3.5 w-3.5', wishlisted ? 'fill-danger-500 text-danger-500' : 'text-ink-400')} aria-hidden="true" />
       </button>
 
-<<<<<<< HEAD
       <Link to={`/product/${product.slug ?? product.id}`}>
         <div className="mb-2 flex h-24 items-center justify-center overflow-hidden rounded-xl bg-surface-sunk">
           {image ? (
@@ -66,11 +54,6 @@ export function ProductCard({ product }: { product: Product }) {
           ) : (
             <Sprout className="h-8 w-8 text-brand-400" strokeWidth={1.5} aria-hidden="true" />
           )}
-=======
-      <Link to={`/product/${product.id}`}>
-        <div className="mb-2 flex h-24 items-center justify-center rounded-xl bg-surface-sunk">
-          <Sprout className="h-8 w-8 text-brand-400" strokeWidth={1.5} aria-hidden="true" />
->>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a
         </div>
         <p className="line-clamp-2 text-xs font-medium leading-snug text-ink-900">{product.name}</p>
         <div className="mt-1.5 flex items-center gap-1 text-[11px] text-ink-500">
@@ -88,11 +71,7 @@ export function ProductCard({ product }: { product: Product }) {
 
       <button
         type="button"
-<<<<<<< HEAD
         onClick={() => requireAuth(() => addToCart(product.id))}
-=======
-        onClick={() => addToCart(product.id)}
->>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a
         disabled={product.stock === 0}
         className="mt-2 w-full rounded-full bg-brand-50 py-1.5 text-xs font-semibold text-brand-700 hover:bg-brand-100 disabled:bg-surface-sunk disabled:text-ink-400"
       >

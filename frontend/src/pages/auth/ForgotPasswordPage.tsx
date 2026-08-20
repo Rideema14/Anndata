@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom'
 import { KeyRound } from 'lucide-react'
 import { Button } from '@/components/common/Button'
 import { TextField } from '@/components/common/FormField'
-<<<<<<< HEAD
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { getApiErrorMessage } from '@/services/api'
@@ -29,19 +28,6 @@ export default function ForgotPasswordPage() {
     } finally {
       setLoading(false)
     }
-=======
-import { useLanguage } from '@/context/LanguageContext'
-
-export default function ForgotPasswordPage() {
-  const [phone, setPhone] = useState('')
-  const navigate = useNavigate()
-  const { t } = useLanguage()
-
-  function handleSubmit(event: FormEvent) {
-    event.preventDefault()
-    if (phone.trim().length < 10) return
-    navigate(`/otp-verification?phone=${encodeURIComponent(phone)}&mode=reset`)
->>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a
   }
 
   return (
@@ -51,16 +37,11 @@ export default function ForgotPasswordPage() {
           <KeyRound className="h-6 w-6" aria-hidden="true" />
         </span>
         <h1 className="text-xl">{t('auth.forgotPassword')}</h1>
-<<<<<<< HEAD
         <p className="mt-1 text-sm text-ink-500">We'll email you a code to reset your password.</p>
-=======
-        <p className="mt-1 text-sm text-ink-500">We'll send a code to reset your password.</p>
->>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a
       </div>
 
       <form onSubmit={handleSubmit} noValidate>
         <TextField
-<<<<<<< HEAD
           id="email"
           label="Email"
           type="email"
@@ -72,18 +53,6 @@ export default function ForgotPasswordPage() {
         />
         {error && <p className="mb-3 text-xs font-medium text-danger-500">{error}</p>}
         <Button type="submit" fullWidth loading={loading}>
-=======
-          id="phone"
-          label={t('auth.phoneNumber')}
-          type="tel"
-          inputMode="tel"
-          placeholder="98765 43210"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          required
-        />
-        <Button type="submit" fullWidth>
->>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a
           {t('common.continue')}
         </Button>
       </form>
