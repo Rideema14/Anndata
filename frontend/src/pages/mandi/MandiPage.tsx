@@ -38,6 +38,7 @@ export default function MandiPage() {
   const [mandiId, setMandiId] = useState('')
   const [cropId, setCropId] = useState('')
   const [exactDate, setExactDate] = useState('')
+  const [availableCrops, setAvailableCrops] = useState<{ id: string; name: string }[]>([])
 
   const [prices, setPrices] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -95,10 +96,11 @@ export default function MandiPage() {
     }).catch(console.error)
   }, [district, state])
 
-  // 4. Auto-fetch prices when mandiId is selected (or cropId changes)
+  // 4. Auto-fetch prices when mandiId is selected (or exactDate changes)
   useEffect(() => {
     if (!mandiId) {
       setPrices([])
+      setAvailableCrops([])
       setCurrentPage(1)
       setHasMore(false)
       return
@@ -108,7 +110,6 @@ export default function MandiPage() {
     if (state) params.state = state
     if (district) params.district = district
     params.mandiId = mandiId
-    if (cropId) params.cropId = cropId
     if (exactDate) params.exactDate = exactDate
 
     setLoading(true)
@@ -120,6 +121,15 @@ export default function MandiPage() {
         .then((res) => {
           const items = unwrapArray(res)
           setPrices(items)
+          
+          // Populate available crops based on fetched prices
+          const uniqueNames = Array.from(new Set(items.map((item: any) => item.crop?.name).filter(Boolean)));
+          const avail = uniqueNames.map(name => {
+            const dbCrop = crops.find(c => c.name.toLowerCase() === (name as string).toLowerCase());
+            return dbCrop || { id: name as string, name: name as string };
+          });
+          setAvailableCrops(avail);
+
           const meta = unwrapMeta(res)
           if (meta && meta.totalPages > 1) {
             setHasMore(true)
@@ -132,7 +142,7 @@ export default function MandiPage() {
     }, 300)
 
     return () => clearTimeout(t)
-  }, [mandiId, cropId, exactDate]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mandiId, exactDate, crops, state, district]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // 5. Load more prices (infinite scroll)
   const loadMore = useCallback(() => {
@@ -215,7 +225,7 @@ export default function MandiPage() {
         </SelectField>
         <SelectField id="crop" label="Crop" value={cropId} onChange={(e) => setCropId(e.target.value)}>
           <option value="">All Crops</option>
-          {crops.map((c) => (
+          {(mandiId ? availableCrops : crops).map((c) => (
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </SelectField>
@@ -242,14 +252,25 @@ export default function MandiPage() {
       <div className="space-y-2">
         {loading && <div className="flex justify-center p-4"><Loader2 className="h-6 w-6 animate-spin text-ink-400" /></div>}
         
-        {!loading && mandiId && prices.length === 0 && (
-          <div className="flex flex-col items-center rounded-2xl border border-ink-100 bg-surface p-8 text-center text-ink-500">
-            <Search className="mb-2 h-8 w-8 text-ink-300" />
-            No prices found for the selected filters.
-          </div>
-        )}
+        {(() => {
+          const displayedPrices = cropId 
+            ? prices.filter(row => {
+                const selectedCrop = crops.find(c => c.id === cropId) || availableCrops.find(c => c.id === cropId);
+                if (!selectedCrop) return false;
+                return row.crop?.name?.toLowerCase() === selectedCrop.name.toLowerCase();
+              })
+            : prices;
 
-        {!loading && prices.map((row, idx) => {
+          return (
+            <>
+              {!loading && mandiId && displayedPrices.length === 0 && (
+                <div className="flex flex-col items-center rounded-2xl border border-ink-100 bg-surface p-8 text-center text-ink-500">
+                  <Search className="mb-2 h-8 w-8 text-ink-300" />
+                  No prices found for the selected filters.
+                </div>
+              )}
+
+              {!loading && displayedPrices.map((row, idx) => {
           const mId = row.mandiId || row.mandi?.id
           const cId = row.cropId || row.crop?.id
           const favorited = isFavorite(mId)
@@ -304,11 +325,14 @@ export default function MandiPage() {
         {hasMore && <div ref={sentinelRef} className="h-4" />}
 
         {/* End of results */}
-        {!loading && !hasMore && prices.length > 0 && (
+        {!loading && !hasMore && displayedPrices.length > 0 && (
           <p className="py-3 text-center text-xs text-ink-400">
-            Showing {prices.length} results
+            Showing {displayedPrices.length} results
           </p>
         )}
+            </>
+          );
+        })()}
       </div>
     </div>
   )
