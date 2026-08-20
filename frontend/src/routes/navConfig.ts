@@ -55,6 +55,7 @@ export const sellNavItems: NavItem[] = [
   { path: '/seller/add-product', labelKey: 'nav.addProduct', icon: PlusSquare },
   { path: '/seller/orders', labelKey: 'nav.sellerOrders', icon: PackageCheck },
   { path: '/seller/analytics', labelKey: 'nav.analytics', icon: BarChart3 },
+  { path: '/mandi', labelKey: 'nav.mandi', icon: LineChart },
 ]
 
 /** Seller-only utility link, kept above notifications in the sidebar. */

@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { SelectField } from '@/components/common/FormField'
-import { generatePriceHistory, mandiCrops, mockMandiRecords } from '@/data/mock/mockMandiData'
+import { mandiService } from '@/services/mandiService'
 import { formatINR } from '@/utils/format'
 import { cn } from '@/utils/cn'
+import { Loader2 } from 'lucide-react'
 
 const RANGES = [
   { key: '7d', label: '7 Days', days: 7 },
@@ -14,21 +15,72 @@ const RANGES = [
 
 export default function MandiHistoryPage() {
   const [searchParams] = useSearchParams()
-  const allMandis = [...new Set(mockMandiRecords.map((r) => r.mandi))]
-  const [crop, setCrop] = useState(searchParams.get('crop') ?? mandiCrops[0])
-  const [mandi, setMandi] = useState(searchParams.get('mandi') ?? allMandis[0])
+  const initialCropId = searchParams.get('cropId') || ''
+  const initialMandiId = searchParams.get('mandiId') || ''
+
+  const [crops, setCrops] = useState<{ id: string; name: string }[]>([])
+  const [mandis, setMandis] = useState<{ id: string; name: string }[]>([])
+
+  const [cropId, setCropId] = useState(initialCropId)
+  const [mandiId, setMandiId] = useState(initialMandiId)
   const [range, setRange] = useState(RANGES[0])
 
+  const [historyData, setHistoryData] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+
+  // Initial Form Options
+  useEffect(() => {
+    async function init() {
+      try {
+        const [cropsRes, mandisRes] = await Promise.all([
+          mandiService.getCrops(),
+          mandiService.getMarkets()
+        ])
+        const c = cropsRes.data || cropsRes || []
+        const m = mandisRes.data?.items || mandisRes.data?.data || mandisRes.data || mandisRes || []
+        setCrops(c)
+        setMandis(m)
+        if (!initialCropId && c.length > 0) setCropId(c[0].id)
+        if (!initialMandiId && m.length > 0) setMandiId(m[0].id)
+      } catch (err) {
+        console.error('Failed to load history form options', err)
+      }
+    }
+    init()
+  }, [initialCropId, initialMandiId])
+
+  // Fetch History
+  useEffect(() => {
+    if (!cropId || !mandiId) return
+    let cancel = false
+
+    async function fetchHistory() {
+      setLoading(true)
+      try {
+        const res = await mandiService.getPriceHistory({ cropId, mandiId, days: range.days })
+        if (!cancel) {
+          setHistoryData(res.data || res || [])
+        }
+      } catch (err) {
+        console.error('Failed to fetch history', err)
+      } finally {
+        if (!cancel) setLoading(false)
+      }
+    }
+
+    fetchHistory()
+    return () => { cancel = true }
+  }, [cropId, mandiId, range])
+
   const data = useMemo(() => {
-    const points = generatePriceHistory(crop, mandi, range.days)
-    return points.map((p) => ({
+    return historyData.map((p: any) => ({
       label:
         range.key === '7d'
-          ? new Date(p.date).toLocaleDateString('en-IN', { weekday: 'short' })
-          : new Date(p.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
-      price: p.price,
+          ? new Date(p.priceDate).toLocaleDateString('en-IN', { weekday: 'short' })
+          : new Date(p.priceDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
+      price: Number(p.modalPrice),
     }))
-  }, [crop, mandi, range])
+  }, [historyData, range])
 
   const latest = data[data.length - 1]?.price ?? 0
   const earliest = data[0]?.price ?? 0
@@ -39,14 +91,14 @@ export default function MandiHistoryPage() {
       <h1 className="mb-5 text-xl">Price History</h1>
 
       <div className="mb-4 grid grid-cols-2 gap-3">
-        <SelectField id="crop" label="Crop" value={crop} onChange={(e) => setCrop(e.target.value)}>
-          {mandiCrops.map((c) => (
-            <option key={c}>{c}</option>
+        <SelectField id="crop" label="Crop" value={cropId} onChange={(e) => setCropId(e.target.value)}>
+          {crops.map((c) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </SelectField>
-        <SelectField id="mandi" label="Mandi" value={mandi} onChange={(e) => setMandi(e.target.value)}>
-          {allMandis.map((m) => (
-            <option key={m}>{m}</option>
+        <SelectField id="mandi" label="Mandi" value={mandiId} onChange={(e) => setMandiId(e.target.value)}>
+          {mandis.map((m) => (
+            <option key={m.id} value={m.id}>{m.name}</option>
           ))}
         </SelectField>
       </div>
@@ -54,11 +106,13 @@ export default function MandiHistoryPage() {
       <div className="rounded-2xl border border-ink-100 bg-surface p-4">
         <div className="mb-3 flex items-center justify-between">
           <div>
-            <p className="text-2xl font-bold text-ink-900">{formatINR(latest)}</p>
-            <p className={cn('text-xs font-semibold', change >= 0 ? 'text-brand-600' : 'text-danger-500')}>
-              {change >= 0 ? '+' : ''}
-              {change.toFixed(1)}% over {range.label.toLowerCase()}
-            </p>
+            <p className="text-2xl font-bold text-ink-900">{latest ? formatINR(latest) : '--'}</p>
+            {!!earliest && (
+              <p className={cn('text-xs font-semibold', change >= 0 ? 'text-brand-600' : 'text-danger-500')}>
+                {change >= 0 ? '+' : ''}
+                {change.toFixed(1)}% over {range.label.toLowerCase()}
+              </p>
+            )}
           </div>
           <div className="flex gap-1 rounded-full bg-surface-sunk p-1">
             {RANGES.map((r) => (
@@ -77,7 +131,17 @@ export default function MandiHistoryPage() {
           </div>
         </div>
 
-        <div className="h-64 w-full">
+        <div className="h-64 w-full relative">
+          {loading && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-surface/50 backdrop-blur-sm">
+              <Loader2 className="h-8 w-8 animate-spin text-brand-600" />
+            </div>
+          )}
+          {data.length === 0 && !loading && (
+            <div className="absolute inset-0 flex items-center justify-center text-ink-400">
+              No data for this range.
+            </div>
+          )}
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-ink-100)" />
