@@ -2,12 +2,11 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Bookmark, BookmarkCheck, Minus, Plus, ShoppingCart, Sprout, Trash2 } from 'lucide-react'
 import { Button } from '@/components/common/Button'
 import { useCart, getDeliveryFee } from '@/context/CartContext'
-import { getProductById } from '@/data/mock/mockProductCatalog'
 import { useLanguage } from '@/context/LanguageContext'
 import { formatINR } from '@/utils/format'
 
 export default function CartPage() {
-  const { lines, removeFromCart, setQuantity, toggleSaveForLater, subtotal, itemCount } = useCart()
+  const { lines, isLoading, removeFromCart, setQuantity, toggleSaveForLater, subtotal, itemCount } = useCart()
   const navigate = useNavigate()
   const { t } = useLanguage()
 
@@ -15,6 +14,10 @@ export default function CartPage() {
   const savedLines = lines.filter((l) => l.savedForLater)
   const deliveryFee = getDeliveryFee(subtotal)
   const total = subtotal + deliveryFee
+
+  if (isLoading && lines.length === 0) {
+    return <div className="flex min-h-[60vh] items-center justify-center text-sm text-ink-400">{t('common.loading')}</div>
+  }
 
   if (lines.length === 0) {
     return (
@@ -36,27 +39,38 @@ export default function CartPage() {
       <div className="grid gap-6 md:grid-cols-3">
         <div className="space-y-3 md:col-span-2">
           {activeLines.map((line) => {
-            const product = getProductById(line.productId)
+            const product = line.product
             if (!product) return null
             return (
               <div key={line.productId} className="flex gap-3 rounded-2xl border border-ink-100 bg-surface p-3">
-                <Link to={`/product/${product.id}`} className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-surface-sunk">
-                  <Sprout className="h-6 w-6 text-brand-400" aria-hidden="true" />
+                <Link
+                  to={`/product/${product.slug}`}
+                  className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-surface-sunk"
+                >
+                  {product.imageUrl ? (
+                    <img src={product.imageUrl} alt={product.name} className="h-full w-full object-cover" />
+                  ) : (
+                    <Sprout className="h-6 w-6 text-brand-400" aria-hidden="true" />
+                  )}
                 </Link>
                 <div className="min-w-0 flex-1">
-                  <Link to={`/product/${product.id}`} className="line-clamp-2 text-sm font-medium text-ink-900">
+                  <Link to={`/product/${product.slug}`} className="line-clamp-2 text-sm font-medium text-ink-900">
                     {product.name}
                   </Link>
-                  <p className="mt-0.5 text-xs text-ink-400">{product.sellerName}</p>
-                  <p className="mt-1 text-sm font-bold text-ink-900">{formatINR(product.price)}</p>
+                  {line.variantName && <p className="mt-0.5 text-xs text-ink-400">{line.variantName}</p>}
+                  <p className="mt-1 text-sm font-bold text-ink-900">{formatINR(line.unitPrice ?? product.price)}</p>
+                  {product.stock > 0 && product.stock < line.quantity && (
+                    <p className="mt-0.5 text-xs font-medium text-danger-500">Only {product.stock} left in stock</p>
+                  )}
 
                   <div className="mt-2 flex items-center gap-3">
                     <div className="flex items-center rounded-full border border-ink-200">
                       <button
                         type="button"
                         onClick={() => setQuantity(line.productId, line.quantity - 1)}
+                        disabled={line.quantity <= 1}
                         aria-label="Decrease quantity"
-                        className="flex h-8 w-8 items-center justify-center text-ink-600"
+                        className="flex h-8 w-8 items-center justify-center text-ink-600 disabled:text-ink-300"
                       >
                         <Minus className="h-3.5 w-3.5" aria-hidden="true" />
                       </button>
@@ -64,8 +78,9 @@ export default function CartPage() {
                       <button
                         type="button"
                         onClick={() => setQuantity(line.productId, line.quantity + 1)}
+                        disabled={line.quantity >= product.stock}
                         aria-label="Increase quantity"
-                        className="flex h-8 w-8 items-center justify-center text-ink-600"
+                        className="flex h-8 w-8 items-center justify-center text-ink-600 disabled:text-ink-300"
                       >
                         <Plus className="h-3.5 w-3.5" aria-hidden="true" />
                       </button>
@@ -97,12 +112,16 @@ export default function CartPage() {
               <h2 className="mb-2 text-sm font-semibold text-ink-700">Saved for later ({savedLines.length})</h2>
               <div className="space-y-3">
                 {savedLines.map((line) => {
-                  const product = getProductById(line.productId)
+                  const product = line.product
                   if (!product) return null
                   return (
                     <div key={line.productId} className="flex items-center gap-3 rounded-2xl border border-dashed border-ink-200 p-3">
-                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-surface-sunk">
-                        <Sprout className="h-5 w-5 text-ink-300" aria-hidden="true" />
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-surface-sunk">
+                        {product.imageUrl ? (
+                          <img src={product.imageUrl} alt={product.name} className="h-full w-full object-cover" />
+                        ) : (
+                          <Sprout className="h-5 w-5 text-ink-300" aria-hidden="true" />
+                        )}
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="line-clamp-1 text-sm text-ink-700">{product.name}</p>

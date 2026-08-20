@@ -1,17 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Bell, BellRing, ClipboardCheck, LineChart, PackageCheck, Sparkles, Truck } from 'lucide-react'
-import type { NotificationType } from '@/data/mock/mockNotifications'
+import { Bell, BellRing, ClipboardCheck, CreditCard, LineChart, MessageSquareText, Sparkles, Truck } from 'lucide-react'
+import type { NotificationType } from '@/services/notificationService'
 import { useNotifications } from '@/context/NotificationContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { cn } from '@/utils/cn'
 
 const ICONS: Record<NotificationType, typeof Bell> = {
-  mandi_alert: LineChart,
-  order_update: Truck,
-  seller_verification: ClipboardCheck,
-  new_order: PackageCheck,
-  ai_recommendation: Sparkles,
+  ORDER_STATUS: Truck,
+  PAYMENT: CreditCard,
+  SELLER_VERIFICATION: ClipboardCheck,
+  REVIEW: MessageSquareText,
+  PRICE_ALERT: LineChart,
+  GENERAL: Sparkles,
 }
 
 export function NotificationBell({ className }: { className?: string }) {

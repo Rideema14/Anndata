@@ -14,14 +14,12 @@ export default function EditProfilePage() {
   const navigate = useNavigate()
   const [name, setName] = useState(user?.name ?? '')
   const [phone, setPhone] = useState(user?.phone ?? '')
-  const [email, setEmail] = useState(user?.email ?? '')
-  const [location, setLocation] = useState(user?.location ?? '')
 
   if (!user) return null
 
-  function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    updateProfile({ name, phone, email, location })
+    await updateProfile({ name, phone })
     navigate('/profile')
   }
 
@@ -45,8 +43,13 @@ export default function EditProfilePage() {
       <form onSubmit={handleSubmit}>
         <TextField id="name" label="Full Name" value={name} onChange={(e) => setName(e.target.value)} required />
         <TextField id="phone" label="Phone Number" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} required />
-        <TextField id="email" label="Email (optional)" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-        <TextField id="location" label="Location" value={location} onChange={(e) => setLocation(e.target.value)} required />
+        <p className="mb-4 text-xs text-ink-400">
+          Email ({user.email}) and address are managed separately — visit{' '}
+          <Link to="/profile" className="font-semibold text-brand-600 hover:underline">
+            Addresses
+          </Link>{' '}
+          to update where you're located.
+        </p>
         <Button type="submit" fullWidth>
           Save Changes
         </Button>

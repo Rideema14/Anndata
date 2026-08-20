@@ -1,13 +1,36 @@
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ChevronLeft, PackageX } from 'lucide-react'
 import { ProductCard } from '@/components/common/ProductCard'
-import { mockCategories } from '@/data/mock/mockCategories'
-import { getProductsByCategory } from '@/data/mock/mockProductCatalog'
+import { categoryService, type Category } from '@/services/categoryService'
+import { productService } from '@/services/productService'
+import type { Product } from '@/types'
+import { useLanguage } from '@/context/LanguageContext'
 
 export default function CategoryPage() {
   const { category } = useParams<{ category: string }>()
-  const meta = mockCategories.find((c) => c.slug === category)
-  const products = getProductsByCategory(category ?? '')
+  const { t } = useLanguage()
+  const [meta, setMeta] = useState<Category | null>(null)
+  const [products, setProducts] = useState<Product[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    if (!category) return
+    let cancelled = false
+    setIsLoading(true)
+    Promise.all([
+      categoryService.getBySlug(category).catch(() => null),
+      productService.list({ category, limit: 48 }).catch(() => ({ items: [], meta: { page: 1, limit: 48, totalItems: 0, totalPages: 0 } })),
+    ]).then(([categoryResult, productResult]) => {
+      if (cancelled) return
+      setMeta(categoryResult)
+      setProducts(productResult.items)
+      setIsLoading(false)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [category])
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-5 md:px-6 md:py-8">
@@ -24,11 +47,11 @@ export default function CategoryPage() {
         )}
         <div>
           <h1 className="text-xl">{meta?.name ?? category}</h1>
-          <p className="text-xs text-ink-400">{products.length} products</p>
+          <p className="text-xs text-ink-400">{isLoading ? t('common.loading') : `${products.length} products`}</p>
         </div>
       </div>
 
-      {products.length === 0 ? (
+      {!isLoading && products.length === 0 ? (
         <div className="flex flex-col items-center py-16 text-center">
           <PackageX className="mb-3 h-10 w-10 text-ink-300" aria-hidden="true" />
           <p className="text-sm text-ink-500">No products in this category yet.</p>

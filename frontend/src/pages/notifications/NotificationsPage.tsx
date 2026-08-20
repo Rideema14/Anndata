@@ -1,20 +1,21 @@
-import { Bell, ClipboardCheck, LineChart, PackageCheck, Sparkles, Truck } from 'lucide-react'
-import type { NotificationType } from '@/data/mock/mockNotifications'
+import { Bell, ClipboardCheck, CreditCard, LineChart, MessageSquareText, Sparkles, Truck } from 'lucide-react'
+import type { NotificationType } from '@/services/notificationService'
 import { useNotifications } from '@/context/NotificationContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { formatDateLabel } from '@/utils/format'
 import { cn } from '@/utils/cn'
 
 const ICONS: Record<NotificationType, typeof Bell> = {
-  mandi_alert: LineChart,
-  order_update: Truck,
-  seller_verification: ClipboardCheck,
-  new_order: PackageCheck,
-  ai_recommendation: Sparkles,
+  ORDER_STATUS: Truck,
+  PAYMENT: CreditCard,
+  SELLER_VERIFICATION: ClipboardCheck,
+  REVIEW: MessageSquareText,
+  PRICE_ALERT: LineChart,
+  GENERAL: Sparkles,
 }
 
 export default function NotificationsPage() {
-  const { notifications, unreadCount, markRead, markAllRead } = useNotifications()
+  const { notifications, unreadCount, isLoading, markRead, markAllRead } = useNotifications()
   const { t } = useLanguage()
 
   return (
@@ -28,7 +29,9 @@ export default function NotificationsPage() {
         )}
       </div>
 
-      {notifications.length === 0 ? (
+      {isLoading && notifications.length === 0 ? (
+        <div className="flex items-center justify-center py-16 text-sm text-ink-400">{t('common.loading')}</div>
+      ) : notifications.length === 0 ? (
         <div className="flex flex-col items-center py-16 text-center">
           <Bell className="mb-3 h-10 w-10 text-ink-300" aria-hidden="true" />
           <p className="text-sm text-ink-500">{t('common.emptyGeneric')}</p>

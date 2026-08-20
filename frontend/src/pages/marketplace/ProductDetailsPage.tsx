@@ -1,10 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   CheckCircle2,
   ChevronLeft,
   Heart,
-  MapPin,
   Minus,
   Plus,
   Star,
@@ -12,25 +11,79 @@ import {
 } from 'lucide-react'
 
 import { Button } from '@/components/common/Button'
-import { getProductById } from '@/data/mock/mockProductCatalog'
+import { productService } from '@/services/productService'
 import { useCart } from '@/context/CartContext'
 import { useWishlist } from '@/context/WishlistContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { formatINR } from '@/utils/format'
 import { cn } from '@/utils/cn'
+import type { Product, ProductReview } from '@/types'
 
 export default function ProductDetailsPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
 
-  const product = getProductById(id ?? '')
-
   const { addToCart } = useCart()
   const { isWishlisted, toggleWishlist } = useWishlist()
   const { t } = useLanguage()
 
+  const [product, setProduct] = useState<Product | null>(null)
+  const [reviews, setReviews] = useState<ProductReview[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [notFound, setNotFound] = useState(false)
+
   const [quantity, setQuantity] = useState(1)
   const [justAdded, setJustAdded] = useState(false)
+  const [variant, setVariant] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!id) return
+    let cancelled = false
+    setIsLoading(true)
+    setNotFound(false)
+
+    productService
+      .getBySlug(id)
+      .then((fetched) => {
+        if (cancelled) return
+        setProduct(fetched)
+        const variants = fetched.variants ?? []
+        setVariant(variants.length > 0 ? variants[variants.length - 1] : fetched.unit)
+        // The product detail endpoint doesn't embed reviews — fetch them separately.
+        productService
+          .listReviews(fetched.id)
+          .then((items) => {
+            if (!cancelled) setReviews(items)
+          })
+          .catch(() => {
+            if (!cancelled) setReviews([])
+          })
+      })
+      .catch(() => {
+        if (!cancelled) setNotFound(true)
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [id])
+
+  /*
+   * ---------------------------------------------------------
+   * LOADING
+   * ---------------------------------------------------------
+   */
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center text-sm text-[#777265]">
+        {t('common.loading')}
+      </div>
+    )
+  }
 
   /*
    * ---------------------------------------------------------
@@ -38,7 +91,7 @@ export default function ProductDetailsPage() {
    * ---------------------------------------------------------
    */
 
-  if (!product) {
+  if (notFound || !product) {
     return (
       <div className="mx-auto flex min-h-[60vh] max-w-lg items-center justify-center px-6">
         <div className="w-full rounded-3xl border border-[#ddd6c6] bg-[#fffdf7] p-8 text-center shadow-sm">
@@ -73,12 +126,7 @@ export default function ProductDetailsPage() {
 
   const variants = product.variants ?? []
   const specifications = product.specifications ?? []
-  const reviews = product.reviews ?? []
-
-  const selectedVariant =
-    variants.length > 0 ? variants[variants.length - 1] : product.unit
-
-  const [variant, setVariant] = useState(selectedVariant)
+  const image = product.images?.[0]
 
   const wishlisted = isWishlisted(product.id)
 
@@ -146,9 +194,9 @@ export default function ProductDetailsPage() {
 
             <div className="group relative h-[360px] overflow-hidden rounded-[22px] bg-[#e7e2d5] md:h-[480px]">
 
-              {product.image ? (
+              {image ? (
                 <img
-                  src={product.image}
+                  src={image}
                   alt={product.name}
                   className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                 />
@@ -167,9 +215,11 @@ export default function ProductDetailsPage() {
 
               {/* CATEGORY */}
 
-              <div className="absolute bottom-4 left-4 rounded-full bg-white/90 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[#557347] shadow-sm backdrop-blur">
-                {product.category}
-              </div>
+              {product.location && (
+                <div className="absolute bottom-4 left-4 rounded-full bg-white/90 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[#557347] shadow-sm backdrop-blur">
+                  {product.location}
+                </div>
+              )}
 
 
               {/* RATING */}
@@ -196,9 +246,11 @@ export default function ProductDetailsPage() {
 
             {/* CATEGORY */}
 
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#928a7c]">
-              {product.category}
-            </p>
+            {product.location && (
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#928a7c]">
+                {product.location}
+              </p>
+            )}
 
 
             {/* TITLE */}
@@ -208,7 +260,7 @@ export default function ProductDetailsPage() {
             </h1>
 
 
-            {/* LOCATION + RATING */}
+            {/* RATING */}
 
             <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-[#777265]">
 
@@ -224,13 +276,6 @@ export default function ProductDetailsPage() {
                 </span>
               </span>
 
-
-              <span className="flex items-center gap-1.5">
-                <MapPin className="h-3.5 w-3.5" />
-
-                {product.location}
-              </span>
-
             </div>
 
 
@@ -241,6 +286,12 @@ export default function ProductDetailsPage() {
               <span className="text-3xl font-black tracking-[-0.04em] text-[#292c23]">
                 {formatINR(product.price)}
               </span>
+
+              {product.originalPrice && (
+                <span className="mb-1 text-sm text-[#a19a8a] line-through">
+                  {formatINR(product.originalPrice)}
+                </span>
+              )}
 
               <span className="mb-1 text-xs text-[#888274]">
                 / {variant || product.unit}
@@ -260,7 +311,7 @@ export default function ProductDetailsPage() {
               <span>
                 Sold by{' '}
                 <strong className="text-[#403e36]">
-                  {product.sellerName}
+                  {product.sellerName || 'a verified seller'}
                 </strong>
               </span>
 
