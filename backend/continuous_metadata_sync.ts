@@ -20,7 +20,7 @@ const API_KEY = process.env.DATA_GOV_IN_API_KEY!;
 const RESOURCE_ID = process.env.DATA_GOV_IN_RESOURCE_ID!;
 const BASE_URL = process.env.DATA_GOV_IN_BASE_URL || 'https://api.data.gov.in/resource';
 const STATE_FILE = path.join(__dirname, '.sync_state.json');
-const CHUNK_SIZE = 1000;
+const CHUNK_SIZE = 5000;
 const DELAY_MS = 2000;
 
 interface SyncState {
@@ -157,4 +157,3 @@ main()
   .catch(console.error)
   .finally(() => prisma.$disconnect());
 
-  
