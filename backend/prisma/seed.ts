@@ -23,6 +23,20 @@ const CATEGORIES = [
   { name: 'Milk & Dairy', description: 'Dairy products and dairy-farming supplies.' },
 ];
 
+// A handful of the commodities that show up most often in Indian mandi price
+// reporting — enough to exercise the Mandi Price Intelligence endpoints
+// without requiring an admin to type these in by hand first.
+const CROPS = [
+  { name: 'Wheat', category: 'Cereals', unit: 'Quintal' },
+  { name: 'Rice', category: 'Cereals', unit: 'Quintal' },
+  { name: 'Onion', category: 'Vegetables', unit: 'Quintal' },
+  { name: 'Tomato', category: 'Vegetables', unit: 'Quintal' },
+  { name: 'Potato', category: 'Vegetables', unit: 'Quintal' },
+  { name: 'Soybean', category: 'Oilseeds', unit: 'Quintal' },
+  { name: 'Cotton', category: 'Fibres', unit: 'Quintal' },
+  { name: 'Chana (Gram)', category: 'Pulses', unit: 'Quintal' },
+];
+
 async function main() {
   console.log('Seeding categories...');
   for (const cat of CATEGORIES) {
@@ -31,6 +45,16 @@ async function main() {
       where: { slug: slugify(cat.name) },
       update: {},
       create: { name: cat.name, slug: slugify(cat.name), description: cat.description },
+    });
+  }
+
+  console.log('Seeding crops...');
+  for (const crop of CROPS) {
+    // eslint-disable-next-line no-await-in-loop
+    await prisma.crop.upsert({
+      where: { name: crop.name },
+      update: {},
+      create: crop,
     });
   }
 

@@ -87,4 +87,15 @@ export const env = {
     authWindowMin: parseInt(process.env.AUTH_RATE_LIMIT_WINDOW_MIN || '15', 10),
     authMax: parseInt(process.env.AUTH_RATE_LIMIT_MAX || '20', 10),
   },
+
+  weather: {
+    baseUrl: process.env.OPEN_METEO_BASE_URL || 'https://api.open-meteo.com/v1/forecast',
+    cacheTtlMinutes: parseInt(process.env.WEATHER_CACHE_TTL_MINUTES || '30', 10),
+  },
+
+  dataGovIn: {
+    apiKey: process.env.DATA_GOV_IN_API_KEY,
+    resourceId: process.env.DATA_GOV_IN_RESOURCE_ID,
+    baseUrl: process.env.DATA_GOV_IN_BASE_URL || 'https://api.data.gov.in/resource',
+  },
 };

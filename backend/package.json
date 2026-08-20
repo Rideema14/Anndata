@@ -2,7 +2,7 @@
   "name": "agri-marketplace-backend",
   "version": "1.0.0",
   "description": "Backend for the multi-category agricultural marketplace platform",
-  "main": "src/server.ts",
+  "main": "dist/server.js",
   "type": "commonjs",
   "scripts": {
     "dev": "tsx watch src/server.ts",

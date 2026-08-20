@@ -81,6 +81,22 @@ enum FeedbackStatus {
   CLOSED
 }
 
+enum MandiPriceSource {
+  ADMIN
+  EXTERNAL_API
+}
+
+enum PriceAlertCondition {
+  ABOVE
+  BELOW
+}
+
+enum MandiPriceType {
+  MIN
+  MAX
+  MODAL
+}
+
 // ---------------------------------------------------------------------------
 // 3.1 User Management & Authentication
 // ---------------------------------------------------------------------------
@@ -127,6 +143,8 @@ model User {
   notificationPreference NotificationPreference?
   feedbacks              Feedback[]
   verificationsReviewed  SellerProfile[] @relation("VerificationReviewedBy")
+  favoriteMandis         FavoriteMandi[]
+  mandiPriceAlerts       MandiPriceAlert[]
 
   @@index([email])
   @@map("users")
@@ -536,4 +554,114 @@ model Feedback {
 
   @@index([status])
   @@map("feedback")
+}
+
+// ---------------------------------------------------------------------------
+// 3.8 Mandi Price Intelligence
+// ---------------------------------------------------------------------------
+
+model Mandi {
+  id          String   @id @default(uuid())
+  name        String
+  state       String
+  district    String
+  latitude    Float?
+  longitude   Float?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  prices      MandiPrice[]
+  favoritedBy FavoriteMandi[]
+  priceAlerts MandiPriceAlert[]
+
+  @@unique([name, state, district])
+  @@index([state, district])
+  @@map("mandis")
+}
+
+model Crop {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  category  String?  // e.g. "Cereals", "Vegetables", "Pulses", "Spices"
+  unit      String   @default("Quintal")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  prices      MandiPrice[]
+  priceAlerts MandiPriceAlert[]
+
+  @@map("crops")
+}
+
+model MandiPrice {
+  id         String           @id @default(uuid())
+  mandiId    String
+  mandi      Mandi            @relation(fields: [mandiId], references: [id], onDelete: Cascade)
+  cropId     String
+  crop       Crop             @relation(fields: [cropId], references: [id], onDelete: Cascade)
+  variety    String?          // Agmarknet-style variety label, e.g. "Local", "Basmati"
+  minPrice   Decimal          @db.Decimal(10, 2)
+  maxPrice   Decimal          @db.Decimal(10, 2)
+  modalPrice Decimal          @db.Decimal(10, 2) // the "typical" price — what most alerts/charts key off
+  priceDate  DateTime         @db.Date // the market date this record is FOR, not when it was entered
+  source     MandiPriceSource @default(ADMIN)
+  createdAt  DateTime         @default(now())
+
+  @@unique([mandiId, cropId, variety, priceDate])
+  @@index([cropId, mandiId, priceDate])
+  @@index([priceDate])
+  @@map("mandi_prices")
+}
+
+model FavoriteMandi {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mandiId   String
+  mandi     Mandi    @relation(fields: [mandiId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, mandiId])
+  @@index([userId])
+  @@map("favorite_mandis")
+}
+
+model MandiPriceAlert {
+  id              String              @id @default(uuid())
+  userId          String
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cropId          String
+  crop            Crop                @relation(fields: [cropId], references: [id], onDelete: Cascade)
+  mandiId         String?             // null = alert across any mandi
+  mandi           Mandi?              @relation(fields: [mandiId], references: [id], onDelete: Cascade)
+  priceType       MandiPriceType      @default(MODAL)
+  condition       PriceAlertCondition
+  thresholdPrice  Decimal             @db.Decimal(10, 2)
+  isActive        Boolean             @default(true)
+  lastTriggeredAt DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([cropId, mandiId, isActive])
+  @@index([userId])
+  @@map("mandi_price_alerts")
+}
+
+// ---------------------------------------------------------------------------
+// 3.10 Weather Intelligence
+// ---------------------------------------------------------------------------
+
+model WeatherCache {
+  id          String   @id @default(uuid())
+  locationKey String   @unique // rounded "lat,lng" — see weather.service.ts
+  latitude    Float
+  longitude   Float
+  currentData Json
+  dailyData   Json
+  fetchedAt   DateTime @default(now())
+  expiresAt   DateTime
+
+  @@index([expiresAt])
+  @@map("weather_cache")
 }

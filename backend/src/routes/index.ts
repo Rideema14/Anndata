@@ -9,6 +9,8 @@ import orderRoutes from '../modules/order/order.routes';
 import paymentRoutes from '../modules/payment/payment.routes';
 import sellerRoutes from '../modules/seller/seller.routes';
 import notificationRoutes from '../modules/notification/notification.routes';
+import mandiRoutes from '../modules/mandi/mandi.routes';
+import weatherRoutes from '../modules/weather/weather.routes';
 
 const router = Router();
 
@@ -22,6 +24,8 @@ router.use('/orders', orderRoutes);
 router.use('/payments', paymentRoutes);
 router.use('/sellers', sellerRoutes);
 router.use('/notifications', notificationRoutes);
+router.use('/mandi', mandiRoutes);
+router.use('/weather', weatherRoutes);
 
 router.get('/health', (req, res) => res.json({ success: true, message: 'OK', timestamp: new Date().toISOString() }));
 

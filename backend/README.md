@@ -17,23 +17,30 @@ updates.
 | **Payments** (`/payments`) | Razorpay order creation, client-side signature verification, server-to-server webhook (idempotent, signature-verified against the raw payload) |
 | **Sellers** (`/sellers`) | Application/verification workflow (auto-promotes to the `SELLER` role on approval), profile with payout bank details + service area, dashboard (active listings, orders to fulfill, revenue), analytics (daily sales trend, top products, order-status breakdown) — all via raw SQL aggregation since it spans Order/OrderItem/Product |
 | **Notifications & Feedback** (`/notifications`) | In-app + email notifications with per-user, per-type preferences (mute specific types, toggle channels globally); feedback submission (works anonymously or logged in), admin triage/response |
+| **Mandi Price Intelligence** (`/mandi`) | Markets + crops (admin-managed), price entry (single + bulk upload), state→district→market cascading filters, price history for charting, favorite markets, price threshold alerts (wired into the notification system above) — plus an *optional* sync from data.gov.in's real Agmarknet dataset, inactive until you supply your own API key |
+| **Weather Intelligence** (`/weather`) | Current conditions + up to 16-day forecast via Open-Meteo (free, no API key needed), DB-backed cache (`WeatherCache`) to avoid re-fetching the same location on every request |
 
 Full endpoint list is in Swagger at `/api-docs` once the server is running.
 
 ## Not yet built
 
-The original spec has 13 modules; this covers 3.1–3.4 and 3.11–3.12. Still to build:
+The original spec has 13 modules; this covers 3.1–3.4, 3.8, and 3.10–3.12. Still to build:
 
 - **3.5 Seed Store** — dedicated sub-marketplace (own cart/orders/reviews/wishlist + AI seed advisor)
 - **3.6 Land Marketplace** — listings + site-visit request workflow
 - **3.7 Machinery & Equipment Rental** — rental bookings with date ranges
-- **3.8 Mandi Price Intelligence** — price history, favorite mandis, threshold alerts
 - **3.9 AI Farm Advisory Suite** — crop/disease/soil/fertilizer/irrigation/weather advice, AI chat, voice
-- **3.10 Weather Intelligence** — external API integration + caching (cache layer already scaffolded in `src/config/cache.ts`)
 - **3.13 Admin Console** — platform-wide analytics, seed/reset tooling (category CRUD and review moderation already exist from Catalog; the seller-verification console already exists from Sellers)
 
 Ask to continue building any of these and it'll plug into the same `src/modules/<name>/`
 pattern and the existing Prisma schema.
+
+## On the two external data sources
+
+- **Weather (Open-Meteo)**: genuinely free, no API key, no signup — verified via their public docs. `OPEN_METEO_BASE_URL` in `.env` only needs to change if you're self-hosting their (also open-source) service.
+- **Mandi prices (data.gov.in)**: this one's different. The real government dataset ("Variety-wise Daily Market Prices of Commodity") exists and is well-documented, but using it requires *your own* free API key from data.gov.in and the dataset's current resource ID — both of which I have no way to obtain or verify from here, and neither is safe to hardcode (resource IDs on that platform change over time). So the module works two ways:
+  1. **Always available, zero setup**: admins enter/bulk-upload price records directly (`POST /mandi/prices`, `/mandi/prices/bulk`). This is the path the seeded crops and everything else in the module assumes.
+  2. **Optional**: set `DATA_GOV_IN_API_KEY` and `DATA_GOV_IN_RESOURCE_ID` in `.env` (see the comment above them for where to get these) and `POST /mandi/sync` will pull real records and upsert them, auto-creating any market/crop it doesn't recognize by name. The field mapping in `src/modules/mandi/ingestion.service.ts` matches this dataset's consistently-documented shape, but it hasn't been tested against a live key in this environment — verify it against a real response before relying on it in production.
 
 ## Tech stack & key decisions
 
@@ -127,6 +134,8 @@ src/
     payment/
     seller/        application/verification, dashboard, analytics
     notification/  in-app + email notifications, preferences, feedback
+    mandi/         markets, crops, prices, history, favorites, alerts, optional data.gov.in sync
+    weather/       Open-Meteo integration + DB-backed cache
   routes/          mounts every module under /api/v1
   app.ts           Express app + middleware
   server.ts        HTTP server + Socket.IO + graceful shutdown
@@ -148,23 +157,31 @@ spec — adjust them to your actual policy:
 - Flat 5% tax
 - No coupon/discount system yet (the `discount` column exists on `Order` for when you add one)
 
+A couple more, elsewhere:
+- `WEATHER_CACHE_TTL_MINUTES=30` — how long a cached forecast is served before re-fetching. Weather doesn't change fast enough to need much lower; raise it if you want to be gentler on Open-Meteo's free tier.
+- Mandi price alerts have a 24-hour re-trigger cooldown per alert (`alert.service.ts`) so a price sitting past someone's threshold doesn't re-notify them on every single price tick.
+
 ## A note on testing this without installing anything
 
 `npm install` needs network access this sandbox doesn't have, so a live DB round-trip
 hasn't been run here. What *was* checked without it:
-- TypeScript, `strict: true`, compiles cleanly against everything **except** the parts
-  that genuinely need real installed dependencies to type-check (Prisma's generated
-  client types are produced by `prisma generate`, which needs network on first run to
-  fetch the query engine; Express/Zod/Socket.IO's real published types aren't
-  resolvable without `node_modules`). A `declare module '*'` stub was used to at least
-  isolate syntax and internal-consistency issues from that noise, but it can't validate
-  third-party call signatures — for that, `npm run typecheck` locally is the real check.
-- Every relative import path (214 of them) was verified to resolve to a real file, and
-  every named/default import from a local module (248 of them) was cross-checked
-  against that file's actual exports.
-- One real bug was caught this way during the conversion: `updateProduct` was typed
-  against Prisma's relation-style `ProductUpdateInput` instead of the scalar-FK
-  `ProductUncheckedUpdateInput` it actually needed — fixed.
+- Every relative import path (262 of them, across the whole project) was verified to
+  resolve to a real file, and every named/default import from a local module (302 of
+  them) was cross-checked against that file's actual exports.
+- A manual, targeted re-check for the one class of Prisma typing mistake this project
+  has actually hit before (using the relation-style `XUpdateInput` where scalar FK
+  fields are being set directly, instead of `XUncheckedUpdateInput`) — none found in
+  the mandi/weather modules.
+- Compound unique-key names used in code (e.g. `mandiId_cropId_variety_priceDate`)
+  were checked against the exact field order in each model's `@@unique([...])`
+  declaration — Prisma derives the key name from that order, so a mismatch there is a
+  real, easy-to-make bug.
+- `tsc --noEmit` against a temporary `declare module '*'` stub was tried and abandoned
+  as not useful: without real `node_modules`, that stub can't provide named exports
+  for anything (Prisma's generated model types, Express's `Request`, Zod's `infer`,
+  etc.), so nearly every error it reported was "no exported member" noise, not a real
+  bug. The checks above are what actually caught something.
 
-Do `npm install && npm run typecheck && npm run prisma:migrate` locally before trusting
+Run `npm install && npm run typecheck && npm run prisma:migrate` locally before trusting
+this against real traffic.
 this against real traffic.
