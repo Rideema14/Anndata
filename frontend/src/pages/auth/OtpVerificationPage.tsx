@@ -2,25 +2,27 @@ import { useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/common/Button'
-import { authService } from '@/services/authService'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
+import { getApiErrorMessage } from '@/services/api'
 
 const OTP_LENGTH = 6
 
 export default function OtpVerificationPage() {
   const [digits, setDigits] = useState<string[]>(Array(OTP_LENGTH).fill(''))
   const [loading, setLoading] = useState(false)
+  const [resending, setResending] = useState(false)
   const [error, setError] = useState('')
+  const [resent, setResent] = useState(false)
   const inputsRef = useRef<Array<HTMLInputElement | null>>([])
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { loginWithPhone } = useAuth()
+  const { verifyOtp, resendOtp } = useAuth()
   const { t } = useLanguage()
 
-  const phone = searchParams.get('phone') ?? ''
-  const mode = searchParams.get('mode') // 'register' | 'reset' | null (login)
-  const next = searchParams.get('next') ?? '/'
+  const email = searchParams.get('email') ?? ''
+  const mode = searchParams.get('mode') // 'register' | 'reset'
+  const next = searchParams.get('next') ?? '/home'
 
   function handleChange(index: number, value: string) {
     if (!/^[0-9]?$/.test(value)) return
@@ -49,15 +51,29 @@ export default function OtpVerificationPage() {
     setError('')
     try {
       if (mode === 'reset') {
-        const { requestId } = await authService.requestPasswordReset(phone)
-        navigate(`/reset-password?requestId=${requestId}`)
+        navigate(`/reset-password?email=${encodeURIComponent(email)}&otp=${encodeURIComponent(code)}`)
         return
       }
-      await authService.verifyOtp(phone, code)
-      await loginWithPhone(phone)
+      await verifyOtp(email, code)
       navigate(next)
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'That code was not accepted.'))
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleResend() {
+    setResending(true)
+    setError('')
+    try {
+      await resendOtp(email, mode === 'reset' ? 'RESET_PASSWORD' : 'REGISTER')
+      setResent(true)
+      window.setTimeout(() => setResent(false), 4000)
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Could not resend the code.'))
+    } finally {
+      setResending(false)
     }
   }
 
@@ -69,9 +85,8 @@ export default function OtpVerificationPage() {
         </span>
         <h1 className="text-xl">{t('auth.otp')}</h1>
         <p className="mt-1 text-sm text-ink-500">
-          Enter the code sent to {phone ? <span className="font-medium text-ink-700">{phone}</span> : 'your phone'}
+          Enter the code sent to {email ? <span className="font-medium text-ink-700">{email}</span> : 'your email'}
         </p>
-        <p className="mt-1 text-xs text-ink-400">Demo mode — any 6 digits will work.</p>
       </div>
 
       <form onSubmit={handleSubmit} noValidate>
@@ -93,10 +108,20 @@ export default function OtpVerificationPage() {
           ))}
         </div>
         {error && <p className="mb-3 text-center text-xs font-medium text-danger-500">{error}</p>}
+        {resent && <p className="mb-3 text-center text-xs font-medium text-brand-600">A new code was sent.</p>}
         <Button type="submit" fullWidth loading={loading}>
           {t('common.submit')}
         </Button>
       </form>
+
+      <button
+        type="button"
+        onClick={handleResend}
+        disabled={resending || !email}
+        className="mt-4 block w-full text-center text-xs font-semibold text-brand-600 hover:underline disabled:text-ink-300"
+      >
+        Resend code
+      </button>
     </div>
   )
 }

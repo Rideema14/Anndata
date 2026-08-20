@@ -10,12 +10,19 @@ const STATUS_STYLES: Record<string, string> = {
   confirmed: 'bg-sky-50 text-sky-700',
   packed: 'bg-gold-50 text-gold-700',
   shipped: 'bg-brand-50 text-brand-700',
+  out_for_delivery: 'bg-brand-50 text-brand-700',
   delivered: 'bg-brand-100 text-brand-800',
+  cancelled: 'bg-danger-50 text-danger-600',
+  returned: 'bg-danger-50 text-danger-600',
 }
 
 export default function OrdersPage() {
-  const { orders } = useOrders()
+  const { orders, isLoading } = useOrders()
   const { t } = useLanguage()
+
+  if (isLoading && orders.length === 0) {
+    return <div className="flex min-h-[60vh] items-center justify-center text-sm text-ink-400">{t('common.loading')}</div>
+  }
 
   if (orders.length === 0) {
     return (
@@ -46,12 +53,10 @@ export default function OrdersPage() {
               <div className="flex items-center justify-between">
                 <p className="text-sm font-semibold text-ink-900">#{order.id}</p>
                 <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize', STATUS_STYLES[order.status])}>
-                  {order.status}
+                  {order.status.replace(/_/g, ' ')}
                 </span>
               </div>
-              <p className="mt-1 truncate text-xs text-ink-500">
-                {order.items.map((i) => `${i.name} × ${i.quantity}`).join(', ')}
-              </p>
+              <p className="mt-1 truncate text-xs text-ink-500">{order.itemsLabel}</p>
               <div className="mt-1.5 flex items-center justify-between text-xs">
                 <span className="text-ink-400">{formatDateLabel(order.placedAt)}</span>
                 <span className="font-semibold text-ink-800">{formatINR(order.total)}</span>

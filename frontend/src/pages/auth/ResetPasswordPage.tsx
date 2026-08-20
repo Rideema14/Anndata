@@ -3,7 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { CheckCircle2, KeyRound } from 'lucide-react'
 import { Button } from '@/components/common/Button'
 import { TextField } from '@/components/common/FormField'
-import { authService } from '@/services/authService'
+import { useAuth } from '@/context/AuthContext'
+import { getApiErrorMessage } from '@/services/api'
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState('')
@@ -13,12 +14,14 @@ export default function ResetPasswordPage() {
   const [loading, setLoading] = useState(false)
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const requestId = searchParams.get('requestId') ?? ''
+  const { resetPassword } = useAuth()
+  const email = searchParams.get('email') ?? ''
+  const otp = searchParams.get('otp') ?? ''
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters.')
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters, with an uppercase letter, a lowercase letter, and a number.')
       return
     }
     if (password !== confirm) {
@@ -27,9 +30,14 @@ export default function ResetPasswordPage() {
     }
     setError('')
     setLoading(true)
-    await authService.resetPassword(requestId, password)
-    setLoading(false)
-    setDone(true)
+    try {
+      await resetPassword(email, otp, password)
+      setDone(true)
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Could not reset your password.'))
+    } finally {
+      setLoading(false)
+    }
   }
 
   if (done) {

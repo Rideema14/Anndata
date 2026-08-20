@@ -3,17 +3,31 @@ import { Link, useNavigate } from 'react-router-dom'
 import { KeyRound } from 'lucide-react'
 import { Button } from '@/components/common/Button'
 import { TextField } from '@/components/common/FormField'
+import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
+import { getApiErrorMessage } from '@/services/api'
 
 export default function ForgotPasswordPage() {
-  const [phone, setPhone] = useState('')
+  const [email, setEmail] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
+  const { forgotPassword } = useAuth()
   const { t } = useLanguage()
 
-  function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    if (phone.trim().length < 10) return
-    navigate(`/otp-verification?phone=${encodeURIComponent(phone)}&mode=reset`)
+    if (!email.trim()) return
+    setError('')
+    setLoading(true)
+    try {
+      await forgotPassword(email.trim().toLowerCase())
+      navigate(`/otp-verification?email=${encodeURIComponent(email.trim().toLowerCase())}&mode=reset`)
+    } catch (err) {
+      setError(getApiErrorMessage(err))
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -23,21 +37,22 @@ export default function ForgotPasswordPage() {
           <KeyRound className="h-6 w-6" aria-hidden="true" />
         </span>
         <h1 className="text-xl">{t('auth.forgotPassword')}</h1>
-        <p className="mt-1 text-sm text-ink-500">We'll send a code to reset your password.</p>
+        <p className="mt-1 text-sm text-ink-500">We'll email you a code to reset your password.</p>
       </div>
 
       <form onSubmit={handleSubmit} noValidate>
         <TextField
-          id="phone"
-          label={t('auth.phoneNumber')}
-          type="tel"
-          inputMode="tel"
-          placeholder="98765 43210"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
+          id="email"
+          label="Email"
+          type="email"
+          autoComplete="email"
+          placeholder="you@example.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
           required
         />
-        <Button type="submit" fullWidth>
+        {error && <p className="mb-3 text-xs font-medium text-danger-500">{error}</p>}
+        <Button type="submit" fullWidth loading={loading}>
           {t('common.continue')}
         </Button>
       </form>

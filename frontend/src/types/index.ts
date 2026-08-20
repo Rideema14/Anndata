@@ -17,6 +17,12 @@ export interface Address {
   state: string
   pincode: string
   isDefault: boolean
+  /** Extra fields the real backend requires (`/users/me/addresses`) — optional so existing mock-built addresses still type-check. */
+  fullName?: string
+  phone?: string
+  country?: string
+  latitude?: number
+  longitude?: number
 }
 
 export interface User {
@@ -31,6 +37,16 @@ export interface User {
   sellerVerification: SellerVerificationStatus
   addresses: Address[]
   createdAt: string
+}
+
+/**
+ * Full session, held by AuthContext once real login/register/refresh succeeds.
+ * accessToken/refreshToken are also persisted to localStorage by api.ts.
+ */
+export interface AuthSession {
+  user: User
+  accessToken: string
+  refreshToken: string
 }
 
 export type AppMode = 'buy' | 'sell'
@@ -67,12 +83,32 @@ export interface Product {
   variants?: string[]
   reviews: ProductReview[]
   createdAt: string
+  /** Backend-only fields — optional so existing mock Product literals keep type-checking. */
+  slug?: string
+  images?: string[]
+  isWishlisted?: boolean
+  variantOptions?: { id: string; name: string; price: number; stock: number }[]
 }
 
 export interface CartLine {
   productId: string
   quantity: number
   savedForLater: boolean
+  /** Populated once the cart is backed by the real API — needed to PATCH/DELETE a specific line. */
+  itemId?: string
+  variantId?: string
+  variantName?: string
+  unitPrice?: number
+  lineTotal?: number
+  product?: {
+    id: string
+    name: string
+    slug: string
+    price: number
+    discountPrice?: number
+    imageUrl?: string
+    stock: number
+  }
 }
 
 export interface ProductSpecification {
@@ -118,7 +154,15 @@ export interface Listing {
   createdAt: string
 }
 
-export type OrderStatus = 'placed' | 'confirmed' | 'packed' | 'shipped' | 'delivered'
+export type OrderStatus =
+  | 'placed'
+  | 'confirmed'
+  | 'packed'
+  | 'shipped'
+  | 'out_for_delivery'
+  | 'delivered'
+  | 'cancelled'
+  | 'returned'
 export type SellerOrderStatus = OrderStatus
 
 export interface SellerOrder {

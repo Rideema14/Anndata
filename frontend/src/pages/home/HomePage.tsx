@@ -807,36 +807,6 @@ export default function HomePage() {
                 <ArrowUpRight className="h-3 w-3" />
               </Link>
             </section>
-
-            {/* SELLER */}
-
-            {!isSeller && (
-              <Link
-                to="/seller/onboarding"
-                className="group block rounded-[24px] border border-[#c8bfae] bg-[#e8e1d2] p-5 transition-all duration-300 hover:-translate-y-1 hover:bg-[#ded5c3]"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#cfdac5]">
-                    <Store className="h-4 w-4 text-[#526b46]" />
-                  </div>
-
-                  <ArrowUpRight className="h-4 w-4 text-[#777363] transition-transform group-hover:-translate-y-1 group-hover:translate-x-1" />
-                </div>
-
-                <p className="mt-6 text-[17px] font-bold text-[#34372c]">
-                  Start selling through Anndataa
-                </p>
-
-                <p className="mt-2 text-[12px] leading-5 text-[#777265]">
-                  Bring your produce directly to buyers and grow your digital
-                  marketplace presence.
-                </p>
-
-                <div className="mt-5 text-[10px] font-black uppercase tracking-[0.16em] text-[#5c744d]">
-                  Become a seller
-                </div>
-              </Link>
-            )}
           </aside>
         </div>
       </main>
