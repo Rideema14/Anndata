@@ -77,8 +77,110 @@ export async function bulkUpsertPriceEntries(entries: PriceEntryInput[], source:
   return result;
 }
 
+import { env } from '../../config/env';
+
+function parseIndianDateProxy(value: string): Date {
+  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value.trim());
+  if (!match) return new Date();
+  const [, dd, mm, yyyy] = match;
+  const date = new Date(Date.UTC(Number(yyyy), Number(mm) - 1, Number(dd)));
+  return Number.isNaN(date.getTime()) ? new Date() : date;
+}
+
 export async function listPrices(query: PriceQuery) {
   const { page, limit, skip, take } = parsePagination(query);
+
+  if (env.dataGovIn.apiKey && env.dataGovIn.resourceId) {
+    let state = query.state;
+    let district = query.district;
+    let marketName = '';
+    let commodityName = '';
+
+    if (query.mandiId) {
+      const mandiObj = await prisma.mandi.findUnique({ where: { id: query.mandiId } });
+      if (mandiObj) {
+        state = mandiObj.state;
+        district = mandiObj.district;
+        marketName = mandiObj.name;
+      }
+    }
+    if (query.cropId) {
+      const cropObj = await prisma.crop.findUnique({ where: { id: query.cropId } });
+      if (cropObj) {
+        commodityName = cropObj.name;
+      }
+    }
+
+    const params = new URLSearchParams({
+      'api-key': env.dataGovIn.apiKey,
+      format: 'json',
+      limit: '500', // Fetch a large chunk to find all unique crops
+      offset: String(skip),
+    });
+
+    // Always sort by newest first
+    params.append('sort[Arrival_Date]', 'desc');
+
+    if (state) params.append('filters[State]', state);
+    if (district) params.append('filters[District]', district);
+    if (marketName) params.append('filters[Market]', marketName);
+    if (commodityName) params.append('filters[Commodity]', commodityName);
+    
+    if (query.exactDate) {
+      // Convert yyyy-mm-dd to dd/MM/yyyy for data.gov.in
+      const [year, month, day] = query.exactDate.split('-');
+      if (year && month && day) {
+        params.append('filters[Arrival_Date]', `${day}/${month}/${year}`);
+      }
+    }
+
+    const url = `${env.dataGovIn.baseUrl}/${env.dataGovIn.resourceId}?${params.toString()}`;
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw ApiError.internal('Failed to fetch from data.gov.in');
+    }
+
+    const data = await response.json();
+    const records = data.records || [];
+    
+    // Deduplicate: Keep only the first (latest) entry for each Commodity
+    const uniqueRecords = [];
+    const seenCommodities = new Set<string>();
+    
+    for (const record of records) {
+      if (!seenCommodities.has(record.Commodity)) {
+        seenCommodities.add(record.Commodity);
+        uniqueRecords.push(record);
+      }
+    }
+
+    const items = uniqueRecords.map((record: any, index: number) => ({
+      id: `gov-${skip + index}`,
+      mandiId: query.mandiId || 'unknown',
+      cropId: query.cropId || 'unknown',
+      variety: record.Variety || 'Other',
+      minPrice: Number(record.Min_Price),
+      maxPrice: Number(record.Max_Price),
+      modalPrice: Number(record.Modal_Price),
+      priceDate: record.Arrival_Date ? parseIndianDateProxy(record.Arrival_Date) : new Date(),
+      source: 'EXTERNAL_API',
+      mandi: {
+        id: query.mandiId || 'unknown',
+        name: record.Market,
+        state: record.State,
+        district: record.District,
+      },
+      crop: {
+        id: query.cropId || 'unknown',
+        name: record.Commodity,
+        unit: 'Quintal',
+      }
+    }));
+
+    // We override totalItems to items.length so pagination stops (since we deduplicated)
+    return { items, meta: buildPaginationMeta(1, items.length || 1, items.length) };
+  }
 
   const where: Prisma.MandiPriceWhereInput = {};
   if (query.mandiId) where.mandiId = query.mandiId;

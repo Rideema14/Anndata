@@ -54,6 +54,7 @@ export const priceQuerySchema = z.object({
   cropId: z.string().uuid().optional(),
   fromDate: z.coerce.date().optional(),
   toDate: z.coerce.date().optional(),
+  exactDate: z.string().trim().optional(),
 });
 export type PriceQuery = z.infer<typeof priceQuerySchema>;
 

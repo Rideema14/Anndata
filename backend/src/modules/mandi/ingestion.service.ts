@@ -24,15 +24,15 @@ import { bulkUpsertPriceEntries } from './price.service';
 import type { PriceEntryInput } from './mandi.validation';
 
 interface DataGovInRecord {
-  state?: string;
-  district?: string;
-  market?: string;
-  commodity?: string;
-  variety?: string;
-  arrival_date?: string; // DD/MM/YYYY
-  min_price?: string;
-  max_price?: string;
-  modal_price?: string;
+  State?: string;
+  District?: string;
+  Market?: string;
+  Commodity?: string;
+  Variety?: string;
+  Arrival_Date?: string; // DD/MM/YYYY
+  Min_Price?: string;
+  Max_Price?: string;
+  Modal_Price?: string;
 }
 
 interface DataGovInResponse {
@@ -113,7 +113,7 @@ export async function syncFromDataGovIn(maxRecords = 500): Promise<SyncResult> {
   let skippedMalformed = 0;
 
   for (const record of records) {
-    const { state, district, market, commodity, variety, arrival_date: arrivalDate, min_price: minStr, max_price: maxStr, modal_price: modalStr } = record;
+    const { State: state, District: district, Market: market, Commodity: commodity, Variety: variety, Arrival_Date: arrivalDate, Min_Price: minStr, Max_Price: maxStr, Modal_Price: modalStr } = record;
 
     if (!state || !district || !market || !commodity || !arrivalDate) {
       skippedMalformed += 1;
