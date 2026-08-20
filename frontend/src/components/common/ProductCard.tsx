@@ -4,7 +4,6 @@ import type { Product } from '@/types'
 import { useCart } from '@/context/CartContext'
 import { useWishlist } from '@/context/WishlistContext'
 import { useAuth } from '@/context/AuthContext'
-import { getDiscountPercent } from '@/data/mock/mockProductCatalog'
 import { formatINR } from '@/utils/format'
 import { cn } from '@/utils/cn'
 
@@ -15,12 +14,10 @@ export function ProductCard({ product }: { product: Product }) {
   const navigate = useNavigate()
   const wishlisted = isWishlisted(product.id)
   const image = product.images?.[0]
-  const discountPercent = getDiscountPercent({
-    ...product,
-    category: '',
-    image: image ?? '',
-    variants: product.variants ?? [],
-  })
+  const discountPercent =
+    product.originalPrice && product.originalPrice > product.price
+      ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+      : 0
 
   function requireAuth(action: () => void) {
     if (!isAuthenticated) {

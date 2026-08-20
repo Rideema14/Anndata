@@ -1,14 +1,12 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
   MapPinned,
   PackageX,
   SlidersHorizontal,
   Tag,
-  Sparkles,
   RotateCcw,
   Clock,
-  Zap,
   Filter,
   Check,
   Flame,
@@ -18,15 +16,10 @@ import {
 import { ProductCard } from '@/components/common/ProductCard'
 import { ProductRail } from '@/components/common/ProductRail'
 
-import { mockCategories } from '@/data/mock/mockCategories'
+import { categoryService, type Category } from '@/services/categoryService'
+import { productService } from '@/services/productService'
+import type { Product } from '@/types'
 
-import {
-  mockProductCatalog,
-  getTopDeals,
-  getNearbyProducts,
-} from '@/data/mock/mockProductCatalog'
-
-import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { cn } from '@/utils/cn'
 
@@ -36,11 +29,27 @@ type SortKey =
   | 'price-high'
   | 'rating'
 
+const SORT_TO_API: Record<SortKey, 'popular' | 'price_asc' | 'price_desc' | 'rating'> = {
+  relevance: 'popular',
+  'price-low': 'price_asc',
+  'price-high': 'price_desc',
+  rating: 'rating',
+}
+
+/** Debounces filter/search inputs so we don't fire an API call on every keystroke. */
+function useDebouncedValue<T>(value: T, delayMs: number): T {
+  const [debounced, setDebounced] = useState(value)
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebounced(value), delayMs)
+    return () => window.clearTimeout(timer)
+  }, [value, delayMs])
+  return debounced
+}
+
 export default function MarketplacePage() {
   const [searchParams, setSearchParams] = useSearchParams()
 
   const { t } = useLanguage()
-  const { user } = useAuth()
 
   const query = searchParams.get('q') ?? ''
 
@@ -49,104 +58,141 @@ export default function MarketplacePage() {
   const [maxPrice, setMaxPrice] = useState('')
   const [showFilters, setShowFilters] = useState(false)
 
+  const debouncedQuery = useDebouncedValue(query, 300)
+  const debouncedMinPrice = useDebouncedValue(minPrice, 400)
+  const debouncedMaxPrice = useDebouncedValue(maxPrice, 400)
+
+  // =========================================================
+  // CATEGORIES
+  // =========================================================
+
+  const [categories, setCategories] = useState<Category[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+    categoryService
+      .list()
+      .then((items) => {
+        if (!cancelled) setCategories(items)
+      })
+      .catch(() => {
+        if (!cancelled) setCategories([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   // =========================================================
   // TOP DEALS
   // =========================================================
 
-  const topDeals = useMemo(() => {
-    return getTopDeals().map((product) => ({
-      ...product,
-      sellerId: '',
-      createdAt: '',
-    }))
+  const [topDeals, setTopDeals] = useState<Product[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+    productService
+      .topDeals(6)
+      .then((items) => {
+        if (!cancelled) setTopDeals(items)
+      })
+      .catch(() => {
+        if (!cancelled) setTopDeals([])
+      })
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   // =========================================================
   // NEARBY PRODUCTS
   // =========================================================
+  // Uses the browser's geolocation for the backend's Haversine-distance
+  // query. If permission is denied or unavailable, falls back to a general
+  // "newest" list so the section still shows something useful.
 
-  const nearbyProducts = useMemo(() => {
-    return getNearbyProducts(user?.location ?? '').map((product) => ({
-      ...product,
-      sellerId: '',
-      createdAt: '',
-    }))
-  }, [user?.location])
+  const [nearbyProducts, setNearbyProducts] = useState<Product[]>([])
+  const [nearbyLabel, setNearbyLabel] = useState('Near You')
+
+  useEffect(() => {
+    let cancelled = false
+
+    function loadFallback() {
+      productService
+        .list({ sortBy: 'newest', limit: 6 })
+        .then((res) => {
+          if (!cancelled) setNearbyProducts(res.items)
+        })
+        .catch(() => {
+          if (!cancelled) setNearbyProducts([])
+        })
+    }
+
+    if (!navigator.geolocation) {
+      loadFallback()
+      return
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        if (cancelled) return
+        setNearbyLabel('Near You')
+        productService
+          .nearby(position.coords.latitude, position.coords.longitude)
+          .then((items) => {
+            if (!cancelled) setNearbyProducts(items)
+          })
+          .catch(() => {
+            if (!cancelled) loadFallback()
+          })
+      },
+      () => {
+        if (!cancelled) loadFallback()
+      },
+      { timeout: 8000 },
+    )
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   // =========================================================
-  // SEARCH + FILTER + SORT
+  // SEARCH + FILTER + SORT (server-side)
   // =========================================================
 
-  const results = useMemo(() => {
-    let list = [...mockProductCatalog]
+  const [results, setResults] = useState<Product[]>([])
+  const [isLoadingResults, setIsLoadingResults] = useState(true)
 
-    if (query.trim()) {
-      const search = query.trim().toLowerCase()
+  useEffect(() => {
+    let cancelled = false
+    setIsLoadingResults(true)
 
-      list = list.filter((product) => {
-        const name = product.name?.toLowerCase() ?? ''
-        const category = product.category?.toLowerCase() ?? ''
-        const categorySlug =
-          product.categorySlug?.toLowerCase() ?? ''
-        const seller =
-          product.sellerName?.toLowerCase() ?? ''
-        const location =
-          product.location?.toLowerCase() ?? ''
+    const min = debouncedMinPrice !== '' && !Number.isNaN(Number(debouncedMinPrice)) ? Number(debouncedMinPrice) : undefined
+    const max = debouncedMaxPrice !== '' && !Number.isNaN(Number(debouncedMaxPrice)) ? Number(debouncedMaxPrice) : undefined
 
-        return (
-          name.includes(search) ||
-          category.includes(search) ||
-          categorySlug.includes(search) ||
-          seller.includes(search) ||
-          location.includes(search)
-        )
+    productService
+      .list({
+        search: debouncedQuery.trim() || undefined,
+        minPrice: min,
+        maxPrice: max,
+        sortBy: SORT_TO_API[sort],
+        limit: 48,
       })
+      .then((res) => {
+        if (!cancelled) setResults(res.items)
+      })
+      .catch(() => {
+        if (!cancelled) setResults([])
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingResults(false)
+      })
+
+    return () => {
+      cancelled = true
     }
-
-    if (minPrice !== '') {
-      const min = Number(minPrice)
-
-      if (!Number.isNaN(min)) {
-        list = list.filter(
-          (product) => product.price >= min,
-        )
-      }
-    }
-
-    if (maxPrice !== '') {
-      const max = Number(maxPrice)
-
-      if (!Number.isNaN(max)) {
-        list = list.filter(
-          (product) => product.price <= max,
-        )
-      }
-    }
-
-    switch (sort) {
-      case 'price-low':
-        list.sort((a, b) => a.price - b.price)
-        break
-
-      case 'price-high':
-        list.sort((a, b) => b.price - a.price)
-        break
-
-      case 'rating':
-        list.sort((a, b) => b.rating - a.rating)
-        break
-
-      case 'relevance':
-      default:
-        break
-    }
-
-    return list.map((product) => ({
-      ...product,
-      sellerId: '',
-      createdAt: '',
-    }))
-  }, [query, minPrice, maxPrice, sort])
+  }, [debouncedQuery, debouncedMinPrice, debouncedMaxPrice, sort])
 
   // =========================================================
   // RESET
@@ -157,6 +203,8 @@ export default function MarketplacePage() {
     setMaxPrice('')
     setSort('relevance')
   }
+
+  const hasActiveFilters = useMemo(() => Boolean(minPrice || maxPrice), [minPrice, maxPrice])
 
   return (
     <div className="min-h-screen bg-[#F4F6F0] font-sans text-[#17210F]">
@@ -169,12 +217,6 @@ export default function MarketplacePage() {
         <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
 
           <div>
-            <div className="mb-2 flex items-center gap-2">
-
-
-
-            </div>
-
             <h1 className="text-3xl font-black tracking-[-0.025em] text-[#18200F] sm:text-3xl">
               {query
                 ? `Results for "${query}"`
@@ -206,7 +248,7 @@ export default function MarketplacePage() {
 
         <div className="scrollbar-none mb-8 flex gap-2.5 overflow-x-auto pb-1">
 
-          {mockCategories.map((cat) => {
+          {categories.map((cat) => {
             const CategoryIcon = cat.icon
 
             return (
@@ -341,9 +383,7 @@ export default function MarketplacePage() {
                     <div className="flex items-center gap-2">
 
                       <h2 className="text-base font-black tracking-tight text-[#26351A] sm:text-lg">
-                        {user?.location
-                          ? `Near ${user.location.split(',')[0]}`
-                          : 'Near You'}
+                        {nearbyLabel}
                       </h2>
 
                       <span className="rounded-full bg-[#D4E2C6] px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-[#496438]">
@@ -418,7 +458,7 @@ export default function MarketplacePage() {
 
               {t('common.filter')}
 
-              {(minPrice || maxPrice) && (
+              {hasActiveFilters && (
                 <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-white/90 px-1 text-[8px] font-black text-[#26310F]">
                   !
                 </span>
@@ -589,7 +629,7 @@ export default function MarketplacePage() {
             PRODUCT GRID
         ===================================================== */}
 
-        {results.length === 0 ? (
+        {!isLoadingResults && results.length === 0 ? (
 
           <div className="my-8 flex min-h-[300px] flex-col items-center justify-center rounded-2xl bg-white p-8 text-center shadow-sm">
 

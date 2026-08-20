@@ -21,13 +21,18 @@ import {
 import { QuickActionTile } from "@/components/common/QuickActionTile";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
-import { mockCategories } from "@/data/mock/mockCategories";
+import { useOrders } from "@/context/OrderContext";
+import { categoryService, type Category } from "@/services/categoryService";
+import { productService } from "@/services/productService";
+import type { Product } from "@/types";
+// Mandi price intelligence and weather intelligence have no backend module yet
+// (see backend/README.md "Not yet built" — 3.8 and 3.10), so these two
+// sections stay on mock data until those modules land.
 import { mockMandiSnapshot } from "@/data/mock/mockMandi";
 import { mockWeatherSnapshot } from "@/data/mock/mockWeather";
-import { mockRecommendedProducts } from "@/data/mock/mockProducts";
-import { mockRecentOrders } from "@/data/mock/mockOrders";
 import { formatINR, formatPercentChange } from "@/utils/format";
 import { cn } from "@/utils/cn";
+import { useEffect, useState } from "react";
 
 function useGreetingKey():
   | "home.greetingMorning"
@@ -46,17 +51,53 @@ const ORDER_STATUS_STYLES: Record<string, string> = {
   confirmed: "bg-[#e5ecdf] text-[#506846]",
   packed: "bg-[#f1e5b7] text-[#765f1e]",
   shipped: "bg-[#dce7d6] text-[#435c39]",
+  out_for_delivery: "bg-[#dce7d6] text-[#435c39]",
   delivered: "bg-[#d1dfc9] text-[#3c5735]",
+  cancelled: "bg-[#f0ddd7] text-[#8a513d]",
+  returned: "bg-[#f0ddd7] text-[#8a513d]",
 };
 
 export default function HomePage() {
-  const { user, isSeller } = useAuth();
+  const { user } = useAuth();
   const { t } = useLanguage();
+  const { orders: recentOrders } = useOrders();
 
   const greetingKey = useGreetingKey();
   const firstName = user?.name?.split(" ")[0] ?? "";
 
   const mandi = mockMandiSnapshot[0];
+
+  /*
+   * ---------------------------------------------------------
+   * CATEGORIES + RECOMMENDED PRODUCTS (real backend data)
+   * ---------------------------------------------------------
+   */
+
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [recommendedProducts, setRecommendedProducts] = useState<Product[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    categoryService
+      .list()
+      .then((items) => {
+        if (!cancelled) setCategories(items);
+      })
+      .catch(() => {
+        if (!cancelled) setCategories([]);
+      });
+    productService
+      .list({ sortBy: "popular", limit: 4 })
+      .then((res) => {
+        if (!cancelled) setRecommendedProducts(res.items);
+      })
+      .catch(() => {
+        if (!cancelled) setRecommendedProducts([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   /*
    * ---------------------------------------------------------
@@ -546,7 +587,7 @@ export default function HomePage() {
               </div>
 
               <div className="scrollbar-none flex gap-3 overflow-x-auto pb-2">
-                {mockCategories.map((cat) => (
+                {categories.map((cat) => (
                   <Link
                     key={cat.id}
                     to={`/market/${cat.slug}`}
@@ -593,10 +634,10 @@ export default function HomePage() {
               </div>
 
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {mockRecommendedProducts.map((product) => (
+                {recommendedProducts.map((product) => (
                   <Link
                     key={product.id}
-                    to={`/product/${product.id}`}
+                    to={`/product/${product.slug ?? product.id}`}
                     className="group relative overflow-hidden rounded-[24px] border border-[#ddd6c6] bg-[#fffdf7] shadow-[0_4px_18px_rgba(60,55,40,0.04)] transition-all duration-300 hover:-translate-y-1.5 hover:border-[#bdc9b4] hover:shadow-[0_20px_40px_rgba(60,55,40,0.11)]"
                   >
                     {/* =================================================
@@ -605,7 +646,7 @@ export default function HomePage() {
 
                     <div className="relative h-[175px] overflow-hidden bg-[#e9e5d9]">
                       <img
-                        src={product.image}
+                        src={product.images?.[0]}
                         alt={product.name}
                         className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                       />
@@ -703,7 +744,7 @@ export default function HomePage() {
               </div>
 
               <ul className="space-y-1">
-                {mockRecentOrders.map((order) => (
+                {recentOrders.slice(0, 4).map((order) => (
                   <li key={order.id}>
                     <Link
                       to={`/orders/${order.id}`}

@@ -6,11 +6,11 @@ import axios, { AxiosError } from 'axios'
  * in one place.
  *
  * Backend integration status: auth, categories, products, reviews, wishlist,
- * cart, orders, and payments are wired to the real API (see the matching
- * service files). Features the backend doesn't implement yet (land,
- * machinery, mandi, weather, AI, seeds, notifications, seller/admin tools)
- * still resolve mock data via simulateRequest() below until a backend module
- * exists for them.
+ * cart, orders, payments, and notifications are wired to the real API (see
+ * the matching service files). Features the backend doesn't implement yet
+ * (land, machinery, mandi, weather, AI, seeds) still resolve mock data via
+ * simulateRequest() below until a backend module exists for them.
+ * Seller and admin tooling deliberately stay on local/mock state for now.
  */
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5000/api/v1',

@@ -2,15 +2,10 @@ import { Link } from 'react-router-dom'
 import { Heart, ShoppingCart, Sprout, Trash2 } from 'lucide-react'
 import { useWishlist } from '@/context/WishlistContext'
 import { useCart } from '@/context/CartContext'
-<<<<<<< HEAD
-=======
-import { getProductById } from '@/data/mock/mockProductCatalog'
->>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a
 import { useLanguage } from '@/context/LanguageContext'
 import { formatINR } from '@/utils/format'
 
 export default function WishlistPage() {
-<<<<<<< HEAD
   const { products, isLoading, removeFromWishlist } = useWishlist()
   const { addToCart } = useCart()
   const { t } = useLanguage()
@@ -18,13 +13,6 @@ export default function WishlistPage() {
   if (isLoading && products.length === 0) {
     return <div className="flex min-h-[60vh] items-center justify-center text-sm text-ink-400">{t('common.loading')}</div>
   }
-=======
-  const { productIds, removeFromWishlist } = useWishlist()
-  const { addToCart } = useCart()
-  const { t } = useLanguage()
-
-  const products = productIds.map((id) => getProductById(id)).filter((p): p is NonNullable<typeof p> => !!p)
->>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a
 
   if (products.length === 0) {
     return (
@@ -45,7 +33,6 @@ export default function WishlistPage() {
       <div className="grid gap-3 sm:grid-cols-2">
         {products.map((product) => (
           <div key={product.id} className="flex gap-3 rounded-2xl border border-ink-100 bg-surface p-3">
-<<<<<<< HEAD
             <Link
               to={`/product/${product.slug ?? product.id}`}
               className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-surface-sunk"
@@ -58,13 +45,6 @@ export default function WishlistPage() {
             </Link>
             <div className="min-w-0 flex-1">
               <Link to={`/product/${product.slug ?? product.id}`} className="line-clamp-2 text-sm font-medium text-ink-900">
-=======
-            <Link to={`/product/${product.id}`} className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-surface-sunk">
-              <Sprout className="h-6 w-6 text-brand-400" aria-hidden="true" />
-            </Link>
-            <div className="min-w-0 flex-1">
-              <Link to={`/product/${product.id}`} className="line-clamp-2 text-sm font-medium text-ink-900">
->>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a
                 {product.name}
               </Link>
               <p className="mt-0.5 text-sm font-bold text-ink-900">{formatINR(product.price)}</p>
@@ -75,12 +55,8 @@ export default function WishlistPage() {
                     addToCart(product.id)
                     removeFromWishlist(product.id)
                   }}
-<<<<<<< HEAD
                   disabled={product.stock === 0}
                   className="flex items-center gap-1 text-xs font-semibold text-brand-600 hover:underline disabled:text-ink-300"
-=======
-                  className="flex items-center gap-1 text-xs font-semibold text-brand-600 hover:underline"
->>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a
                 >
                   <ShoppingCart className="h-3.5 w-3.5" aria-hidden="true" />
                   Move to cart

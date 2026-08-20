@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { UserPlus } from 'lucide-react'
 import { Button } from '@/components/common/Button'
 import { TextField } from '@/components/common/FormField'
+import { GoogleSignInButton } from '@/components/common/GoogleSignInButton'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { getApiErrorMessage } from '@/services/api'
@@ -80,6 +81,14 @@ export default function RegisterPage() {
           {t('common.continue')}
         </Button>
       </form>
+
+      <div className="my-5 flex items-center gap-3">
+        <div className="h-px flex-1 bg-ink-100" />
+        <span className="text-xs text-ink-400">or</span>
+        <div className="h-px flex-1 bg-ink-100" />
+      </div>
+
+      <GoogleSignInButton onSuccess={() => navigate('/home')} onError={setError} />
 
       <p className="mt-6 text-center text-sm text-ink-500">
         Already have an account?{' '}
