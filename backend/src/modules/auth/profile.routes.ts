@@ -43,6 +43,15 @@ router.post('/me/image', uploadImage.single('image'), profileController.uploadPr
 
 /**
  * @openapi
+ * /users/me/image:
+ *   delete:
+ *     tags: [Users]
+ *     summary: Remove the current user's profile image entirely (also deletes it from Cloudinary)
+ */
+router.delete('/me/image', profileController.removeProfileImage);
+
+/**
+ * @openapi
  * /users/me/login-history:
  *   get:
  *     tags: [Users]

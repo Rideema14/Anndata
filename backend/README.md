@@ -15,7 +15,7 @@ updates.
 | **Cart** (`/cart`) | Add/update/remove items, live price computation, stock checks |
 | **Orders** (`/orders`) | Checkout (cart → order, race-safe stock decrement, address selection), order history, status updates with full audit history, cancellation with stock restoration, live push over Socket.IO |
 | **Payments** (`/payments`) | Razorpay order creation, client-side signature verification, server-to-server webhook (idempotent, signature-verified against the raw payload) |
-| **Sellers** (`/sellers`) | Application/verification workflow (auto-promotes to the `SELLER` role on approval), profile with payout bank details + service area, dashboard (active listings, orders to fulfill, revenue), analytics (daily sales trend, top products, order-status breakdown) — all via raw SQL aggregation since it spans Order/OrderItem/Product |
+| **Sellers** (`/sellers`) | Application/verification workflow (auto-promotes to the `SELLER` role on approval), profile with payout bank details + service area, dashboard (active listings, orders to fulfill, revenue), analytics (daily sales trend, top products, order-status breakdown), and a reviews inbox (`GET /sellers/reviews` — every review left on their products: reviewer name + photo, rating, comment, which product; this is what a frontend "Feedback" button/section for sellers should call) |
 | **Notifications & Feedback** (`/notifications`) | In-app + email notifications with per-user, per-type preferences (mute specific types, toggle channels globally); feedback submission (works anonymously or logged in), admin triage/response |
 | **Mandi Price Intelligence** (`/mandi`) | Markets + crops (admin-managed), price entry (single + bulk upload), state→district→market cascading filters, price history for charting, favorite markets, price threshold alerts (wired into the notification system above) — plus an *optional* sync from data.gov.in's real Agmarknet dataset, inactive until you supply your own API key |
 | **Weather Intelligence** (`/weather`) | Current conditions + up to 16-day forecast via Open-Meteo (free, no API key needed), DB-backed cache (`WeatherCache`) to avoid re-fetching the same location on every request |
@@ -41,6 +41,39 @@ pattern and the existing Prisma schema.
 - **Mandi prices (data.gov.in)**: this one's different. The real government dataset ("Variety-wise Daily Market Prices of Commodity") exists and is well-documented, but using it requires *your own* free API key from data.gov.in and the dataset's current resource ID — both of which I have no way to obtain or verify from here, and neither is safe to hardcode (resource IDs on that platform change over time). So the module works two ways:
   1. **Always available, zero setup**: admins enter/bulk-upload price records directly (`POST /mandi/prices`, `/mandi/prices/bulk`). This is the path the seeded crops and everything else in the module assumes.
   2. **Optional**: set `DATA_GOV_IN_API_KEY` and `DATA_GOV_IN_RESOURCE_ID` in `.env` (see the comment above them for where to get these) and `POST /mandi/sync` will pull real records and upsert them, auto-creating any market/crop it doesn't recognize by name. The field mapping in `src/modules/mandi/ingestion.service.ts` matches this dataset's consistently-documented shape, but it hasn't been tested against a live key in this environment — verify it against a real response before relying on it in production.
+
+## "Feedback" means two different things here — on purpose, kept apart
+
+- **`/sellers/reviews`** is a seller's view of the existing product **Review** system
+  (`Product` → `Review`, the same thing `POST /products/:id/reviews` writes to). It's
+  everything a customer said about their products — rating, comment, reviewer name +
+  profile picture, which product — newest first. If your frontend shows sellers a
+  button labeled "Feedback," this is the endpoint it should call.
+- **`/notifications/feedback`** is a *separate*, already-existing model — bug reports,
+  feature requests, complaints, submitted by anyone (logged in or not) about the
+  platform itself, triaged by admins. Nothing to do with product reviews.
+
+They're named differently in the API specifically so they don't get confused with each
+other later — worth keeping that distinction in mind if you add more to either one.
+
+## Cloudinary cleanup — what's covered
+
+Every image this project stores in Cloudinary is cleaned up when it stops being
+referenced, so nothing accumulates as orphaned storage:
+- **Product images**: deleting one image, or deleting the whole product, removes the
+  matching Cloudinary asset(s).
+- **Profile pictures**: replacing one (`POST /users/me/image`) deletes the old asset;
+  `DELETE /users/me/image` removes the picture entirely (also from Cloudinary).
+- **Category images**: same as profile pictures — replacing or deleting a category's
+  image cleans up Cloudinary. (This one required a small schema change: `Category`
+  didn't originally store the image's `publicId`, so there was nothing to delete by —
+  fixed by adding `Category.imagePublicId`, same pattern already used for `User` and
+  `ProductImage`.)
+
+All of these are "best-effort" deletes (`.catch(() => {})`) — if Cloudinary is briefly
+unreachable, the database operation still succeeds rather than failing the user's
+request over a storage-cleanup step; you'd just be left with one orphaned asset to
+clean up later rather than a broken delete/update.
 
 ## Tech stack & key decisions
 

@@ -3,7 +3,14 @@ import prisma from '../../config/prisma';
 import ApiError from '../../common/utils/ApiError';
 import { parsePagination, buildPaginationMeta } from '../../common/utils/pagination';
 import { notifyUser } from '../notification/notification.service';
-import type { ApplyInput, UpdateSellerProfileInput, ReviewApplicationInput, ListApplicationsQuery, AnalyticsQuery } from './seller.validation';
+import type {
+  ApplyInput,
+  UpdateSellerProfileInput,
+  ReviewApplicationInput,
+  ListApplicationsQuery,
+  AnalyticsQuery,
+  SellerReviewsQuery,
+} from './seller.validation';
 
 export async function getMyProfile(userId: string) {
   const profile = await prisma.sellerProfile.findUnique({ where: { userId } });
@@ -207,4 +214,36 @@ export async function getAnalytics(userId: string, { days, topProductsLimit }: A
   ]);
 
   return { salesTrend, topProducts, statusBreakdown };
+}
+
+/**
+ * A seller's "feedback inbox": every review left on any of their products,
+ * newest first, with the reviewer's identity (name + profile picture) and
+ * which product it was for — not just the public per-product review list.
+ * Deliberately not filtered to isApproved-only reviews — this is the
+ * seller's own view of everything said about their products, not the
+ * public-facing product page.
+ */
+export async function getReviews(sellerId: string, query: SellerReviewsQuery) {
+  const { page, limit, skip, take } = parsePagination(query);
+
+  const where: Prisma.ReviewWhereInput = { product: { sellerId } };
+  if (query.productId) where.productId = query.productId;
+  if (query.minRating) where.rating = { gte: query.minRating };
+
+  const [items, totalItems] = await Promise.all([
+    prisma.review.findMany({
+      where,
+      include: {
+        user: { select: { id: true, name: true, profileImage: true } },
+        product: { select: { id: true, name: true, slug: true, images: { orderBy: { sortOrder: 'asc' }, take: 1 } } },
+      },
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take,
+    }),
+    prisma.review.count({ where }),
+  ]);
+
+  return { items, meta: buildPaginationMeta(page, limit, totalItems) };
 }

@@ -10,6 +10,7 @@ import {
   reviewApplicationSchema,
   listApplicationsQuerySchema,
   analyticsQuerySchema,
+  sellerReviewsQuerySchema,
 } from './seller.validation';
 
 const router = Router();
@@ -55,6 +56,15 @@ router.get('/dashboard', authorize('SELLER', 'ADMIN'), controller.getDashboard);
  *     summary: Sales trend, top products, and order-status breakdown for the current seller
  */
 router.get('/analytics', authorize('SELLER', 'ADMIN'), validate({ query: analyticsQuerySchema }), controller.getAnalytics);
+
+/**
+ * @openapi
+ * /sellers/reviews:
+ *   get:
+ *     tags: [Sellers]
+ *     summary: Every review left on the current seller's products — reviewer name/photo, rating, comment, and which product. This is the "Feedback" view for sellers on the frontend.
+ */
+router.get('/reviews', authorize('SELLER', 'ADMIN'), validate({ query: sellerReviewsQuerySchema }), controller.getReviews);
 
 // --- Admin: verification console ------------------------------------------
 

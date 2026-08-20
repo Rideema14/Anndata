@@ -25,6 +25,22 @@ export async function updateProfileImage(userId: string, fileBuffer: Buffer) {
   return sanitizeUser(user);
 }
 
+/** Removes the profile picture entirely (as opposed to updateProfileImage, which replaces it). */
+export async function removeProfileImage(userId: string) {
+  const current = await prisma.user.findUnique({ where: { id: userId } });
+
+  const user = await prisma.user.update({
+    where: { id: userId },
+    data: { profileImage: null, profileImagePublicId: null },
+  });
+
+  if (current?.profileImagePublicId) {
+    await deleteAsset(current.profileImagePublicId).catch(() => {});
+  }
+
+  return sanitizeUser(user);
+}
+
 export async function getLoginHistory(userId: string, { skip, take }: { skip: number; take: number }) {
   const [items, totalItems] = await Promise.all([
     prisma.loginHistory.findMany({

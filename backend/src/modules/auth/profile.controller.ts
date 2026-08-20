@@ -17,6 +17,12 @@ export const uploadProfileImage = asyncHandler(async (req, res) => {
   ApiResponse.ok(res, user, 'Profile image updated.');
 });
 
+export const removeProfileImage = asyncHandler(async (req, res) => {
+  if (!req.user) throw ApiError.unauthorized('Authentication required.');
+  const user = await profileService.removeProfileImage(req.user.id);
+  ApiResponse.ok(res, user, 'Profile image removed.');
+});
+
 export const loginHistory = asyncHandler(async (req, res) => {
   if (!req.user) throw ApiError.unauthorized('Authentication required.');
   const { page, limit, skip, take } = parsePagination(req.query);

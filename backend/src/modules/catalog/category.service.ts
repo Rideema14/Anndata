@@ -1,7 +1,7 @@
 import prisma from '../../config/prisma';
 import ApiError from '../../common/utils/ApiError';
 import { slugify, slugifyUnique } from '../../common/utils/slugify';
-import { uploadBuffer } from '../../config/cloudinary';
+import { uploadBuffer, deleteAsset } from '../../config/cloudinary';
 import type { CategoryInput, SubCategoryInput } from './catalog.validation';
 
 export async function listCategories({ includeInactive = false }: { includeInactive?: boolean } = {}) {
@@ -45,8 +45,14 @@ export async function updateCategoryImage(id: string, fileBuffer: Buffer) {
   const category = await prisma.category.findUnique({ where: { id } });
   if (!category) throw ApiError.notFound('Category not found.');
 
-  const { url } = await uploadBuffer(fileBuffer, { folder: 'agri-marketplace/categories' });
-  return prisma.category.update({ where: { id }, data: { imageUrl: url } });
+  const { url, publicId } = await uploadBuffer(fileBuffer, { folder: 'agri-marketplace/categories' });
+  const updated = await prisma.category.update({ where: { id }, data: { imageUrl: url, imagePublicId: publicId } });
+
+  if (category.imagePublicId) {
+    await deleteAsset(category.imagePublicId).catch(() => {}); // best-effort cleanup of the old asset
+  }
+
+  return updated;
 }
 
 export async function deleteCategory(id: string) {
@@ -56,6 +62,9 @@ export async function deleteCategory(id: string) {
     throw ApiError.conflict('Cannot delete a category that still has products. Deactivate it instead.');
   }
   await prisma.category.delete({ where: { id } });
+  if (category.imagePublicId) {
+    await deleteAsset(category.imagePublicId).catch(() => {});
+  }
 }
 
 export async function createSubCategory(data: SubCategoryInput) {

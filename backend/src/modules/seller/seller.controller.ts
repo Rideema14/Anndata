@@ -43,3 +43,9 @@ export const getAnalytics = asyncHandler(async (req, res) => {
   const analytics = await sellerService.getAnalytics(req.user.id, req.query as any);
   ApiResponse.ok(res, analytics);
 });
+
+export const getReviews = asyncHandler(async (req, res) => {
+  if (!req.user) throw ApiError.unauthorized('Authentication required.');
+  const { items, meta } = await sellerService.getReviews(req.user.id, req.query as any);
+  ApiResponse.paginated(res, items, meta);
+});

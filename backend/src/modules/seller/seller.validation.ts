@@ -43,3 +43,11 @@ export const analyticsQuerySchema = z.object({
   topProductsLimit: z.coerce.number().int().positive().max(50).default(10),
 });
 export type AnalyticsQuery = z.infer<typeof analyticsQuerySchema>;
+
+export const sellerReviewsQuerySchema = z.object({
+  page: z.string().optional(),
+  limit: z.string().optional(),
+  productId: z.string().uuid().optional(),
+  minRating: z.coerce.number().int().min(1).max(5).optional(),
+});
+export type SellerReviewsQuery = z.infer<typeof sellerReviewsQuerySchema>;
