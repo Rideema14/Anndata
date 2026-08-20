@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { UserPlus } from 'lucide-react'
 import { Button } from '@/components/common/Button'
 import { TextField } from '@/components/common/FormField'
+<<<<<<< HEAD
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { getApiErrorMessage } from '@/services/api'
@@ -32,6 +33,22 @@ export default function RegisterPage() {
     } finally {
       setLoading(false)
     }
+=======
+import { useLanguage } from '@/context/LanguageContext'
+
+export default function RegisterPage() {
+  const [name, setName] = useState('')
+  const [phone, setPhone] = useState('')
+  const navigate = useNavigate()
+  const { t } = useLanguage()
+
+  function handleSubmit(event: FormEvent) {
+    event.preventDefault()
+    if (!name.trim() || phone.trim().length < 10) return
+    navigate(
+      `/otp-verification?phone=${encodeURIComponent(phone)}&name=${encodeURIComponent(name)}&mode=register&next=${encodeURIComponent('/')}`,
+    )
+>>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a
   }
 
   return (
@@ -47,6 +64,7 @@ export default function RegisterPage() {
       <form onSubmit={handleSubmit} noValidate>
         <TextField id="name" label="Full Name" placeholder="Rajesh Kumar" value={name} onChange={(e) => setName(e.target.value)} required />
         <TextField
+<<<<<<< HEAD
           id="email"
           label="Email"
           type="email"
@@ -59,11 +77,16 @@ export default function RegisterPage() {
         <TextField
           id="phone"
           label={`${t('auth.phoneNumber')} (optional)`}
+=======
+          id="phone"
+          label={t('auth.phoneNumber')}
+>>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a
           type="tel"
           inputMode="tel"
           placeholder="98765 43210"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
+<<<<<<< HEAD
         />
         <TextField
           id="password"
@@ -77,6 +100,11 @@ export default function RegisterPage() {
         />
         {error && <p className="mb-3 text-xs font-medium text-danger-500">{error}</p>}
         <Button type="submit" fullWidth loading={loading}>
+=======
+          required
+        />
+        <Button type="submit" fullWidth>
+>>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a
           {t('common.continue')}
         </Button>
       </form>
@@ -89,4 +117,8 @@ export default function RegisterPage() {
       </p>
     </div>
   )
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a

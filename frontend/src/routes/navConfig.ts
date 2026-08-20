@@ -66,4 +66,8 @@ export const sellerUtilityNavItems: NavItem[] = [
 export const utilityNavItems: NavItem[] = [
   { path: '/notifications', labelKey: 'nav.notifications', icon: Bell },
   { path: '/settings', labelKey: 'nav.settings', icon: Settings },
+<<<<<<< HEAD
 ]
+=======
+]
+>>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a

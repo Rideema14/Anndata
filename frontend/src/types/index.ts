@@ -17,12 +17,15 @@ export interface Address {
   state: string
   pincode: string
   isDefault: boolean
+<<<<<<< HEAD
   /** Extra fields the real backend requires (`/users/me/addresses`) — optional so existing mock-built addresses still type-check. */
   fullName?: string
   phone?: string
   country?: string
   latitude?: number
   longitude?: number
+=======
+>>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a
 }
 
 export interface User {
@@ -39,6 +42,7 @@ export interface User {
   createdAt: string
 }
 
+<<<<<<< HEAD
 /**
  * Full session, held by AuthContext once real login/register/refresh succeeds.
  * accessToken/refreshToken are also persisted to localStorage by api.ts.
@@ -49,6 +53,8 @@ export interface AuthSession {
   refreshToken: string
 }
 
+=======
+>>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a
 export type AppMode = 'buy' | 'sell'
 
 /**
@@ -83,17 +89,21 @@ export interface Product {
   variants?: string[]
   reviews: ProductReview[]
   createdAt: string
+<<<<<<< HEAD
   /** Backend-only fields — optional so existing mock Product literals keep type-checking. */
   slug?: string
   images?: string[]
   isWishlisted?: boolean
   variantOptions?: { id: string; name: string; price: number; stock: number }[]
+=======
+>>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a
 }
 
 export interface CartLine {
   productId: string
   quantity: number
   savedForLater: boolean
+<<<<<<< HEAD
   /** Populated once the cart is backed by the real API — needed to PATCH/DELETE a specific line. */
   itemId?: string
   variantId?: string
@@ -109,6 +119,8 @@ export interface CartLine {
     imageUrl?: string
     stock: number
   }
+=======
+>>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a
 }
 
 export interface ProductSpecification {
@@ -154,6 +166,7 @@ export interface Listing {
   createdAt: string
 }
 
+<<<<<<< HEAD
 export type OrderStatus =
   | 'placed'
   | 'confirmed'
@@ -163,6 +176,9 @@ export type OrderStatus =
   | 'delivered'
   | 'cancelled'
   | 'returned'
+=======
+export type OrderStatus = 'placed' | 'confirmed' | 'packed' | 'shipped' | 'delivered'
+>>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a
 export type SellerOrderStatus = OrderStatus
 
 export interface SellerOrder {
@@ -207,4 +223,8 @@ export interface OrderSummary {
   total: number
   status: OrderStatus
   placedAt: string
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { wishlistService } from '@/services/wishlistService'
 import { useAuth } from '@/context/AuthContext'
@@ -11,11 +12,21 @@ interface WishlistContextValue {
   toggleWishlist: (productId: string) => Promise<void>
   removeFromWishlist: (productId: string) => Promise<void>
   refresh: () => Promise<void>
+=======
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
+
+interface WishlistContextValue {
+  productIds: string[]
+  isWishlisted: (productId: string) => boolean
+  toggleWishlist: (productId: string) => void
+  removeFromWishlist: (productId: string) => void
+>>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a
 }
 
 const WishlistContext = createContext<WishlistContextValue | null>(null)
 
 export function WishlistProvider({ children }: { children: ReactNode }) {
+<<<<<<< HEAD
   const { isAuthenticated } = useAuth()
   const [products, setProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -63,6 +74,23 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({ productIds, products, isLoading, isWishlisted, toggleWishlist, removeFromWishlist, refresh }),
     [productIds, products, isLoading, isWishlisted, toggleWishlist, removeFromWishlist, refresh],
+=======
+  const [productIds, setProductIds] = useState<string[]>(['prd_3', 'prd_9'])
+
+  const isWishlisted = useCallback((productId: string) => productIds.includes(productId), [productIds])
+
+  const toggleWishlist = useCallback((productId: string) => {
+    setProductIds((prev) => (prev.includes(productId) ? prev.filter((id) => id !== productId) : [...prev, productId]))
+  }, [])
+
+  const removeFromWishlist = useCallback((productId: string) => {
+    setProductIds((prev) => prev.filter((id) => id !== productId))
+  }, [])
+
+  const value = useMemo(
+    () => ({ productIds, isWishlisted, toggleWishlist, removeFromWishlist }),
+    [productIds, isWishlisted, toggleWishlist, removeFromWishlist],
+>>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a
   )
 
   return <WishlistContext.Provider value={value}>{children}</WishlistContext.Provider>

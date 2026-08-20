@@ -1,0 +1,239 @@
+import crypto from 'crypto';
+import { Prisma } from '@prisma/client';
+import type { User } from '@prisma/client';
+import prisma from '../../config/prisma';
+import ApiError from '../../common/utils/ApiError';
+import { parsePagination, buildPaginationMeta } from '../../common/utils/pagination';
+import { emitOrderUpdate } from '../../config/socket';
+import type { CheckoutInput, ListOrdersQuery, UpdateStatusInput, CancelOrderInput } from './order.validation';
+
+const ORDER_INCLUDE_DETAIL = {
+  items: { include: { product: { select: { id: true, name: true, slug: true, sellerId: true } }, variant: true } },
+  address: true,
+  statusHistory: { orderBy: { changedAt: 'asc' as const } },
+  payment: true,
+} satisfies Prisma.OrderInclude;
+
+type OrderWithDetail = Prisma.OrderGetPayload<{ include: typeof ORDER_INCLUDE_DETAIL }>;
+
+// Placeholder business rules — adjust to your actual pricing policy.
+const FREE_SHIPPING_THRESHOLD = 999;
+const FLAT_SHIPPING_FEE = 49;
+const TAX_RATE = 0.05; // 5% flat placeholder tax
+
+async function generateUniqueOrderNumber(): Promise<string> {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const ymd = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const rand = crypto.randomInt(1000, 9999);
+    const candidate = `ORD-${ymd}-${rand}`;
+    // eslint-disable-next-line no-await-in-loop
+    const clash = await prisma.order.findUnique({ where: { orderNumber: candidate } });
+    if (!clash) return candidate;
+  }
+  throw ApiError.internal('Could not generate a unique order number. Please try again.');
+}
+
+function assertCanView(order: OrderWithDetail, user: User) {
+  if (user.role === 'ADMIN') return;
+  if (order.userId === user.id) return;
+  const isSellerOnOrder = order.items.some((item) => item.product?.sellerId === user.id);
+  if (isSellerOnOrder) return;
+  throw ApiError.forbidden('You do not have permission to view this order.');
+}
+
+export async function checkout(userId: string, { addressId, notes }: CheckoutInput): Promise<OrderWithDetail> {
+  const address = await prisma.address.findFirst({ where: { id: addressId, userId } });
+  if (!address) throw ApiError.badRequest('Address not found for this account.');
+
+  const cart = await prisma.cart.findUnique({
+    where: { userId },
+    include: { items: { include: { product: true, variant: true } } },
+  });
+  if (!cart || cart.items.length === 0) throw ApiError.badRequest('Your cart is empty.');
+
+  for (const item of cart.items) {
+    if (!item.product.isActive) {
+      throw ApiError.badRequest(`"${item.product.name}" is no longer available. Remove it from your cart.`);
+    }
+    const availableStock = item.variant ? item.variant.stock : item.product.stock;
+    if (availableStock < item.quantity) {
+      throw ApiError.badRequest(`Only ${availableStock} unit(s) of "${item.product.name}" left in stock.`);
+    }
+  }
+
+  const orderNumber = await generateUniqueOrderNumber();
+
+  let subtotal = 0;
+  const itemsData = cart.items.map((item) => {
+    const unitPrice = item.variant ? Number(item.variant.price) : Number(item.product.discountPrice ?? item.product.price);
+    const totalPrice = Math.round(unitPrice * item.quantity * 100) / 100;
+    subtotal += totalPrice;
+    return {
+      productId: item.productId,
+      variantId: item.variantId,
+      productName: item.product.name,
+      quantity: item.quantity,
+      unitPrice,
+      totalPrice,
+    };
+  });
+  subtotal = Math.round(subtotal * 100) / 100;
+
+  const shippingFee = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : FLAT_SHIPPING_FEE;
+  const tax = Math.round(subtotal * TAX_RATE * 100) / 100;
+  const totalAmount = Math.round((subtotal + shippingFee + tax) * 100) / 100;
+
+  const order = await prisma.$transaction(async (tx) => {
+    const created = await tx.order.create({
+      data: {
+        orderNumber,
+        userId,
+        addressId,
+        notes,
+        subtotal,
+        shippingFee,
+        tax,
+        totalAmount,
+        items: { create: itemsData },
+        statusHistory: { create: { status: 'PENDING', note: 'Order placed.' } },
+      },
+      include: ORDER_INCLUDE_DETAIL,
+    });
+
+    // Decrement stock now, at order-creation time, to prevent overselling
+    // while the buyer is on the payment screen. If payment fails, stock is
+    // restored (see cancelOrder / payment failure handling).
+    //
+    // The earlier availability check above is only a pre-check for a fast,
+    // friendly error — it does NOT prevent two concurrent checkouts from both
+    // passing it and over-selling the last unit. The real guard is here:
+    // updateMany with a `stock >= quantity` WHERE clause makes the decrement
+    // itself conditional, so under a race only one request's decrement can
+    // succeed. If the guarded update affects 0 rows, someone else won it —
+    // throwing here aborts and rolls back the whole transaction.
+    for (const item of cart.items) {
+      const target = item.variantId
+        ? tx.productVariant.updateMany({
+            where: { id: item.variantId, stock: { gte: item.quantity } },
+            data: { stock: { decrement: item.quantity } },
+          })
+        : tx.product.updateMany({
+            where: { id: item.productId, stock: { gte: item.quantity } },
+            data: { stock: { decrement: item.quantity } },
+          });
+      // eslint-disable-next-line no-await-in-loop
+      const result = await target;
+      if (result.count === 0) {
+        throw ApiError.conflict(`"${item.product.name}" just sold out while you were checking out. Please update your cart.`);
+      }
+    }
+
+    await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
+
+    return created;
+  });
+
+  return order;
+}
+
+async function restoreStockForOrder(tx: Prisma.TransactionClient, order: OrderWithDetail) {
+  for (const item of order.items) {
+    if (item.variantId) {
+      // eslint-disable-next-line no-await-in-loop
+      await tx.productVariant.update({ where: { id: item.variantId }, data: { stock: { increment: item.quantity } } });
+    } else {
+      // eslint-disable-next-line no-await-in-loop
+      await tx.product.update({ where: { id: item.productId }, data: { stock: { increment: item.quantity } } });
+    }
+  }
+}
+
+export async function listOrders(user: User, query: ListOrdersQuery) {
+  const { page, limit, skip, take } = parsePagination(query);
+
+  const where: Prisma.OrderWhereInput = {};
+  if (user.role === 'ADMIN') {
+    if (query.userId) where.userId = query.userId;
+  } else {
+    where.userId = user.id;
+  }
+  if (query.status) where.status = query.status;
+
+  const [items, totalItems] = await Promise.all([
+    prisma.order.findMany({
+      where,
+      include: { items: true, payment: { select: { status: true, method: true } } },
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take,
+    }),
+    prisma.order.count({ where }),
+  ]);
+
+  return { items, meta: buildPaginationMeta(page, limit, totalItems) };
+}
+
+export async function getOrderById(orderId: string, user: User) {
+  const order = await prisma.order.findUnique({ where: { id: orderId }, include: ORDER_INCLUDE_DETAIL });
+  if (!order) throw ApiError.notFound('Order not found.');
+  assertCanView(order, user);
+  return order;
+}
+
+export async function updateStatus(orderId: string, user: User, { status, note }: UpdateStatusInput) {
+  const order = await prisma.order.findUnique({ where: { id: orderId }, include: ORDER_INCLUDE_DETAIL });
+  if (!order) throw ApiError.notFound('Order not found.');
+
+  if (user.role !== 'ADMIN') {
+    const isSellerOnOrder = order.items.some((item) => item.product?.sellerId === user.id);
+    if (!isSellerOnOrder) throw ApiError.forbidden('You do not have permission to update this order.');
+  }
+
+  if (['DELIVERED', 'CANCELLED', 'RETURNED'].includes(order.status)) {
+    throw ApiError.badRequest(`Order is already ${order.status.toLowerCase()} and cannot be changed further.`);
+  }
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const result = await tx.order.update({
+      where: { id: orderId },
+      data: { status, statusHistory: { create: { status, note, changedById: user.id } } },
+      include: ORDER_INCLUDE_DETAIL,
+    });
+    if (status === 'CANCELLED' || status === 'RETURNED') {
+      await restoreStockForOrder(tx, order);
+    }
+    return result;
+  });
+
+  emitOrderUpdate(updated);
+  return updated;
+}
+
+export async function cancelOrder(orderId: string, user: User, { reason }: CancelOrderInput) {
+  const order = await prisma.order.findUnique({ where: { id: orderId }, include: ORDER_INCLUDE_DETAIL });
+  if (!order) throw ApiError.notFound('Order not found.');
+
+  if (user.role !== 'ADMIN' && order.userId !== user.id) {
+    throw ApiError.forbidden('You do not have permission to cancel this order.');
+  }
+  if (!['PENDING', 'CONFIRMED'].includes(order.status)) {
+    throw ApiError.badRequest(`Order can no longer be cancelled once it is ${order.status.toLowerCase()}.`);
+  }
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const result = await tx.order.update({
+      where: { id: orderId },
+      data: {
+        status: 'CANCELLED',
+        cancelReason: reason,
+        statusHistory: { create: { status: 'CANCELLED', note: reason || 'Cancelled by request.', changedById: user.id } },
+      },
+      include: ORDER_INCLUDE_DETAIL,
+    });
+    await restoreStockForOrder(tx, order);
+    return result;
+  });
+
+  emitOrderUpdate(updated);
+  return updated;
+}

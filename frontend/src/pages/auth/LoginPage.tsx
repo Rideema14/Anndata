@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Sprout } from 'lucide-react'
 import { Button } from '@/components/common/Button'
 import { TextField } from '@/components/common/FormField'
+<<<<<<< HEAD
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { getApiErrorMessage } from '@/services/api'
@@ -31,6 +32,31 @@ export default function LoginPage() {
     } finally {
       setLoading(false)
     }
+=======
+import { GoogleGlyph } from '@/components/common/GoogleGlyph'
+import { useAuth } from '@/context/AuthContext'
+import { useLanguage } from '@/context/LanguageContext'
+
+export default function LoginPage() {
+  const [phone, setPhone] = useState('')
+  const [loading, setLoading] = useState(false)
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const { loginWithGoogle } = useAuth()
+  const { t } = useLanguage()
+  const next = searchParams.get('next') ?? '/home'
+
+  function handleSubmit(event: FormEvent) {
+    event.preventDefault()
+    if (phone.trim().length < 10) return
+    navigate(`/otp-verification?phone=${encodeURIComponent(phone)}&next=${encodeURIComponent(next)}`)
+  }
+
+  async function handleGoogle() {
+    setLoading(true)
+    await loginWithGoogle()
+    navigate(next)
+>>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a
   }
 
   return (
@@ -45,6 +71,7 @@ export default function LoginPage() {
 
       <form onSubmit={handleSubmit} noValidate>
         <TextField
+<<<<<<< HEAD
           id="email"
           label="Email"
           type="email"
@@ -69,6 +96,33 @@ export default function LoginPage() {
         </Button>
       </form>
 
+=======
+          id="phone"
+          label={t('auth.phoneNumber')}
+          type="tel"
+          inputMode="tel"
+          placeholder="98765 43210"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          required
+        />
+        <Button type="submit" fullWidth>
+          {t('common.continue')}
+        </Button>
+      </form>
+
+      <div className="my-5 flex items-center gap-3 text-xs text-ink-400">
+        <span className="h-px flex-1 bg-ink-100" />
+        or
+        <span className="h-px flex-1 bg-ink-100" />
+      </div>
+
+      <Button variant="secondary" fullWidth onClick={handleGoogle} loading={loading}>
+        <GoogleGlyph className="h-4 w-4" />
+        {t('auth.continueWithGoogle')}
+      </Button>
+
+>>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a
       <p className="mt-6 text-center text-sm text-ink-500">
         New to Aandata?{' '}
         <Link to="/register" className="font-semibold text-brand-600 hover:underline">
@@ -82,4 +136,8 @@ export default function LoginPage() {
       </p>
     </div>
   )
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a

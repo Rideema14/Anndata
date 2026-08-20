@@ -46,6 +46,44 @@ enum PaymentStatus {
   REFUNDED
 }
 
+<<<<<<< HEAD
+=======
+enum SellerVerificationStatus {
+  UNSUBMITTED
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum NotificationType {
+  ORDER_STATUS
+  PAYMENT
+  SELLER_VERIFICATION
+  REVIEW
+  PRICE_ALERT
+  GENERAL
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+}
+
+enum FeedbackCategory {
+  BUG
+  FEATURE_REQUEST
+  COMPLAINT
+  GENERAL
+}
+
+enum FeedbackStatus {
+  OPEN
+  IN_REVIEW
+  RESOLVED
+  CLOSED
+}
+
+>>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a
 // ---------------------------------------------------------------------------
 // 3.1 User Management & Authentication
 // ---------------------------------------------------------------------------
@@ -87,6 +125,14 @@ model User {
   orders                 Order[]
   payments               Payment[]
   orderStatusChanges     OrderStatusHistory[] @relation("StatusChangedBy")
+<<<<<<< HEAD
+=======
+  sellerProfile          SellerProfile?
+  notifications          Notification[]
+  notificationPreference NotificationPreference?
+  feedbacks              Feedback[]
+  verificationsReviewed  SellerProfile[] @relation("VerificationReviewedBy")
+>>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a
 
   @@index([email])
   @@map("users")
@@ -410,3 +456,93 @@ model Payment {
   @@index([razorpayOrderId])
   @@map("payments")
 }
+<<<<<<< HEAD
+=======
+
+// ---------------------------------------------------------------------------
+// 3.11 Seller Management & Analytics
+// ---------------------------------------------------------------------------
+
+model SellerProfile {
+  id                  String                    @id @default(uuid())
+  userId              String                    @unique
+  user                User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  businessName        String
+  businessDescription String?
+  gstNumber           String?
+
+  verificationStatus  SellerVerificationStatus  @default(UNSUBMITTED)
+  verificationNote    String?
+  reviewedById        String?
+  reviewedBy          User?                     @relation("VerificationReviewedBy", fields: [reviewedById], references: [id])
+  reviewedAt          DateTime?
+
+  // Payout details. NOTE: for a real production deployment, prefer a payment
+  // processor's connected-accounts API (e.g. Razorpay Route) over storing raw
+  // bank details, or encrypt these columns at rest — kept simple here to match
+  // the spec's "Seller Profile with bank account details for payouts".
+  bankAccountHolder   String?
+  bankAccountNumber   String?
+  bankIfscCode        String?
+  bankName            String?
+
+  serviceAreaLat      Float?
+  serviceAreaLng      Float?
+  serviceAreaRadiusKm Float?
+
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
+
+  @@index([verificationStatus])
+  @@map("seller_profiles")
+}
+
+// ---------------------------------------------------------------------------
+// 3.12 Notifications & Feedback
+// ---------------------------------------------------------------------------
+
+model Notification {
+  id                String            @id @default(uuid())
+  userId            String
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type              NotificationType
+  title             String
+  message           String
+  isRead            Boolean           @default(false)
+  relatedEntityType String?           // e.g. "ORDER", "SELLER_PROFILE"
+  relatedEntityId   String?
+  createdAt         DateTime          @default(now())
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+model NotificationPreference {
+  id            String             @id @default(uuid())
+  userId        String             @unique
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emailEnabled  Boolean            @default(true)
+  inAppEnabled  Boolean            @default(true)
+  mutedTypes    NotificationType[] @default([])
+  updatedAt     DateTime           @updatedAt
+
+  @@map("notification_preferences")
+}
+
+model Feedback {
+  id             String           @id @default(uuid())
+  userId         String?
+  user           User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  category       FeedbackCategory @default(GENERAL)
+  subject        String
+  message        String
+  status         FeedbackStatus   @default(OPEN)
+  adminResponse  String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([status])
+  @@map("feedback")
+}
+>>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a

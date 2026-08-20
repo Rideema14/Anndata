@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ChevronLeft, PackageX } from 'lucide-react'
@@ -31,6 +32,18 @@ export default function CategoryPage() {
       cancelled = true
     }
   }, [category])
+=======
+import { Link, useParams } from 'react-router-dom'
+import { ChevronLeft, PackageX } from 'lucide-react'
+import { ProductCard } from '@/components/common/ProductCard'
+import { mockCategories } from '@/data/mock/mockCategories'
+import { getProductsByCategory } from '@/data/mock/mockProductCatalog'
+
+export default function CategoryPage() {
+  const { category } = useParams<{ category: string }>()
+  const meta = mockCategories.find((c) => c.slug === category)
+  const products = getProductsByCategory(category ?? '')
+>>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-5 md:px-6 md:py-8">
@@ -47,11 +60,19 @@ export default function CategoryPage() {
         )}
         <div>
           <h1 className="text-xl">{meta?.name ?? category}</h1>
+<<<<<<< HEAD
           <p className="text-xs text-ink-400">{isLoading ? t('common.loading') : `${products.length} products`}</p>
         </div>
       </div>
 
       {!isLoading && products.length === 0 ? (
+=======
+          <p className="text-xs text-ink-400">{products.length} products</p>
+        </div>
+      </div>
+
+      {products.length === 0 ? (
+>>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a
         <div className="flex flex-col items-center py-16 text-center">
           <PackageX className="mb-3 h-10 w-10 text-ink-300" aria-hidden="true" />
           <p className="text-sm text-ink-500">No products in this category yet.</p>
