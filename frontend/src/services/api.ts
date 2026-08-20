@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import axios, { AxiosError } from 'axios'
 
 /**
@@ -15,30 +14,12 @@ import axios, { AxiosError } from 'axios'
  */
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5000/api/v1',
-=======
-import axios from 'axios'
-
-/**
- * Central Axios instance. Every service module (authService, productService,
- * etc.) should import `api` from here rather than calling axios directly, so
- * base URL, headers, and interceptors stay in one place.
- *
- * Right now most services short-circuit and resolve mock data without ever
- * touching this client — see MOCK_DELAY_MS and simulateRequest() below. Once
- * the backend is ready, swap the mock branch inside each service method for
- * a real `api.get/post(...)` call; UI code calling the service does not
- * need to change.
- */
-export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api',
->>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a
   timeout: 15_000,
   headers: {
     'Content-Type': 'application/json',
   },
 })
 
-<<<<<<< HEAD
 const ACCESS_TOKEN_KEY = 'aandata.authToken'
 const REFRESH_TOKEN_KEY = 'aandata.refreshToken'
 
@@ -62,17 +43,12 @@ export function clearSessionTokens(): void {
 
 api.interceptors.request.use((config) => {
   const token = getAccessToken()
-=======
-api.interceptors.request.use((config) => {
-  const token = window.localStorage.getItem('aandata.authToken')
->>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
   return config
 })
 
-<<<<<<< HEAD
 /**
  * On a 401 (expired access token), try exactly once to exchange the refresh
  * token for a new pair and replay the original request. If that fails too,
@@ -149,18 +125,8 @@ export function getApiErrorMessage(error: unknown, fallback = 'Something went wr
 export const MOCK_DELAY_MS = 500
 
 /** Wraps a mock value in a delayed Promise, standing in for a real request. Used only by modules with no backend yet. */
-=======
-/** Simulated network latency for mock service calls, so loading states are visible and real. */
-export const MOCK_DELAY_MS = 500
-
-/** Wraps a mock value in a delayed Promise, standing in for a real request. */
->>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a
 export function simulateRequest<T>(value: T, delayMs: number = MOCK_DELAY_MS): Promise<T> {
   return new Promise((resolve) => {
     window.setTimeout(() => resolve(value), delayMs)
   })
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a

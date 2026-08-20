@@ -158,7 +158,6 @@
     padding-bottom: env(safe-area-inset-bottom);
   }
 }
-<<<<<<< HEAD
 @import 'tailwindcss';
 
 /* Self-hosted variable fonts — no external font CDN dependency */
@@ -367,5 +366,3 @@
   margin-top: 4px;
   margin-bottom: 4px;
 }
-=======
->>>>>>> cf6a738fce20220a517234faf239f88d85d4d33a
