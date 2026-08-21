@@ -111,41 +111,42 @@ export async function checkout(userId: string, { addressId, notes }: CheckoutInp
     // itself conditional, so under a race only one request's decrement can
     // succeed. If the guarded update affects 0 rows, someone else won it —
     // throwing here aborts and rolls back the whole transaction.
-    for (const item of cart.items) {
-      const target = item.variantId
-        ? tx.productVariant.updateMany({
-            where: { id: item.variantId, stock: { gte: item.quantity } },
-            data: { stock: { decrement: item.quantity } },
-          })
-        : tx.product.updateMany({
-            where: { id: item.productId, stock: { gte: item.quantity } },
-            data: { stock: { decrement: item.quantity } },
-          });
-      // eslint-disable-next-line no-await-in-loop
-      const result = await target;
+    const stockUpdates = await Promise.all(
+      cart.items.map((item) =>
+        item.variantId
+          ? tx.productVariant.updateMany({
+              where: { id: item.variantId, stock: { gte: item.quantity } },
+              data: { stock: { decrement: item.quantity } },
+            })
+          : tx.product.updateMany({
+              where: { id: item.productId, stock: { gte: item.quantity } },
+              data: { stock: { decrement: item.quantity } },
+            })
+      )
+    );
+
+    stockUpdates.forEach((result, i) => {
       if (result.count === 0) {
-        throw ApiError.conflict(`"${item.product.name}" just sold out while you were checking out. Please update your cart.`);
+        throw ApiError.conflict(`"${cart.items[i].product.name}" just sold out while you were checking out. Please update your cart.`);
       }
-    }
+    });
 
     await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
 
     return created;
-  });
+  }, { maxWait: 10000, timeout: 30000 }); // Increased timeout for Neon remote DB
 
   return order;
 }
 
 async function restoreStockForOrder(tx: Prisma.TransactionClient, order: OrderWithDetail) {
-  for (const item of order.items) {
-    if (item.variantId) {
-      // eslint-disable-next-line no-await-in-loop
-      await tx.productVariant.update({ where: { id: item.variantId }, data: { stock: { increment: item.quantity } } });
-    } else {
-      // eslint-disable-next-line no-await-in-loop
-      await tx.product.update({ where: { id: item.productId }, data: { stock: { increment: item.quantity } } });
-    }
-  }
+  await Promise.all(
+    order.items.map((item) =>
+      item.variantId
+        ? tx.productVariant.update({ where: { id: item.variantId }, data: { stock: { increment: item.quantity } } })
+        : tx.product.update({ where: { id: item.productId }, data: { stock: { increment: item.quantity } } })
+    )
+  );
 }
 
 export async function listOrders(user: User, query: ListOrdersQuery) {
@@ -203,7 +204,7 @@ export async function updateStatus(orderId: string, user: User, { status, note }
       await restoreStockForOrder(tx, order);
     }
     return result;
-  });
+  }, { maxWait: 10000, timeout: 30000 });
 
   emitOrderUpdate(updated);
   return updated;
@@ -232,8 +233,66 @@ export async function cancelOrder(orderId: string, user: User, { reason }: Cance
     });
     await restoreStockForOrder(tx, order);
     return result;
-  });
+  }, { maxWait: 10000, timeout: 30000 });
 
   emitOrderUpdate(updated);
   return updated;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
