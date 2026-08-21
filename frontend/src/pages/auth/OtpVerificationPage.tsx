@@ -44,7 +44,7 @@ export default function OtpVerificationPage() {
     event.preventDefault()
     const code = digits.join('')
     if (code.length < OTP_LENGTH) {
-      setError('Enter the complete 6-digit code.')
+      setError(t('auth.enterFullCode'))
       return
     }
     setLoading(true)
@@ -57,7 +57,7 @@ export default function OtpVerificationPage() {
       await verifyOtp(email, code)
       navigate(next)
     } catch (err) {
-      setError(getApiErrorMessage(err, 'That code was not accepted.'))
+      setError(getApiErrorMessage(err, t('auth.codeNotAccepted')))
     } finally {
       setLoading(false)
     }
@@ -71,7 +71,7 @@ export default function OtpVerificationPage() {
       setResent(true)
       window.setTimeout(() => setResent(false), 4000)
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Could not resend the code.'))
+      setError(getApiErrorMessage(err, t('auth.couldNotResend')))
     } finally {
       setResending(false)
     }
@@ -85,7 +85,7 @@ export default function OtpVerificationPage() {
         </span>
         <h1 className="text-xl">{t('auth.otp')}</h1>
         <p className="mt-1 text-sm text-ink-500">
-          Enter the code sent to {email ? <span className="font-medium text-ink-700">{email}</span> : 'your email'}
+          {t('auth.enterCodeSentTo')} {email ? <span className="font-medium text-ink-700">{email}</span> : t('auth.yourEmail')}
         </p>
       </div>
 
@@ -108,7 +108,7 @@ export default function OtpVerificationPage() {
           ))}
         </div>
         {error && <p className="mb-3 text-center text-xs font-medium text-danger-500">{error}</p>}
-        {resent && <p className="mb-3 text-center text-xs font-medium text-brand-600">A new code was sent.</p>}
+        {resent && <p className="mb-3 text-center text-xs font-medium text-brand-600">{t('auth.newCodeSent')}</p>}
         <Button type="submit" fullWidth loading={loading}>
           {t('common.submit')}
         </Button>
@@ -120,7 +120,7 @@ export default function OtpVerificationPage() {
         disabled={resending || !email}
         className="mt-4 block w-full text-center text-xs font-semibold text-brand-600 hover:underline disabled:text-ink-300"
       >
-        Resend code
+        {t('auth.resendCode')}
       </button>
     </div>
   )

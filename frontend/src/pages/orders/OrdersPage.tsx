@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { ClipboardList, Truck } from 'lucide-react'
 import { useOrders } from '@/context/OrderContext'
-import { useLanguage } from '@/context/LanguageContext'
+import { useLanguage, type TranslationKey } from '@/context/LanguageContext'
 import { formatINR, formatDateLabel } from '@/utils/format'
 import { cn } from '@/utils/cn'
 
@@ -16,6 +16,17 @@ const STATUS_STYLES: Record<string, string> = {
   returned: 'bg-danger-50 text-danger-600',
 }
 
+const STATUS_KEYS: Record<string, TranslationKey> = {
+  placed: 'orders.statusPlaced',
+  confirmed: 'orders.statusConfirmed',
+  packed: 'orders.statusPacked',
+  shipped: 'orders.statusShipped',
+  out_for_delivery: 'orders.statusOutForDelivery',
+  delivered: 'orders.statusDelivered',
+  cancelled: 'orders.statusCancelled',
+  returned: 'orders.statusReturned',
+}
+
 export default function OrdersPage() {
   const { orders, isLoading } = useOrders()
   const { t } = useLanguage()
@@ -28,7 +39,7 @@ export default function OrdersPage() {
     return (
       <div className="mx-auto flex min-h-[60vh] max-w-md flex-col items-center justify-center px-6 text-center">
         <ClipboardList className="mb-3 h-12 w-12 text-ink-300" aria-hidden="true" />
-        <h1 className="text-lg">No orders yet</h1>
+        <h1 className="text-lg">{t('orders.noOrdersYet')}</h1>
         <Link to="/market" className="mt-5 rounded-full bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700">
           {t('nav.market')}
         </Link>
@@ -53,7 +64,7 @@ export default function OrdersPage() {
               <div className="flex items-center justify-between">
                 <p className="text-sm font-semibold text-ink-900">#{order.id}</p>
                 <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize', STATUS_STYLES[order.status])}>
-                  {order.status.replace(/_/g, ' ')}
+                  {t(STATUS_KEYS[order.status])}
                 </span>
               </div>
               <p className="mt-1 truncate text-xs text-ink-500">{order.itemsLabel}</p>

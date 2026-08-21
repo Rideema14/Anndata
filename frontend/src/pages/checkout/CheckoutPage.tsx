@@ -9,16 +9,17 @@ import { useAuth } from '@/context/AuthContext'
 import { orderService } from '@/services/orderService'
 import { paymentService } from '@/services/paymentService'
 import { getApiErrorMessage } from '@/services/api'
+import { useLanguage } from '@/context/LanguageContext'
 import { formatINR } from '@/utils/format'
 import { cn } from '@/utils/cn'
-
-const STEPS = ['Address', 'Summary', 'Payment', 'Success']
 
 export default function CheckoutPage() {
   const { user } = useAuth()
   const { lines, subtotal, clearCart } = useCart()
   const { refresh: refreshOrders } = useOrders()
   const navigate = useNavigate()
+  const { t } = useLanguage()
+  const STEPS = [t('checkout.stepAddress'), t('checkout.stepSummary'), t('checkout.stepPayment'), t('checkout.stepSuccess')]
 
   const [step, setStep] = useState(0)
   const [addressId, setAddressId] = useState(user?.addresses.find((a) => a.isDefault)?.id ?? user?.addresses[0]?.id ?? '')
@@ -34,9 +35,9 @@ export default function CheckoutPage() {
   if (activeLines.length === 0 && !placedOrderNumber) {
     return (
       <div className="mx-auto max-w-md px-6 py-16 text-center">
-        <p className="text-sm text-ink-500">Your cart is empty.</p>
+        <p className="text-sm text-ink-500">{t('checkout.emptyCart')}</p>
         <Link to="/market" className="mt-3 inline-block text-sm font-semibold text-brand-600 hover:underline">
-          Browse the marketplace
+          {t('checkout.browseMarketplace')}
         </Link>
       </div>
     )
@@ -61,7 +62,7 @@ export default function CheckoutPage() {
         } catch (payErr) {
           // Order already exists server-side (status PENDING) even if the payment step didn't complete —
           // let the person know and send them to the order instead of blocking on the widget.
-          setError(getApiErrorMessage(payErr, 'Payment was not completed. Your order is saved as pending — you can retry payment from Orders.'))
+          setError(getApiErrorMessage(payErr, t('checkout.paymentIncomplete')))
         }
       }
 
@@ -70,7 +71,7 @@ export default function CheckoutPage() {
       setPlacedOrderNumber(order.id)
       setStep(3)
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Could not place your order.'))
+      setError(getApiErrorMessage(err, t('checkout.couldNotPlaceOrder')))
     } finally {
       setPlacing(false)
     }
@@ -82,14 +83,14 @@ export default function CheckoutPage() {
 
       {step === 0 && (
         <div>
-          <h1 className="mb-4 text-lg">Delivery Address</h1>
+          <h1 className="mb-4 text-lg">{t('checkout.deliveryAddress')}</h1>
           {user?.addresses.length === 0 && (
             <p className="mb-3 text-sm text-ink-500">
-              You don't have a saved address yet.{' '}
+              {t('checkout.noSavedAddress')}{' '}
               <Link to="/profile" className="font-semibold text-brand-600 hover:underline">
-                Add one
+                {t('checkout.addOne')}
               </Link>{' '}
-              before checking out.
+              {t('checkout.beforeCheckingOut')}
             </p>
           )}
           <div className="space-y-3">
@@ -114,19 +115,19 @@ export default function CheckoutPage() {
             ))}
           </div>
           <Button fullWidth className="mt-5" onClick={() => setStep(1)} disabled={!addressId}>
-            Continue
+            {t('checkout.continue')}
           </Button>
         </div>
       )}
 
       {step === 1 && (
         <div>
-          <h1 className="mb-4 text-lg">Order Summary</h1>
+          <h1 className="mb-4 text-lg">{t('cart.orderSummary')}</h1>
           <div className="space-y-2">
             {activeLines.map((line) => (
               <div key={line.productId} className="flex justify-between rounded-xl bg-surface-sunk px-3 py-2 text-sm">
                 <span className="text-ink-700">
-                  {line.productId} × {line.quantity}
+                  {line.product?.name} × {line.quantity}
                 </span>
                 <span className="font-medium text-ink-900">{formatINR(line.lineTotal ?? 0)}</span>
               </div>
@@ -134,24 +135,24 @@ export default function CheckoutPage() {
           </div>
           <div className="mt-4 space-y-1 border-t border-ink-100 pt-3 text-sm">
             <div className="flex justify-between text-ink-600">
-              <span>Subtotal</span>
+              <span>{t('cart.subtotal')}</span>
               <span>{formatINR(subtotal)}</span>
             </div>
             <div className="flex justify-between text-ink-600">
-              <span>Delivery</span>
-              <span>{deliveryFee === 0 ? 'Free' : formatINR(deliveryFee)}</span>
+              <span>{t('cart.delivery')}</span>
+              <span>{deliveryFee === 0 ? t('cart.free') : formatINR(deliveryFee)}</span>
             </div>
             <div className="flex justify-between font-bold text-ink-900">
-              <span>Total</span>
+              <span>{t('cart.total')}</span>
               <span>{formatINR(total)}</span>
             </div>
           </div>
           <div className="mt-5 flex gap-2">
             <Button variant="secondary" onClick={() => setStep(0)}>
-              Back
+              {t('checkout.back')}
             </Button>
             <Button fullWidth onClick={() => setStep(2)}>
-              Continue
+              {t('checkout.continue')}
             </Button>
           </div>
         </div>
@@ -159,28 +160,28 @@ export default function CheckoutPage() {
 
       {step === 2 && (
         <div>
-          <h1 className="mb-4 text-lg">Payment</h1>
+          <h1 className="mb-4 text-lg">{t('checkout.paymentTitle')}</h1>
           <div className="rounded-2xl border border-ink-100 p-4">
             <div className="flex items-center gap-3">
               <ShieldCheck className="h-5 w-5 text-brand-600" aria-hidden="true" />
               <div>
-                <p className="text-sm font-medium text-ink-900">Secure payment via Razorpay</p>
-                <p className="text-xs text-ink-500">UPI, cards, netbanking and wallets — handled by Razorpay's checkout widget.</p>
+                <p className="text-sm font-medium text-ink-900">{t('checkout.securePayment')}</p>
+                <p className="text-xs text-ink-500">{t('checkout.securePaymentDesc')}</p>
               </div>
             </div>
           </div>
           {address && (
             <p className="mt-3 text-xs text-ink-500">
-              Delivering to {address.label} — {address.line1}, {address.city}
+              {t('checkout.deliveringTo')} {address.label} — {address.line1}, {address.city}
             </p>
           )}
           {error && <p className="mt-3 text-xs font-medium text-danger-500">{error}</p>}
           <div className="mt-5 flex gap-2">
             <Button variant="secondary" onClick={() => setStep(1)} disabled={placing}>
-              Back
+              {t('checkout.back')}
             </Button>
             <Button fullWidth onClick={handlePlaceOrder} loading={placing}>
-              Pay {formatINR(total)}
+              {t('checkout.payButton')} {formatINR(total)}
             </Button>
           </div>
         </div>
@@ -191,13 +192,13 @@ export default function CheckoutPage() {
           <span className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
             <CheckCircle2 className="h-8 w-8" aria-hidden="true" />
           </span>
-          <h1 className="text-xl">Order placed!</h1>
-          <p className="mt-1 text-sm text-ink-500">Order #{placedOrderNumber} — {formatINR(total)}</p>
+          <h1 className="text-xl">{t('checkout.orderPlaced')}</h1>
+          <p className="mt-1 text-sm text-ink-500">{t('checkout.orderLabel')} #{placedOrderNumber} — {formatINR(total)}</p>
           <div className="mt-6 flex gap-2">
             <Button variant="secondary" onClick={() => navigate('/market')}>
-              Continue Shopping
+              {t('checkout.continueShopping')}
             </Button>
-            <Button onClick={() => navigate(`/orders/${placedOrderNumber}`)}>Track Order</Button>
+            <Button onClick={() => navigate(`/orders/${placedOrderNumber}`)}>{t('checkout.trackOrder')}</Button>
           </div>
         </div>
       )}

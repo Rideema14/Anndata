@@ -6,21 +6,28 @@ import { STATUS_SEQUENCE, useOrders } from '@/context/OrderContext'
 import { orderService } from '@/services/orderService'
 import { getApiErrorMessage } from '@/services/api'
 import type { Order } from '@/types'
+import { useLanguage, type TranslationKey } from '@/context/LanguageContext'
 import { formatINR, formatDateLabel } from '@/utils/format'
 import { cn } from '@/utils/cn'
 
-const STAGE_LABELS: Record<string, string> = {
-  placed: 'Order Placed',
-  confirmed: 'Confirmed',
-  packed: 'Packed',
-  shipped: 'Shipped',
-  out_for_delivery: 'Out for Delivery',
-  delivered: 'Delivered',
+const STAGE_KEYS: Record<string, TranslationKey> = {
+  placed: 'orders.statusPlaced',
+  confirmed: 'orders.statusConfirmed',
+  packed: 'orders.statusPacked',
+  shipped: 'orders.statusShipped',
+  out_for_delivery: 'orders.statusOutForDelivery',
+  delivered: 'orders.statusDelivered',
+}
+const ORDER_STATUS_KEYS: Record<string, TranslationKey> = {
+  ...STAGE_KEYS,
+  cancelled: 'orders.statusCancelled',
+  returned: 'orders.statusReturned',
 }
 
 export default function OrderDetailsPage() {
   const { id } = useParams<{ id: string }>()
   const { refresh: refreshOrders } = useOrders()
+  const { t } = useLanguage()
   const [order, setOrder] = useState<Order | null>(null)
   const [loading, setLoading] = useState(true)
   const [cancelling, setCancelling] = useState(false)
@@ -55,22 +62,22 @@ export default function OrderDetailsPage() {
       setOrder(updated)
       await refreshOrders()
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Could not cancel this order.'))
+      setError(getApiErrorMessage(err, t('orders.couldNotCancel')))
     } finally {
       setCancelling(false)
     }
   }
 
   if (loading) {
-    return <div className="flex min-h-[60vh] items-center justify-center text-sm text-ink-400">Loading…</div>
+    return <div className="flex min-h-[60vh] items-center justify-center text-sm text-ink-400">{t('common.loading')}</div>
   }
 
   if (!order) {
     return (
       <div className="mx-auto max-w-md px-6 py-16 text-center">
-        <p className="text-sm text-ink-500">Order not found.</p>
+        <p className="text-sm text-ink-500">{t('orders.orderNotFound')}</p>
         <Link to="/orders" className="mt-3 inline-block text-sm font-semibold text-brand-600 hover:underline">
-          Back to Orders
+          {t('orders.backToOrders')}
         </Link>
       </div>
     )
@@ -84,13 +91,13 @@ export default function OrderDetailsPage() {
     <div className="mx-auto max-w-2xl px-4 py-5 md:px-6 md:py-8">
       <Link to="/orders" className="mb-4 flex items-center gap-1 text-xs font-semibold text-brand-600 hover:underline">
         <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
-        All Orders
+        {t('orders.allOrders')}
       </Link>
 
       <div className="mb-5 flex items-center justify-between">
         <div>
           <h1 className="text-xl">#{order.id}</h1>
-          <p className="text-xs text-ink-400">Placed {formatDateLabel(order.placedAt)}</p>
+          <p className="text-xs text-ink-400">{t('orders.placed')} {formatDateLabel(order.placedAt)}</p>
         </div>
         <p className="text-lg font-bold text-ink-900">{formatINR(order.total)}</p>
       </div>
@@ -99,7 +106,7 @@ export default function OrderDetailsPage() {
       <div className="mb-6 rounded-2xl border border-ink-100 bg-surface p-4">
         {isTerminalOffPath ? (
           <p className={cn('text-sm font-semibold', order.status === 'cancelled' ? 'text-danger-500' : 'text-ink-500')}>
-            This order was {order.status}.
+            {t('orders.orderWas')} {t(ORDER_STATUS_KEYS[order.status]).toLowerCase()}.
           </p>
         ) : (
           <ol>
@@ -120,8 +127,8 @@ export default function OrderDetailsPage() {
                     {!isLast && <span className={cn('w-0.5 flex-1', index < currentIndex ? 'bg-brand-600' : 'bg-surface-sunk')} style={{ minHeight: 28 }} />}
                   </div>
                   <div className={cn('pb-6 text-sm', done ? 'text-ink-900' : 'text-ink-400')}>
-                    <p className="font-medium">{STAGE_LABELS[stage]}</p>
-                    {stage === order.status && <p className="text-xs text-brand-600">Current status</p>}
+                    <p className="font-medium">{t(STAGE_KEYS[stage])}</p>
+                    {stage === order.status && <p className="text-xs text-brand-600">{t('orders.currentStatus')}</p>}
                   </div>
                 </li>
               )
@@ -132,7 +139,7 @@ export default function OrderDetailsPage() {
           <>
             {error && <p className="mb-2 text-xs font-medium text-danger-500">{error}</p>}
             <Button variant="danger" onClick={handleCancel} loading={cancelling} className="mt-1">
-              Cancel Order
+              {t('orders.cancelOrder')}
             </Button>
           </>
         )}
@@ -157,7 +164,7 @@ export default function OrderDetailsPage() {
         </p>
         <p className="flex items-center gap-2">
           <Wallet className="h-4 w-4 text-brand-600" aria-hidden="true" />
-          Paid via {order.paymentMethod}
+          {t('orders.paidVia')} {order.paymentMethod}
         </p>
       </div>
     </div>

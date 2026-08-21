@@ -1,5 +1,8 @@
 import en from './en.json'
 import hi from './hi.json'
+import mr from './mr.json'
+import pa from './pa.json'
+import gu from './gu.json'
 
 export type TranslationShape = typeof en
 
@@ -7,6 +10,9 @@ export type TranslationShape = typeof en
 export const translations: Record<string, TranslationShape> = {
   en,
   hi,
+  mr,
+  pa,
+  gu,
 }
 
 export interface LanguageOption {
@@ -19,6 +25,9 @@ export interface LanguageOption {
 export const supportedLanguages: LanguageOption[] = [
   { code: 'en', label: 'English', nativeLabel: 'English' },
   { code: 'hi', label: 'Hindi', nativeLabel: 'हिंदी' },
+  { code: 'mr', label: 'Marathi', nativeLabel: 'मराठी' },
+  { code: 'pa', label: 'Punjabi', nativeLabel: 'ਪੰਜਾਬੀ' },
+  { code: 'gu', label: 'Gujarati', nativeLabel: 'ગુજરાતી' },
 ]
 
 /**
@@ -27,9 +36,6 @@ export const supportedLanguages: LanguageOption[] = [
  * the UI both make room for them without requiring a redesign later.
  */
 export const plannedLanguages: LanguageOption[] = [
-  { code: 'mr', label: 'Marathi', nativeLabel: 'मराठी' },
-  { code: 'pa', label: 'Punjabi', nativeLabel: 'ਪੰਜਾਬੀ' },
-  { code: 'gu', label: 'Gujarati', nativeLabel: 'ગુજરાતી' },
   { code: 'bn', label: 'Bengali', nativeLabel: 'বাংলা' },
   { code: 'ta', label: 'Tamil', nativeLabel: 'தமிழ்' },
   { code: 'te', label: 'Telugu', nativeLabel: 'తెలుగు' },

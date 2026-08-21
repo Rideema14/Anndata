@@ -18,8 +18,8 @@ export default function WishlistPage() {
     return (
       <div className="mx-auto flex min-h-[60vh] max-w-md flex-col items-center justify-center px-6 text-center">
         <Heart className="mb-3 h-12 w-12 text-ink-300" aria-hidden="true" />
-        <h1 className="text-lg">{t('nav.wishlist')} is empty</h1>
-        <p className="mt-1 text-sm text-ink-500">Tap the heart on any product to save it here.</p>
+        <h1 className="text-lg">{t('wishlist.emptyTitle')}</h1>
+        <p className="mt-1 text-sm text-ink-500">{t('wishlist.emptySubtitle')}</p>
         <Link to="/market" className="mt-5 rounded-full bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700">
           {t('nav.market')}
         </Link>
@@ -59,7 +59,7 @@ export default function WishlistPage() {
                   className="flex items-center gap-1 text-xs font-semibold text-brand-600 hover:underline disabled:text-ink-300"
                 >
                   <ShoppingCart className="h-3.5 w-3.5" aria-hidden="true" />
-                  Move to cart
+                  {t('wishlist.moveToCart')}
                 </button>
                 <button
                   type="button"
@@ -67,7 +67,7 @@ export default function WishlistPage() {
                   className="flex items-center gap-1 text-xs font-medium text-danger-500 hover:underline"
                 >
                   <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                  Remove
+                  {t('wishlist.remove')}
                 </button>
               </div>
             </div>

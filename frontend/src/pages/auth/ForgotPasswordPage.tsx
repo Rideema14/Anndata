@@ -37,13 +37,13 @@ export default function ForgotPasswordPage() {
           <KeyRound className="h-6 w-6" aria-hidden="true" />
         </span>
         <h1 className="text-xl">{t('auth.forgotPassword')}</h1>
-        <p className="mt-1 text-sm text-ink-500">We'll email you a code to reset your password.</p>
+        <p className="mt-1 text-sm text-ink-500">{t('auth.resetPasswordTagline')}</p>
       </div>
 
       <form onSubmit={handleSubmit} noValidate>
         <TextField
           id="email"
-          label="Email"
+          label={t('auth.email')}
           type="email"
           autoComplete="email"
           placeholder="you@example.com"

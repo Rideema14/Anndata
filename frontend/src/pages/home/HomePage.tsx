@@ -24,13 +24,10 @@ import { useLanguage } from "@/context/LanguageContext";
 import { useOrders } from "@/context/OrderContext";
 import { categoryService, type Category } from "@/services/categoryService";
 import { productService } from "@/services/productService";
+import { weatherService } from "@/services/weatherService";
+import { mandiService } from "@/services/mandiService";
 import type { Product } from "@/types";
-// Mandi price intelligence and weather intelligence have no backend module yet
-// (see backend/README.md "Not yet built" — 3.8 and 3.10), so these two
-// sections stay on mock data until those modules land.
-import { mockMandiSnapshot } from "@/data/mock/mockMandi";
-import { mockWeatherSnapshot } from "@/data/mock/mockWeather";
-import { formatINR, formatPercentChange } from "@/utils/format";
+import { formatINR } from "@/utils/format";
 import { cn } from "@/utils/cn";
 import { useEffect, useState } from "react";
 
@@ -64,8 +61,6 @@ export default function HomePage() {
 
   const greetingKey = useGreetingKey();
   const firstName = user?.name?.split(" ")[0] ?? "";
-
-  const mandi = mockMandiSnapshot[0];
 
   /*
    * ---------------------------------------------------------
@@ -101,11 +96,103 @@ export default function HomePage() {
 
   /*
    * ---------------------------------------------------------
+   * WEATHER SNAPSHOT (real backend data via Open-Meteo)
+   * ---------------------------------------------------------
+   * Mirrors the geolocation-with-fallback pattern used on the full
+   * /weather page (New Delhi as a sane default if permission is denied).
+   */
+
+  interface HomeWeatherSnapshot {
+    tempC: number;
+    condition: string;
+    location: string;
+  }
+
+  const [weather, setWeather] = useState<HomeWeatherSnapshot | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    function fetchWeather(lat: number, lng: number, locationLabel: string) {
+      weatherService
+        .getWeather(lat, lng, 1)
+        .then((res: any) => {
+          if (cancelled) return;
+          const payload = res.data || res;
+          const current = payload.current;
+          if (current) {
+            setWeather({
+              tempC: Math.round(current.temperatureC),
+              condition: current.condition,
+              location: locationLabel,
+            });
+          }
+        })
+        .catch(() => {
+          if (!cancelled) setWeather(null);
+        });
+    }
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => fetchWeather(pos.coords.latitude, pos.coords.longitude, "Your area"),
+        () => fetchWeather(28.6139, 77.209, "New Delhi"),
+      );
+    } else {
+      fetchWeather(28.6139, 77.209, "New Delhi");
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /*
+   * ---------------------------------------------------------
+   * MANDI PRICE SNAPSHOT (real backend data)
+   * ---------------------------------------------------------
+   */
+
+  interface HomeMandiRow {
+    crop: string;
+    mandi: string;
+    pricePerQuintal: number;
+    updatedLabel: string;
+  }
+
+  const [mandiRows, setMandiRows] = useState<HomeMandiRow[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    mandiService
+      .getPrices({ state: "Madhya Pradesh", limit: 4 })
+      .then((res: any) => {
+        if (cancelled) return;
+        const items = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : [];
+        setMandiRows(
+          items.map((item: any) => ({
+            crop: item.crop?.name ?? "Unknown crop",
+            mandi: item.mandi?.name ?? "Unknown mandi",
+            pricePerQuintal: Number(item.modalPrice) || 0,
+            updatedLabel: item.priceDate ? new Date(item.priceDate).toLocaleDateString() : "",
+          })),
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setMandiRows([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /*
+   * ---------------------------------------------------------
    * WEATHER CONDITION
    * ---------------------------------------------------------
    */
 
-  const weatherCondition = mockWeatherSnapshot.condition?.toLowerCase() ?? "";
+  const weatherCondition = weather?.condition?.toLowerCase() ?? "";
 
   const isRainy =
     weatherCondition.includes("rain") ||
@@ -281,11 +368,11 @@ export default function HomePage() {
         <div className="mt-2 flex items-end gap-2">
 
           <p className="text-[2.6rem] font-semibold leading-none tracking-[-0.05em] text-[#303526]">
-            {mockWeatherSnapshot.tempC}°
+            {weather ? `${weather.tempC}°` : "—"}
           </p>
 
           <span className="mb-1 text-[14px] font-semibold text-[#665f45]">
-            {mockWeatherSnapshot.condition}
+            {weather?.condition ?? "Loading…"}
           </span>
 
         </div>
@@ -300,7 +387,7 @@ export default function HomePage() {
         <div>
 
           <p className="text-[16px] font-semibold text-[#686347]">
-            {mockWeatherSnapshot.location.split(',')[0]}
+            {weather?.location ?? "Your area"}
           </p>
 
           <p className="mt-0.5 text-[11px] text-[#777154]">
@@ -343,11 +430,11 @@ export default function HomePage() {
         </p>
 
         <p className="mt-3 text-[14px] font-bold text-[#454238]">
-          {mandi.crop}
+          {mandiRows[0]?.crop ?? "—"}
         </p>
 
         <p className="mt-0.5 text-[10px] text-[#969082]">
-          {mandi.mandi}
+          {mandiRows[0]?.mandi ?? "Loading mandi data…"}
         </p>
 
       </div>
@@ -370,25 +457,18 @@ export default function HomePage() {
     <div className="mt-5">
 
       <p className="text-[1.8rem] font-semibold leading-none tracking-[-0.04em] text-[#25291f]">
-        {formatINR(mandi.pricePerQuintal)}
+        {mandiRows[0] ? formatINR(mandiRows[0].pricePerQuintal) : "—"}
       </p>
 
 
       <div className="mt-2 flex items-center gap-2">
 
-        <span
-          className={cn(
-            'rounded-full px-2 py-0.5 text-[9px] font-bold',
-            mandi.changePercent >= 0
-              ? 'bg-[#e1e9d9] text-[#527044]'
-              : 'bg-[#eee0d7] text-[#8a513d]',
-          )}
-        >
-          {formatPercentChange(mandi.changePercent)}
+        <span className="rounded-full bg-[#e1e9d9] px-2 py-0.5 text-[9px] font-bold text-[#527044]">
+          per quintal
         </span>
 
         <span className="text-[9px] text-[#928b7d]">
-          today
+          {mandiRows[0]?.updatedLabel ?? ""}
         </span>
 
       </div>
@@ -791,63 +871,67 @@ export default function HomePage() {
 
             {/* MARKET WATCH */}
 
-            <section className="rounded-[24px] bg-[#554536] p-5 text-[#f7f1e4] sm:p-6">
-              <div className="mb-5 flex items-center justify-between">
-                <div>
-                
+            {/* MARKET WATCH */}
+<section className=" rounded-[24px] bg-[#554536] p-5 text-[#f7f1e4] sm:p-6">
+  <div className="mb-5 flex items-center justify-between">
+    <div>
+      <h2 className="mt-1.5 text-[17px] font-extrabold text-[#f7f1e4]">
+        Mandi prices
+      </h2>
 
-                  <h2 className="mt-1.5 text-[17px] text-[#f7f1e4] font-extrabold">
-                    Mandi prices
-                  </h2>
-                </div>
+      <p className="mt-1 text-[10px] text-[#c1b5a4]">
+        Top 10 market rates
+      </p>
+    </div>
 
-                <Store className="h-5 w-5 text-[#d6b841]" />
-              </div>
+    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#675645]">
+      <Store className="h-4 w-4 text-[#d6b841]" />
+    </div>
+  </div>
+<div className="max-h-[320px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-[#756555] scrollbar-track-transparent">
+  <ul className="divide-y divide-[#756555]">
+    {mandiRows.length === 0 && (
+      <li className="py-4 text-[11px] text-[#c1b5a4]">
+        Loading mandi prices…
+      </li>
+    )}
 
-              <ul className="divide-y divide-[#756555]">
-                {mockMandiSnapshot.map((row) => (
-                  <li
-                    key={row.crop}
-                    className="flex items-center justify-between py-3"
-                  >
-                    <div>
-                      <p className="text-[12px] font-bold text-[#f5efe2]">
-                        {row.crop}
-                      </p>
+    {mandiRows.slice(0, 10).map((row, index) => (
+      <li
+        key={`${row.crop}-${row.mandi}-${index}`}
+        className="flex min-h-[48px] items-center justify-between gap-3 py-3"
+      >
+        <div className="min-w-0">
+          <p className="truncate text-[12px] font-bold text-[#f5efe2]">
+            {row.crop}
+          </p>
 
-                      <p className="mt-1 text-[10px] text-[#c1b5a4]">
-                        {row.mandi}
-                      </p>
-                    </div>
+          <p className="mt-1 truncate text-[10px] text-[#c1b5a4]">
+            {row.mandi}
+          </p>
+        </div>
 
-                    <div className="text-right">
-                      <p className="text-[13px] font-bold text-[#f5efe2]">
-                        {formatINR(row.pricePerQuintal)}
-                      </p>
+        <div className="shrink-0 text-right">
+          <p className="text-[13px] font-bold text-[#f5efe2]">
+            {formatINR(row.pricePerQuintal)}
+          </p>
 
-                      <p
-                        className={cn(
-                          "mt-1 text-[10px] font-bold",
-                          row.changePercent >= 0
-                            ? "text-[#d6c05e]"
-                            : "text-[#d49b83]",
-                        )}
-                      >
-                        {formatPercentChange(row.changePercent)}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-
-              <Link
-                to="/mandi"
-                className="mt-4 flex items-center gap-1 text-[10px] font-black uppercase tracking-[0.15em] text-[#ddc766]"
-              >
-                Open full market
-                <ArrowUpRight className="h-3 w-3" />
-              </Link>
-            </section>
+          <p className="mt-1 text-[9px] text-[#b7aa98]">
+            {row.updatedLabel}
+          </p>
+        </div>
+      </li>
+    ))}
+  </ul>
+</div>
+  <Link
+    to="/mandi"
+    className="mt-5 flex items-center justify-center gap-1 rounded-xl border border-[#756555] py-2.5 text-[10px] font-black uppercase tracking-[0.15em] text-[#ddc766] transition-colors hover:bg-[#62503f]"
+  >
+    Open full market
+    <ArrowUpRight className="h-3 w-3" />
+  </Link>
+</section>
           </aside>
         </div>
       </main>

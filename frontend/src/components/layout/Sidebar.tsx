@@ -1,3 +1,4 @@
+
 import { useState } from 'react'
 import { NavLink, Link } from 'react-router-dom'
 import {
@@ -30,31 +31,48 @@ export function Sidebar() {
 
   const items = mode === 'buy' ? buyNavItems : sellNavItems
 
-  /*
-   * Everything that is not directly shown in the mobile
-   * bottom pill goes inside More.
-   *
-   * First 4 items:
-   * Home
-   * Market
-   * Ask AI
-   * Mandi
-   *
-   * Profile is added separately.
-   */
-  const mobilePrimaryItems = items.slice(0, 4)
+  /* =========================================================
+     DESKTOP
 
-  const mobileMoreItems = [
-    ...items.slice(4),
+     ALL "items" are already visible in the sidebar.
+
+     Therefore:
+     DO NOT put items inside desktop More.
+
+     Desktop More contains ONLY utility items.
+  ========================================================= */
+
+  const desktopMoreItems = [
     ...(isSeller ? sellerUtilityNavItems : []),
     ...utilityNavItems,
   ]
 
-  /*
-   * Remove duplicate paths so an item does not appear twice
-   * inside More.
-   */
-  const uniqueMoreItems = mobileMoreItems.filter(
+  /* =========================================================
+     MOBILE
+
+     Only first 3 main navigation items stay inside the pill.
+
+     Everything after those 3 goes inside mobile More.
+  ========================================================= */
+
+  const mobilePrimaryItems = items.slice(0, 3)
+
+  const mobileMoreItems = [
+    ...items.slice(3),
+    ...(isSeller ? sellerUtilityNavItems : []),
+    ...utilityNavItems,
+  ]
+
+  /* =========================================================
+     REMOVE DUPLICATES BY PATH
+  ========================================================= */
+
+  const uniqueDesktopMoreItems = desktopMoreItems.filter(
+    (item, index, array) =>
+      array.findIndex((x) => x.path === item.path) === index,
+  )
+
+  const uniqueMobileMoreItems = mobileMoreItems.filter(
     (item, index, array) =>
       array.findIndex((x) => x.path === item.path) === index,
   )
@@ -78,7 +96,10 @@ export function Sidebar() {
           md:flex
         "
       >
-        {/* BRAND */}
+
+        {/* =================================================
+            BRAND
+        ================================================= */}
 
         <div className="px-6 pb-5 pt-7">
           <Link
@@ -94,7 +115,10 @@ export function Sidebar() {
           </Link>
         </div>
 
-        {/* BUY / SELL */}
+
+        {/* =================================================
+            BUY / SELL
+        ================================================= */}
 
         {isSeller ? (
           <div className="px-4 pb-6">
@@ -121,6 +145,7 @@ export function Sidebar() {
               "
             >
               <div className="min-w-0">
+
                 <p
                   className="
                     text-[10px]
@@ -144,6 +169,7 @@ export function Sidebar() {
                 >
                   {t('roles.becomeSeller')}
                 </p>
+
               </div>
 
               <span
@@ -165,11 +191,19 @@ export function Sidebar() {
               >
                 <ChevronRight className="h-4 w-4" />
               </span>
+
             </Link>
           </div>
         )}
 
-        {/* DESKTOP MAIN NAV */}
+
+        {/* =================================================
+            DESKTOP MAIN NAVIGATION
+
+            These items are visible here.
+
+            They will NOT be repeated in More.
+        ================================================= */}
 
         <nav
           aria-label={
@@ -185,9 +219,13 @@ export function Sidebar() {
             px-3
           "
         >
+
           <ul className="space-y-1">
+
             {items.map(({ path, labelKey, icon: Icon }) => (
+
               <li key={path}>
+
                 <NavLink
                   to={path}
                   end={path === '/'}
@@ -221,8 +259,10 @@ export function Sidebar() {
                     )
                   }
                 >
+
                   {({ isActive }) => (
                     <>
+
                       {isActive && (
                         <span
                           className="
@@ -262,27 +302,46 @@ export function Sidebar() {
                             `,
                         )}
                       >
+
                         <Icon
                           className="h-[17px] w-[17px]"
-                          strokeWidth={isActive ? 2.2 : 1.8}
+                          strokeWidth={
+                            isActive ? 2.2 : 1.8
+                          }
                           aria-hidden="true"
                         />
+
                       </span>
 
                       <span className="truncate">
                         {t(labelKey)}
                       </span>
+
                     </>
                   )}
+
                 </NavLink>
+
               </li>
+
             ))}
+
           </ul>
+
         </nav>
 
-        {/* DESKTOP MORE */}
+
+        {/* =================================================
+            DESKTOP MORE
+
+            IMPORTANT:
+            ONLY utility items here.
+
+            The main sidebar items are NOT duplicated.
+        ================================================= */}
 
         <div className="relative px-3 pb-5 pt-3">
+
           <div className="mb-3 px-3">
             <div className="h-px bg-[#E5E1D7]" />
           </div>
@@ -308,6 +367,7 @@ export function Sidebar() {
               hover:text-[#252A20]
             "
           >
+
             <span
               className="
                 flex
@@ -322,17 +382,23 @@ export function Sidebar() {
                 group-hover:bg-[#E5E1D7]
               "
             >
+
               {showMore ? (
                 <X className="h-4 w-4" />
               ) : (
                 <Menu className="h-4 w-4" />
               )}
+
             </span>
 
             <span className="text-[13px] font-semibold">
               More
             </span>
+
           </button>
+
+
+          {/* DESKTOP MORE POPUP */}
 
           <div
             className={cn(
@@ -369,9 +435,18 @@ export function Sidebar() {
                 `,
             )}
           >
-            <div className="more-menu-scroll max-h-[360px] overflow-y-auto">
-              {uniqueMoreItems.map(
+
+            <div
+              className="
+                more-menu-scroll
+                max-h-[360px]
+                overflow-y-auto
+              "
+            >
+
+              {uniqueDesktopMoreItems.map(
                 ({ path, labelKey, icon: Icon }) => (
+
                   <NavLink
                     key={path}
                     to={path}
@@ -405,29 +480,40 @@ export function Sidebar() {
                       )
                     }
                   >
+
                     {({ isActive }) => (
                       <>
+
                         <Icon
                           className="h-4 w-4 shrink-0"
-                          strokeWidth={isActive ? 2.2 : 1.8}
+                          strokeWidth={
+                            isActive ? 2.2 : 1.8
+                          }
                         />
 
                         <span className="truncate">
                           {t(labelKey)}
                         </span>
+
                       </>
                     )}
+
                   </NavLink>
+
                 ),
               )}
+
             </div>
+
           </div>
+
         </div>
+
       </aside>
 
+
       {/* =====================================================
-          MOBILE BOTTOM NAVIGATION
-          EVERYTHING IS INSIDE ONE PILL
+          MOBILE BOTTOM PILL
       ===================================================== */}
 
       <div
@@ -441,6 +527,7 @@ export function Sidebar() {
           md:hidden
         "
       >
+
         <div
           className="
             relative
@@ -450,7 +537,6 @@ export function Sidebar() {
             w-full
             max-w-[390px]
             items-center
-            justify-between
             rounded-[20px]
             border
             border-[#E6E4DC]
@@ -460,12 +546,12 @@ export function Sidebar() {
             backdrop-blur-xl
           "
         >
-          {/* ===============================================
-              MOBILE PRIMARY ITEMS
-          =============================================== */}
+
+          {/* MOBILE PRIMARY */}
 
           {mobilePrimaryItems.map(
             ({ path, labelKey, icon: Icon }) => (
+
               <NavLink
                 key={path}
                 to={path}
@@ -496,83 +582,35 @@ export function Sidebar() {
                       `
                       : `
                         text-[#7B8178]
-                        active:bg-[#F0F1EC]
                       `,
                   )
                 }
               >
+
                 {({ isActive }) => (
                   <>
+
                     <Icon
                       className="h-[18px] w-[18px]"
-                      strokeWidth={isActive ? 2.2 : 1.7}
+                      strokeWidth={
+                        isActive ? 2.2 : 1.7
+                      }
                     />
 
                     <span className="max-w-full truncate">
                       {t(labelKey)}
                     </span>
+
                   </>
                 )}
+
               </NavLink>
+
             ),
           )}
 
-          {/* ===============================================
-              MOBILE PROFILE
-          =============================================== */}
 
-          <NavLink
-            to="/profile"
-            className={({ isActive }) =>
-              cn(
-                `
-                  relative
-                  flex
-                  h-[48px]
-                  min-w-0
-                  flex-1
-                  flex-col
-                  items-center
-                  justify-center
-                  gap-0.5
-                  rounded-[15px]
-                  px-1
-                  text-[9px]
-                  font-medium
-                  transition-all
-                  duration-200
-                `,
-                isActive
-                  ? `
-                    bg-[#EEF2E8]
-                    text-[#245B35]
-                  `
-                  : `
-                    text-[#7B8178]
-                  `,
-              )
-            }
-          >
-            <span className="flex h-[18px] items-center justify-center">
-              <svg
-                viewBox="0 0 24 24"
-                className="h-[18px] w-[18px]"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.7"
-              >
-                <circle cx="12" cy="8" r="3.2" />
-                <path d="M5.5 20c.8-3.4 3.1-5.2 6.5-5.2s5.7 1.8 6.5 5.2" />
-              </svg>
-            </span>
-
-            <span>Profile</span>
-          </NavLink>
-
-          {/* ===============================================
-              MORE BUTTON
-              THIS IS INSIDE THE SAME PILL
-          =============================================== */}
+          {/* MOBILE MORE BUTTON */}
 
           <button
             type="button"
@@ -607,35 +645,27 @@ export function Sidebar() {
                 `,
             )}
           >
-            <span
-              className="
-                flex
-                h-[18px]
-                w-[22px]
-                items-center
-                justify-center
-              "
-            >
-              {showMore ? (
-                <X
-                  className="h-[18px] w-[18px]"
-                  strokeWidth={2}
-                />
-              ) : (
-                <Menu
-                  className="h-[19px] w-[19px]"
-                  strokeWidth={2}
-                />
-              )}
-            </span>
+
+            {showMore ? (
+              <X
+                className="h-[18px] w-[18px]"
+                strokeWidth={2}
+              />
+            ) : (
+              <Menu
+                className="h-[19px] w-[19px]"
+                strokeWidth={2}
+              />
+            )}
 
             <span>More</span>
+
           </button>
 
-          {/* ===============================================
+
+          {/* =================================================
               MOBILE MORE POPUP
-              OPENS ABOVE THE SAME PILL
-          =============================================== */}
+          ================================================= */}
 
           <div
             className={cn(
@@ -673,18 +703,21 @@ export function Sidebar() {
                 `,
             )}
           >
+
             <div
               className="
                 more-menu-scroll
                 max-h-[55vh]
                 overflow-y-auto
                 overscroll-contain
-                pr-0.5
               "
             >
+
               <div className="grid grid-cols-2 gap-1.5">
-                {uniqueMoreItems.map(
+
+                {uniqueMobileMoreItems.map(
                   ({ path, labelKey, icon: Icon }) => (
+
                     <NavLink
                       key={path}
                       to={path}
@@ -716,8 +749,10 @@ export function Sidebar() {
                         )
                       }
                     >
+
                       {({ isActive }) => (
                         <>
+
                           <span
                             className={cn(
                               `
@@ -734,26 +769,36 @@ export function Sidebar() {
                                 : `bg-[#F1F2ED]`,
                             )}
                           >
+
                             <Icon
                               className="h-[16px] w-[16px]"
                               strokeWidth={
                                 isActive ? 2.1 : 1.7
                               }
                             />
+
                           </span>
 
                           <span className="truncate">
                             {t(labelKey)}
                           </span>
+
                         </>
                       )}
+
                     </NavLink>
+
                   ),
                 )}
+
               </div>
+
             </div>
+
           </div>
+
         </div>
+
       </div>
     </>
   )

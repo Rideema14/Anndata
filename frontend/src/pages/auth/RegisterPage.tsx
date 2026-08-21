@@ -29,7 +29,7 @@ export default function RegisterPage() {
       const { email: confirmedEmail } = await register(name.trim(), email.trim().toLowerCase(), password, cleanedPhone || undefined)
       navigate(`/otp-verification?email=${encodeURIComponent(confirmedEmail)}&mode=register&next=${encodeURIComponent('/home')}`)
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Could not create your account.'))
+      setError(getApiErrorMessage(err, t('auth.couldNotCreateAccount')))
     } finally {
       setLoading(false)
     }
@@ -42,14 +42,14 @@ export default function RegisterPage() {
           <UserPlus className="h-6 w-6" aria-hidden="true" />
         </span>
         <h1 className="text-xl">{t('auth.register')}</h1>
-        <p className="mt-1 text-sm text-ink-500">One account for buying and selling.</p>
+        <p className="mt-1 text-sm text-ink-500">{t('auth.oneAccountTagline')}</p>
       </div>
 
       <form onSubmit={handleSubmit} noValidate>
-        <TextField id="name" label="Full Name" placeholder="Rajesh Kumar" value={name} onChange={(e) => setName(e.target.value)} required />
+        <TextField id="name" label={t('auth.fullName')} placeholder="Rajesh Kumar" value={name} onChange={(e) => setName(e.target.value)} required />
         <TextField
           id="email"
-          label="Email"
+          label={t('auth.email')}
           type="email"
           autoComplete="email"
           placeholder="you@example.com"
@@ -59,7 +59,7 @@ export default function RegisterPage() {
         />
         <TextField
           id="phone"
-          label={`${t('auth.phoneNumber')} (optional)`}
+          label={t('auth.phoneOptional')}
           type="tel"
           inputMode="tel"
           placeholder="98765 43210"
@@ -68,10 +68,10 @@ export default function RegisterPage() {
         />
         <TextField
           id="password"
-          label="Password"
+          label={t('auth.password')}
           type="password"
           autoComplete="new-password"
-          hint="At least 8 characters, with an uppercase letter, a lowercase letter, and a number."
+          hint={t('auth.passwordHint')}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
@@ -84,14 +84,14 @@ export default function RegisterPage() {
 
       <div className="my-5 flex items-center gap-3">
         <div className="h-px flex-1 bg-ink-100" />
-        <span className="text-xs text-ink-400">or</span>
+        <span className="text-xs text-ink-400">{t('auth.orDivider')}</span>
         <div className="h-px flex-1 bg-ink-100" />
       </div>
 
       <GoogleSignInButton onSuccess={() => navigate('/home')} onError={setError} />
 
       <p className="mt-6 text-center text-sm text-ink-500">
-        Already have an account?{' '}
+        {t('auth.alreadyHaveAccount')}{' '}
         <Link to="/login" className="font-semibold text-brand-600 hover:underline">
           {t('auth.login')}
         </Link>

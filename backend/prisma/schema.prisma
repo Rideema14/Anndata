@@ -1,8 +1,3 @@
-// Prisma schema for the Agri Marketplace backend.
-// Phase 1: User Management & Auth, Marketplace Catalog, Cart, Orders, Payments (Razorpay).
-// Later phases (Seed Store, Land Marketplace, Machinery Rental, Mandi Price Intelligence,
-// AI Advisory, Weather, Seller Analytics, Notifications, Admin) will extend this file.
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -12,9 +7,520 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ---------------------------------------------------------------------------
-// Enums
-// ---------------------------------------------------------------------------
+model User {
+  id                     String                  @id @default(uuid())
+  name                   String
+  email                  String                  @unique
+  phone                  String?                 @unique
+  passwordHash           String?
+  role                   Role                    @default(BUYER)
+  authProvider           AuthProvider            @default(LOCAL)
+  googleId               String?                 @unique
+  googlePicture          String?
+  profileImage           String?
+  profileImagePublicId   String?
+  isEmailVerified        Boolean                 @default(false)
+  isPhoneVerified        Boolean                 @default(false)
+  isActive               Boolean                 @default(true)
+  latitude               Float?
+  longitude              Float?
+  otpCodeHash            String?
+  otpExpiresAt           DateTime?
+  otpPurpose             String?
+  otpAttempts            Int                     @default(0)
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  addresses              Address[]
+  cart                   Cart?
+  favoriteMandis         FavoriteMandi[]
+  feedbacks              Feedback[]
+  loginHistory           LoginHistory[]
+  mandiPriceAlerts       MandiPriceAlert[]
+  notificationPreference NotificationPreference?
+  notifications          Notification[]
+  orderStatusChanges     OrderStatusHistory[]    @relation("StatusChangedBy")
+  orders                 Order[]
+  payments               Payment[]
+  products               Product[]               @relation("SellerProducts")
+  refreshTokens          RefreshToken[]
+  reviews                Review[]
+  verificationsReviewed  SellerProfile[]         @relation("VerificationReviewedBy")
+  sellerProfile          SellerProfile?
+  wishlist               Wishlist[]
+
+  @@index([email])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique
+  userAgent String?
+  ipAddress String?
+  revoked   Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model LoginHistory {
+  id        String   @id @default(uuid())
+  userId    String
+  ipAddress String?
+  userAgent String?
+  success   Boolean
+  reason    String?
+  loginAt   DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("login_history")
+}
+
+model Address {
+  id           String   @id @default(uuid())
+  userId       String
+  label        String   @default("Home")
+  fullName     String
+  phone        String
+  addressLine1 String
+  addressLine2 String?
+  city         String
+  state        String
+  postalCode   String
+  country      String   @default("India")
+  latitude     Float?
+  longitude    Float?
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders       Order[]
+
+  @@index([userId])
+  @@map("addresses")
+}
+
+model Category {
+  id            String        @id @default(uuid())
+  name          String        @unique
+  slug          String        @unique
+  description   String?
+  imageUrl      String?
+  isActive      Boolean       @default(true)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  imagePublicId String?
+  products      Product[]
+  subCategories SubCategory[]
+
+  @@map("categories")
+}
+
+model SubCategory {
+  id          String    @id @default(uuid())
+  categoryId  String
+  name        String
+  slug        String    @unique
+  description String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  products    Product[]
+  category    Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, name])
+  @@index([categoryId])
+  @@map("sub_categories")
+}
+
+model Product {
+  id             String           @id @default(uuid())
+  sellerId       String
+  categoryId     String
+  subCategoryId  String?
+  name           String
+  slug           String           @unique
+  description    String?
+  brand          String?
+  price          Decimal          @db.Decimal(12, 2)
+  discountPrice  Decimal?         @db.Decimal(12, 2)
+  stock          Int              @default(0)
+  unit           String           @default("piece")
+  specifications Json?
+  latitude       Float?
+  longitude      Float?
+  isActive       Boolean          @default(true)
+  avgRating      Float            @default(0)
+  reviewCount    Int              @default(0)
+  viewCount      Int              @default(0)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  cartItems      CartItem[]
+  orderItems     OrderItem[]
+  images         ProductImage[]
+  variants       ProductVariant[]
+  category       Category         @relation(fields: [categoryId], references: [id])
+  seller         User             @relation("SellerProducts", fields: [sellerId], references: [id], onDelete: Cascade)
+  subCategory    SubCategory?     @relation(fields: [subCategoryId], references: [id])
+  reviews        Review[]
+  wishlistedBy   Wishlist[]
+
+  @@index([categoryId])
+  @@index([subCategoryId])
+  @@index([sellerId])
+  @@index([isActive])
+  @@map("products")
+}
+
+model ProductImage {
+  id        String   @id @default(uuid())
+  productId String
+  url       String
+  publicId  String?
+  isPrimary Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("product_images")
+}
+
+model ProductVariant {
+  id         String      @id @default(uuid())
+  productId  String
+  name       String
+  sku        String?     @unique
+  price      Decimal     @db.Decimal(12, 2)
+  stock      Int         @default(0)
+  attributes Json?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("product_variants")
+}
+
+model Review {
+  id         String   @id @default(uuid())
+  productId  String
+  userId     String
+  rating     Int
+  comment    String?
+  isApproved Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, userId])
+  @@index([productId])
+  @@map("reviews")
+}
+
+model Wishlist {
+  id        String   @id @default(uuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([userId])
+  @@map("wishlist")
+}
+
+model Cart {
+  id        String     @id @default(uuid())
+  userId    String     @unique
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  items     CartItem[]
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("carts")
+}
+
+model CartItem {
+  id        String          @id @default(uuid())
+  cartId    String
+  productId String
+  variantId String?
+  quantity  Int             @default(1)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  cart      Cart            @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product   Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant   ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@unique([cartId, productId, variantId])
+  @@index([cartId])
+  @@map("cart_items")
+}
+
+model Order {
+  id            String               @id @default(uuid())
+  orderNumber   String               @unique
+  userId        String
+  addressId     String
+  status        OrderStatus          @default(PENDING)
+  subtotal      Decimal              @db.Decimal(12, 2)
+  shippingFee   Decimal              @default(0) @db.Decimal(12, 2)
+  tax           Decimal              @default(0) @db.Decimal(12, 2)
+  discount      Decimal              @default(0) @db.Decimal(12, 2)
+  totalAmount   Decimal              @db.Decimal(12, 2)
+  notes         String?
+  cancelReason  String?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  items         OrderItem[]
+  statusHistory OrderStatusHistory[]
+  address       Address              @relation(fields: [addressId], references: [id])
+  user          User                 @relation(fields: [userId], references: [id])
+  payment       Payment?
+
+  @@index([userId])
+  @@index([status])
+  @@map("orders")
+}
+
+model OrderItem {
+  id          String          @id @default(uuid())
+  orderId     String
+  productId   String
+  variantId   String?
+  productName String
+  quantity    Int
+  unitPrice   Decimal         @db.Decimal(12, 2)
+  totalPrice  Decimal         @db.Decimal(12, 2)
+  order       Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product     Product         @relation(fields: [productId], references: [id])
+  variant     ProductVariant? @relation(fields: [variantId], references: [id])
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+model OrderStatusHistory {
+  id          String      @id @default(uuid())
+  orderId     String
+  status      OrderStatus
+  note        String?
+  changedById String?
+  changedAt   DateTime    @default(now())
+  changedBy   User?       @relation("StatusChangedBy", fields: [changedById], references: [id])
+  order       Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@map("order_status_history")
+}
+
+model Payment {
+  id                String        @id @default(uuid())
+  orderId           String        @unique
+  userId            String
+  razorpayOrderId   String        @unique
+  razorpayPaymentId String?
+  razorpaySignature String?
+  amount            Decimal       @db.Decimal(12, 2)
+  currency          String        @default("INR")
+  status            PaymentStatus @default(CREATED)
+  method            String?
+  failureReason     String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  order             Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user              User          @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([razorpayOrderId])
+  @@map("payments")
+}
+
+model SellerProfile {
+  id                  String                   @id @default(uuid())
+  userId              String                   @unique
+  businessName        String
+  businessDescription String?
+  gstNumber           String?
+  verificationStatus  SellerVerificationStatus @default(UNSUBMITTED)
+  verificationNote    String?
+  reviewedById        String?
+  reviewedAt          DateTime?
+  bankAccountHolder   String?
+  bankAccountNumber   String?
+  bankIfscCode        String?
+  bankName            String?
+  serviceAreaLat      Float?
+  serviceAreaLng      Float?
+  serviceAreaRadiusKm Float?
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+  reviewedBy          User?                    @relation("VerificationReviewedBy", fields: [reviewedById], references: [id])
+  user                User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([verificationStatus])
+  @@map("seller_profiles")
+}
+
+model Notification {
+  id                String           @id @default(uuid())
+  userId            String
+  type              NotificationType
+  title             String
+  message           String
+  isRead            Boolean          @default(false)
+  relatedEntityType String?
+  relatedEntityId   String?
+  createdAt         DateTime         @default(now())
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+model NotificationPreference {
+  id           String             @id @default(uuid())
+  userId       String             @unique
+  emailEnabled Boolean            @default(true)
+  inAppEnabled Boolean            @default(true)
+  mutedTypes   NotificationType[] @default([])
+  updatedAt    DateTime           @updatedAt
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_preferences")
+}
+
+model Feedback {
+  id            String           @id @default(uuid())
+  userId        String?
+  category      FeedbackCategory @default(GENERAL)
+  subject       String
+  message       String
+  status        FeedbackStatus   @default(OPEN)
+  adminResponse String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  user          User?            @relation(fields: [userId], references: [id])
+
+  @@index([status])
+  @@map("feedback")
+}
+
+model Mandi {
+  id          String            @id @default(uuid())
+  name        String
+  state       String
+  district    String
+  latitude    Float?
+  longitude   Float?
+  isActive    Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  favoritedBy FavoriteMandi[]
+  priceAlerts MandiPriceAlert[]
+  prices      MandiPrice[]
+
+  @@unique([name, state, district])
+  @@index([state, district])
+  @@map("mandis")
+}
+
+model Crop {
+  id          String            @id @default(uuid())
+  name        String            @unique
+  category    String?
+  unit        String            @default("Quintal")
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  priceAlerts MandiPriceAlert[]
+  prices      MandiPrice[]
+
+  @@map("crops")
+}
+
+model MandiPrice {
+  id         String           @id @default(uuid())
+  mandiId    String
+  cropId     String
+  variety    String?
+  minPrice   Decimal          @db.Decimal(10, 2)
+  maxPrice   Decimal          @db.Decimal(10, 2)
+  modalPrice Decimal          @db.Decimal(10, 2)
+  priceDate  DateTime         @db.Date
+  source     MandiPriceSource @default(ADMIN)
+  createdAt  DateTime         @default(now())
+  crop       Crop             @relation(fields: [cropId], references: [id], onDelete: Cascade)
+  mandi      Mandi            @relation(fields: [mandiId], references: [id], onDelete: Cascade)
+
+  @@unique([mandiId, cropId, variety, priceDate])
+  @@index([cropId, mandiId, priceDate])
+  @@index([priceDate])
+  @@map("mandi_prices")
+}
+
+model FavoriteMandi {
+  id        String   @id @default(uuid())
+  userId    String
+  mandiId   String
+  createdAt DateTime @default(now())
+  mandi     Mandi    @relation(fields: [mandiId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, mandiId])
+  @@index([userId])
+  @@map("favorite_mandis")
+}
+
+model MandiPriceAlert {
+  id              String              @id @default(uuid())
+  userId          String
+  cropId          String
+  mandiId         String?
+  priceType       MandiPriceType      @default(MODAL)
+  condition       PriceAlertCondition
+  thresholdPrice  Decimal             @db.Decimal(10, 2)
+  isActive        Boolean             @default(true)
+  lastTriggeredAt DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  crop            Crop                @relation(fields: [cropId], references: [id], onDelete: Cascade)
+  mandi           Mandi?              @relation(fields: [mandiId], references: [id], onDelete: Cascade)
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([cropId, mandiId, isActive])
+  @@index([userId])
+  @@map("mandi_price_alerts")
+}
+
+model WeatherCache {
+  id          String   @id @default(uuid())
+  locationKey String   @unique
+  latitude    Float
+  longitude   Float
+  currentData Json
+  dailyData   Json
+  fetchedAt   DateTime @default(now())
+  expiresAt   DateTime
+
+  @@index([expiresAt])
+  @@map("weather_cache")
+}
+
+model playing_with_neon {
+  id    Int    @id @default(autoincrement())
+  name  String
+  value Float? @db.Real
+}
 
 enum Role {
   BUYER
@@ -95,574 +601,4 @@ enum MandiPriceType {
   MIN
   MAX
   MODAL
-}
-
-// ---------------------------------------------------------------------------
-// 3.1 User Management & Authentication
-// ---------------------------------------------------------------------------
-
-model User {
-  id                     String       @id @default(uuid())
-  name                   String
-  email                  String       @unique
-  phone                  String?      @unique
-  passwordHash           String?
-  role                   Role         @default(BUYER)
-  authProvider           AuthProvider @default(LOCAL)
-  googleId               String?      @unique
-  googlePicture          String?
-  profileImage           String?
-  profileImagePublicId   String?
-  isEmailVerified        Boolean      @default(false)
-  isPhoneVerified        Boolean      @default(false)
-  isActive               Boolean      @default(true)
-  latitude               Float?
-  longitude              Float?
-
-  // Email OTP (registration verification, password reset, login 2FA-ish flows)
-  otpCodeHash            String?
-  otpExpiresAt           DateTime?
-  otpPurpose             String?      // REGISTER | RESET_PASSWORD
-  otpAttempts            Int          @default(0)
-
-  createdAt              DateTime     @default(now())
-  updatedAt               DateTime     @updatedAt
-
-  addresses              Address[]
-  loginHistory           LoginHistory[]
-  refreshTokens          RefreshToken[]
-  products               Product[]      @relation("SellerProducts")
-  reviews                Review[]
-  wishlist               Wishlist[]
-  cart                   Cart?
-  orders                 Order[]
-  payments               Payment[]
-  orderStatusChanges     OrderStatusHistory[] @relation("StatusChangedBy")
-  sellerProfile          SellerProfile?
-  notifications          Notification[]
-  notificationPreference NotificationPreference?
-  feedbacks              Feedback[]
-  verificationsReviewed  SellerProfile[] @relation("VerificationReviewedBy")
-  favoriteMandis         FavoriteMandi[]
-  mandiPriceAlerts       MandiPriceAlert[]
-
-  @@index([email])
-  @@map("users")
-}
-
-model RefreshToken {
-  id         String   @id @default(uuid())
-  userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenHash  String   @unique
-  userAgent  String?
-  ipAddress  String?
-  revoked    Boolean  @default(false)
-  expiresAt  DateTime
-  createdAt  DateTime @default(now())
-
-  @@index([userId])
-  @@map("refresh_tokens")
-}
-
-model LoginHistory {
-  id        String   @id @default(uuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  ipAddress String?
-  userAgent String?
-  success   Boolean
-  reason    String?
-  loginAt   DateTime @default(now())
-
-  @@index([userId])
-  @@map("login_history")
-}
-
-model Address {
-  id            String   @id @default(uuid())
-  userId        String
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  label         String   @default("Home")
-  fullName      String
-  phone         String
-  addressLine1  String
-  addressLine2  String?
-  city          String
-  state         String
-  postalCode    String
-  country       String   @default("India")
-  latitude      Float?
-  longitude     Float?
-  isDefault     Boolean  @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  orders        Order[]
-
-  @@index([userId])
-  @@map("addresses")
-}
-
-// ---------------------------------------------------------------------------
-// 3.2 Marketplace — Multi-Category Product Catalog
-// ---------------------------------------------------------------------------
-
-model Category {
-  id            String        @id @default(uuid())
-  name          String        @unique
-  slug          String        @unique
-  description   String?
-  imageUrl      String?
-  imagePublicId String?       // Cloudinary public_id, needed to delete the asset on replace/delete
-  isActive      Boolean       @default(true)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-
-  subCategories SubCategory[]
-  products      Product[]
-
-  @@map("categories")
-}
-
-model SubCategory {
-  id          String   @id @default(uuid())
-  categoryId  String
-  category    Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  name        String
-  slug        String   @unique
-  description String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  products    Product[]
-
-  @@unique([categoryId, name])
-  @@index([categoryId])
-  @@map("sub_categories")
-}
-
-model Product {
-  id             String        @id @default(uuid())
-  sellerId       String
-  seller         User          @relation("SellerProducts", fields: [sellerId], references: [id], onDelete: Cascade)
-  categoryId     String
-  category       Category      @relation(fields: [categoryId], references: [id])
-  subCategoryId  String?
-  subCategory    SubCategory?  @relation(fields: [subCategoryId], references: [id])
-
-  name           String
-  slug           String        @unique
-  description    String?
-  brand          String?
-  price          Decimal       @db.Decimal(12, 2)
-  discountPrice  Decimal?      @db.Decimal(12, 2)
-  stock          Int           @default(0)
-  unit           String        @default("piece") // kg, litre, piece, bag, quintal...
-  specifications Json?         // flexible per-category attributes (e.g. seed variety, HP for machinery)
-  latitude       Float?
-  longitude      Float?
-  isActive       Boolean       @default(true)
-  avgRating      Float         @default(0)
-  reviewCount    Int           @default(0)
-  viewCount      Int           @default(0)
-
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-
-  images         ProductImage[]
-  variants       ProductVariant[]
-  reviews        Review[]
-  wishlistedBy   Wishlist[]
-  cartItems      CartItem[]
-  orderItems     OrderItem[]
-
-  @@index([categoryId])
-  @@index([subCategoryId])
-  @@index([sellerId])
-  @@index([isActive])
-  @@map("products")
-}
-
-model ProductImage {
-  id        String   @id @default(uuid())
-  productId String
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  url       String
-  publicId  String?  // Cloudinary public_id, needed to delete the asset later
-  isPrimary Boolean  @default(false)
-  sortOrder Int      @default(0)
-  createdAt DateTime @default(now())
-
-  @@index([productId])
-  @@map("product_images")
-}
-
-model ProductVariant {
-  id         String   @id @default(uuid())
-  productId  String
-  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  name       String   // e.g. "5kg pack", "10 HP"
-  sku        String?  @unique
-  price      Decimal  @db.Decimal(12, 2)
-  stock      Int      @default(0)
-  attributes Json?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  cartItems  CartItem[]
-  orderItems OrderItem[]
-
-  @@index([productId])
-  @@map("product_variants")
-}
-
-model Review {
-  id         String   @id @default(uuid())
-  productId  String
-  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  rating     Int      // 1-5
-  comment    String?
-  isApproved Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  @@unique([productId, userId])
-  @@index([productId])
-  @@map("reviews")
-}
-
-model Wishlist {
-  id        String   @id @default(uuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  productId String
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-
-  @@unique([userId, productId])
-  @@index([userId])
-  @@map("wishlist")
-}
-
-// ---------------------------------------------------------------------------
-// 3.3 Orders, Cart & Checkout
-// ---------------------------------------------------------------------------
-
-model Cart {
-  id        String     @id @default(uuid())
-  userId    String     @unique
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items     CartItem[]
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-
-  @@map("carts")
-}
-
-model CartItem {
-  id         String          @id @default(uuid())
-  cartId     String
-  cart       Cart            @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  productId  String
-  product    Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
-  variantId  String?
-  variant    ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
-  quantity   Int             @default(1)
-  createdAt  DateTime        @default(now())
-  updatedAt  DateTime        @updatedAt
-
-  @@unique([cartId, productId, variantId])
-  @@index([cartId])
-  @@map("cart_items")
-}
-
-model Order {
-  id            String        @id @default(uuid())
-  orderNumber   String        @unique
-  userId        String
-  user          User          @relation(fields: [userId], references: [id])
-  addressId     String
-  address       Address       @relation(fields: [addressId], references: [id])
-  status        OrderStatus   @default(PENDING)
-
-  subtotal      Decimal       @db.Decimal(12, 2)
-  shippingFee   Decimal       @db.Decimal(12, 2) @default(0)
-  tax           Decimal       @db.Decimal(12, 2) @default(0)
-  discount      Decimal       @db.Decimal(12, 2) @default(0)
-  totalAmount   Decimal       @db.Decimal(12, 2)
-
-  notes         String?
-  cancelReason  String?
-
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-
-  items         OrderItem[]
-  statusHistory OrderStatusHistory[]
-  payment       Payment?
-
-  @@index([userId])
-  @@index([status])
-  @@map("orders")
-}
-
-model OrderItem {
-  id           String          @id @default(uuid())
-  orderId      String
-  order        Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId    String
-  product      Product         @relation(fields: [productId], references: [id])
-  variantId    String?
-  variant      ProductVariant? @relation(fields: [variantId], references: [id])
-  productName  String          // snapshot at time of order
-  quantity     Int
-  unitPrice    Decimal         @db.Decimal(12, 2)
-  totalPrice   Decimal         @db.Decimal(12, 2)
-
-  @@index([orderId])
-  @@map("order_items")
-}
-
-model OrderStatusHistory {
-  id            String      @id @default(uuid())
-  orderId       String
-  order         Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  status        OrderStatus
-  note          String?
-  changedById   String?
-  changedBy     User?       @relation("StatusChangedBy", fields: [changedById], references: [id])
-  changedAt     DateTime    @default(now())
-
-  @@index([orderId])
-  @@map("order_status_history")
-}
-
-// ---------------------------------------------------------------------------
-// 3.4 Payments (Razorpay)
-// ---------------------------------------------------------------------------
-
-model Payment {
-  id                String        @id @default(uuid())
-  orderId           String        @unique
-  order             Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  userId            String
-  user              User          @relation(fields: [userId], references: [id])
-
-  razorpayOrderId   String        @unique
-  razorpayPaymentId String?
-  razorpaySignature String?
-
-  amount            Decimal       @db.Decimal(12, 2)
-  currency          String        @default("INR")
-  status            PaymentStatus @default(CREATED)
-  method            String?       // upi, card, netbanking, wallet...
-  failureReason     String?
-
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-
-  @@index([userId])
-  @@index([razorpayOrderId])
-  @@map("payments")
-}
-
-// ---------------------------------------------------------------------------
-// 3.11 Seller Management & Analytics
-// ---------------------------------------------------------------------------
-
-model SellerProfile {
-  id                  String                    @id @default(uuid())
-  userId              String                    @unique
-  user                User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  businessName        String
-  businessDescription String?
-  gstNumber           String?
-
-  verificationStatus  SellerVerificationStatus  @default(UNSUBMITTED)
-  verificationNote    String?
-  reviewedById        String?
-  reviewedBy          User?                     @relation("VerificationReviewedBy", fields: [reviewedById], references: [id])
-  reviewedAt          DateTime?
-
-  // Payout details. NOTE: for a real production deployment, prefer a payment
-  // processor's connected-accounts API (e.g. Razorpay Route) over storing raw
-  // bank details, or encrypt these columns at rest — kept simple here to match
-  // the spec's "Seller Profile with bank account details for payouts".
-  bankAccountHolder   String?
-  bankAccountNumber   String?
-  bankIfscCode        String?
-  bankName            String?
-
-  serviceAreaLat      Float?
-  serviceAreaLng      Float?
-  serviceAreaRadiusKm Float?
-
-  createdAt           DateTime                  @default(now())
-  updatedAt           DateTime                  @updatedAt
-
-  @@index([verificationStatus])
-  @@map("seller_profiles")
-}
-
-// ---------------------------------------------------------------------------
-// 3.12 Notifications & Feedback
-// ---------------------------------------------------------------------------
-
-model Notification {
-  id                String            @id @default(uuid())
-  userId            String
-  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type              NotificationType
-  title             String
-  message           String
-  isRead            Boolean           @default(false)
-  relatedEntityType String?           // e.g. "ORDER", "SELLER_PROFILE"
-  relatedEntityId   String?
-  createdAt         DateTime          @default(now())
-
-  @@index([userId, isRead])
-  @@map("notifications")
-}
-
-model NotificationPreference {
-  id            String             @id @default(uuid())
-  userId        String             @unique
-  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  emailEnabled  Boolean            @default(true)
-  inAppEnabled  Boolean            @default(true)
-  mutedTypes    NotificationType[] @default([])
-  updatedAt     DateTime           @updatedAt
-
-  @@map("notification_preferences")
-}
-
-model Feedback {
-  id             String           @id @default(uuid())
-  userId         String?
-  user           User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
-  category       FeedbackCategory @default(GENERAL)
-  subject        String
-  message        String
-  status         FeedbackStatus   @default(OPEN)
-  adminResponse  String?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-
-  @@index([status])
-  @@map("feedback")
-}
-
-// ---------------------------------------------------------------------------
-// 3.8 Mandi Price Intelligence
-// ---------------------------------------------------------------------------
-
-model Mandi {
-  id          String   @id @default(uuid())
-  name        String
-  state       String
-  district    String
-  latitude    Float?
-  longitude   Float?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  prices      MandiPrice[]
-  favoritedBy FavoriteMandi[]
-  priceAlerts MandiPriceAlert[]
-
-  @@unique([name, state, district])
-  @@index([state, district])
-  @@map("mandis")
-}
-
-model Crop {
-  id        String   @id @default(uuid())
-  name      String   @unique
-  category  String?  // e.g. "Cereals", "Vegetables", "Pulses", "Spices"
-  unit      String   @default("Quintal")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  prices      MandiPrice[]
-  priceAlerts MandiPriceAlert[]
-
-  @@map("crops")
-}
-
-model MandiPrice {
-  id         String           @id @default(uuid())
-  mandiId    String
-  mandi      Mandi            @relation(fields: [mandiId], references: [id], onDelete: Cascade)
-  cropId     String
-  crop       Crop             @relation(fields: [cropId], references: [id], onDelete: Cascade)
-  variety    String?          // Agmarknet-style variety label, e.g. "Local", "Basmati"
-  minPrice   Decimal          @db.Decimal(10, 2)
-  maxPrice   Decimal          @db.Decimal(10, 2)
-  modalPrice Decimal          @db.Decimal(10, 2) // the "typical" price — what most alerts/charts key off
-  priceDate  DateTime         @db.Date // the market date this record is FOR, not when it was entered
-  source     MandiPriceSource @default(ADMIN)
-  createdAt  DateTime         @default(now())
-
-  @@unique([mandiId, cropId, variety, priceDate])
-  @@index([cropId, mandiId, priceDate])
-  @@index([priceDate])
-  @@map("mandi_prices")
-}
-
-model FavoriteMandi {
-  id        String   @id @default(uuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  mandiId   String
-  mandi     Mandi    @relation(fields: [mandiId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-
-  @@unique([userId, mandiId])
-  @@index([userId])
-  @@map("favorite_mandis")
-}
-
-model MandiPriceAlert {
-  id              String              @id @default(uuid())
-  userId          String
-  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  cropId          String
-  crop            Crop                @relation(fields: [cropId], references: [id], onDelete: Cascade)
-  mandiId         String?             // null = alert across any mandi
-  mandi           Mandi?              @relation(fields: [mandiId], references: [id], onDelete: Cascade)
-  priceType       MandiPriceType      @default(MODAL)
-  condition       PriceAlertCondition
-  thresholdPrice  Decimal             @db.Decimal(10, 2)
-  isActive        Boolean             @default(true)
-  lastTriggeredAt DateTime?
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
-
-  @@index([cropId, mandiId, isActive])
-  @@index([userId])
-  @@map("mandi_price_alerts")
-}
-
-// ---------------------------------------------------------------------------
-// 3.10 Weather Intelligence
-// ---------------------------------------------------------------------------
-
-model WeatherCache {
-  id          String   @id @default(uuid())
-  locationKey String   @unique // rounded "lat,lng" — see weather.service.ts
-  latitude    Float
-  longitude   Float
-  currentData Json
-  dailyData   Json
-  fetchedAt   DateTime @default(now())
-  expiresAt   DateTime
-
-  @@index([expiresAt])
-  @@map("weather_cache")
 }

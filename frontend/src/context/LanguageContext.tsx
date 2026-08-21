@@ -31,7 +31,7 @@ function resolvePath(obj: unknown, path: string): string {
 interface LanguageContextValue {
   language: string
   setLanguage: (code: string) => void
-  t: (key: TranslationKey) => string
+  t: (key: TranslationKey, params?: Record<string, string | number>) => string
   supportedLanguages: typeof supportedLanguages
   plannedLanguages: typeof plannedLanguages
 }
@@ -59,12 +59,17 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const t = useCallback(
-    (key: TranslationKey): string => {
+    (key: TranslationKey, params?: Record<string, string | number>): string => {
       const table = translations[language] ?? translations[DEFAULT_LANGUAGE]
-      const value = resolvePath(table, key)
+      let value = resolvePath(table, key)
       if (value === key) {
         // fall back to English rather than showing a raw dotted key
-        return resolvePath(translations[DEFAULT_LANGUAGE], key)
+        value = resolvePath(translations[DEFAULT_LANGUAGE], key)
+      }
+      if (params) {
+        for (const [paramKey, paramValue] of Object.entries(params)) {
+          value = value.replace(`{${paramKey}}`, String(paramValue))
+        }
       }
       return value
     },

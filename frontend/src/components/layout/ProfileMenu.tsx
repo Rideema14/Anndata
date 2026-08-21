@@ -49,7 +49,7 @@ export function ProfileMenu({ className }: { className?: string }) {
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={t('nav.profile')}
-        className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-600 text-sm font-bold text-white"
+        className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-800 text-sm font-bold text-white"
       >
         {initials(user.name)}
       </button>

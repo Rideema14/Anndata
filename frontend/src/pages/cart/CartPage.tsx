@@ -23,8 +23,8 @@ export default function CartPage() {
     return (
       <div className="mx-auto flex min-h-[60vh] max-w-md flex-col items-center justify-center px-6 text-center">
         <ShoppingCart className="mb-3 h-12 w-12 text-ink-300" aria-hidden="true" />
-        <h1 className="text-lg">Your cart is empty</h1>
-        <p className="mt-1 text-sm text-ink-500">Browse the marketplace to add seeds, fertilizers and more.</p>
+        <h1 className="text-lg">{t('cart.emptyTitle')}</h1>
+        <p className="mt-1 text-sm text-ink-500">{t('cart.emptySubtitle')}</p>
         <Link to="/market" className="mt-5 rounded-full bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700">
           {t('nav.market')}
         </Link>
@@ -34,7 +34,7 @@ export default function CartPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-5 md:px-6 md:py-8">
-      <h1 className="mb-5 text-xl">{t('nav.cart')} ({itemCount})</h1>
+      <h1 className="mb-5 text-xl">{t('cart.title')} ({itemCount})</h1>
 
       <div className="grid gap-6 md:grid-cols-3">
         <div className="space-y-3 md:col-span-2">
@@ -60,7 +60,7 @@ export default function CartPage() {
                   {line.variantName && <p className="mt-0.5 text-xs text-ink-400">{line.variantName}</p>}
                   <p className="mt-1 text-sm font-bold text-ink-900">{formatINR(line.unitPrice ?? product.price)}</p>
                   {product.stock > 0 && product.stock < line.quantity && (
-                    <p className="mt-0.5 text-xs font-medium text-danger-500">Only {product.stock} left in stock</p>
+                    <p className="mt-0.5 text-xs font-medium text-danger-500">{t('cart.onlyLeftInStock', { count: product.stock })}</p>
                   )}
 
                   <div className="mt-2 flex items-center gap-3">
@@ -69,7 +69,7 @@ export default function CartPage() {
                         type="button"
                         onClick={() => setQuantity(line.productId, line.quantity - 1)}
                         disabled={line.quantity <= 1}
-                        aria-label="Decrease quantity"
+                        aria-label={t('common.decreaseQuantity')}
                         className="flex h-8 w-8 items-center justify-center text-ink-600 disabled:text-ink-300"
                       >
                         <Minus className="h-3.5 w-3.5" aria-hidden="true" />
@@ -79,7 +79,7 @@ export default function CartPage() {
                         type="button"
                         onClick={() => setQuantity(line.productId, line.quantity + 1)}
                         disabled={line.quantity >= product.stock}
-                        aria-label="Increase quantity"
+                        aria-label={t('common.increaseQuantity')}
                         className="flex h-8 w-8 items-center justify-center text-ink-600 disabled:text-ink-300"
                       >
                         <Plus className="h-3.5 w-3.5" aria-hidden="true" />
@@ -91,7 +91,7 @@ export default function CartPage() {
                       className="flex items-center gap-1 text-xs font-medium text-ink-500 hover:text-brand-600"
                     >
                       <Bookmark className="h-3.5 w-3.5" aria-hidden="true" />
-                      Save for later
+                      {t('cart.saveForLater')}
                     </button>
                     <button
                       type="button"
@@ -99,7 +99,7 @@ export default function CartPage() {
                       className="flex items-center gap-1 text-xs font-medium text-danger-500 hover:underline"
                     >
                       <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                      Remove
+                      {t('cart.remove')}
                     </button>
                   </div>
                 </div>
@@ -109,7 +109,7 @@ export default function CartPage() {
 
           {savedLines.length > 0 && (
             <div className="pt-4">
-              <h2 className="mb-2 text-sm font-semibold text-ink-700">Saved for later ({savedLines.length})</h2>
+              <h2 className="mb-2 text-sm font-semibold text-ink-700">{t('cart.savedForLaterTitle')} ({savedLines.length})</h2>
               <div className="space-y-3">
                 {savedLines.map((line) => {
                   const product = line.product
@@ -133,7 +133,7 @@ export default function CartPage() {
                         className="flex items-center gap-1 text-xs font-semibold text-brand-600 hover:underline"
                       >
                         <BookmarkCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                        Move to cart
+                        {t('cart.moveToCart')}
                       </button>
                     </div>
                   )
@@ -145,24 +145,24 @@ export default function CartPage() {
 
         {/* Order summary */}
         <div className="h-fit rounded-2xl border border-ink-100 bg-surface p-4">
-          <h2 className="mb-3 text-sm font-semibold text-ink-800">Order Summary</h2>
+          <h2 className="mb-3 text-sm font-semibold text-ink-800">{t('cart.orderSummary')}</h2>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between text-ink-600">
-              <span>Subtotal</span>
+              <span>{t('cart.subtotal')}</span>
               <span>{formatINR(subtotal)}</span>
             </div>
             <div className="flex justify-between text-ink-600">
-              <span>Delivery</span>
-              <span>{deliveryFee === 0 ? 'Free' : formatINR(deliveryFee)}</span>
+              <span>{t('cart.delivery')}</span>
+              <span>{deliveryFee === 0 ? t('cart.free') : formatINR(deliveryFee)}</span>
             </div>
-            {deliveryFee > 0 && <p className="text-[11px] text-ink-400">Free delivery on orders above ₹1,000</p>}
+            {deliveryFee > 0 && <p className="text-[11px] text-ink-400">{t('cart.freeDeliveryNote')}</p>}
             <div className="border-t border-ink-100 pt-2 flex justify-between font-bold text-ink-900">
-              <span>Total</span>
+              <span>{t('cart.total')}</span>
               <span>{formatINR(total)}</span>
             </div>
           </div>
           <Button fullWidth className="mt-4" onClick={() => navigate('/checkout')} disabled={activeLines.length === 0}>
-            Proceed to Checkout
+            {t('cart.proceedToCheckout')}
           </Button>
         </div>
       </div>
