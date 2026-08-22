@@ -9,12 +9,9 @@
  * module simply no-ops: mandi prices are entered by admins via the regular
  * CRUD/bulk-upload endpoints instead, which always works with zero setup.
  *
- * The field mapping below (state/district/market/commodity/variety/
- * arrival_date/min_price/max_price/modal_price) matches this dataset's
- * consistently-documented shape, but verify it against a live response
- * before relying on it — open government data APIs occasionally change
- * field names without notice, and this hasn't been tested against a real
- * key in this environment.
+ * Field mapping (State/District/Market/Commodity/Variety/Arrival_Date/
+ * Min_Price/Max_Price/Modal_Price, PascalCase) confirmed against a live
+ * response with a real API key — not a guess.
  */
 import prisma from '../../config/prisma';
 import { env } from '../../config/env';

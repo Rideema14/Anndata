@@ -19,28 +19,35 @@ updates.
 | **Notifications & Feedback** (`/notifications`) | In-app + email notifications with per-user, per-type preferences (mute specific types, toggle channels globally); feedback submission (works anonymously or logged in), admin triage/response |
 | **Mandi Price Intelligence** (`/mandi`) | Markets + crops (admin-managed), price entry (single + bulk upload), state→district→market cascading filters, price history for charting, favorite markets, price threshold alerts (wired into the notification system above) — plus an *optional* sync from data.gov.in's real Agmarknet dataset, inactive until you supply your own API key |
 | **Weather Intelligence** (`/weather`) | Current conditions + up to 16-day forecast via Open-Meteo (free, no API key needed), DB-backed cache (`WeatherCache`) to avoid re-fetching the same location on every request |
+| **Admin Console** (`/admin`) | Platform-wide analytics (user/seller counts, total orders, GMV + monthly GMV trend, order-status breakdown), user management (list/search/filter, activate/deactivate, role changes), a cross-product review moderation queue, and product oversight that (unlike the public catalog) also shows inactive listings. Category CRUD, review approval actions, and the seller-verification console already existed in Catalog/Sellers — this module adds what didn't: user management and platform-wide analytics. |
+| **Seed Store** (`/seeds`) | A fully independent sub-marketplace — own categories, catalog (with variety/sowing-season/germination-rate fields, plus variants and images), reviews, wishlist, cart, checkout, orders with status tracking, and its own Razorpay integration (own webhook endpoint too). Deliberately *not* built by reusing `Product`/`Order` — the spec calls for genuinely separate structures, and the frontend's `SeedCartContext` already assumes that independence. The "AI seed advisor" mentioned alongside this in the spec is intentionally excluded — that belongs with AI Farm Advisory (3.9), which needs its own provider decision first. |
 
 Full endpoint list is in Swagger at `/api-docs` once the server is running.
 
 ## Not yet built
 
-The original spec has 13 modules; this covers 3.1–3.4, 3.8, and 3.10–3.12. Still to build:
+The original spec has 13 modules; this covers everything except:
 
-- **3.5 Seed Store** — dedicated sub-marketplace (own cart/orders/reviews/wishlist + AI seed advisor)
 - **3.6 Land Marketplace** — listings + site-visit request workflow
 - **3.7 Machinery & Equipment Rental** — rental bookings with date ranges
-- **3.9 AI Farm Advisory Suite** — crop/disease/soil/fertilizer/irrigation/weather advice, AI chat, voice
-- **3.13 Admin Console** — platform-wide analytics, seed/reset tooling (category CRUD and review moderation already exist from Catalog; the seller-verification console already exists from Sellers)
+- **3.9 AI Farm Advisory Suite** — crop/disease/soil/fertilizer/irrigation/weather advice, AI chat, voice, and the seed advisor referenced in 3.5
 
-Ask to continue building any of these and it'll plug into the same `src/modules/<name>/`
+Ask to continue building either of these and it'll plug into the same `src/modules/<name>/`
 pattern and the existing Prisma schema.
+
+## Seed Store routing — mount order matters
+
+`/seeds` (the seed catalog itself) and `/seeds/categories`, `/seeds/wishlist`, `/seeds/cart`,
+`/seeds/orders`, `/seeds/payments` are separate routers in `routes/index.ts`. The specific
+ones **must** be registered before the bare `/seeds` mount — Express matches prefixes in
+registration order, so `/seeds` alone would otherwise swallow `/seeds/categories` and try to
+route `categories` into `seed.routes.ts`'s `GET /:slug` handler as if it were a seed's slug.
+If you ever reorder these, keep the specific prefixes first.
 
 ## On the two external data sources
 
 - **Weather (Open-Meteo)**: genuinely free, no API key, no signup — verified via their public docs. `OPEN_METEO_BASE_URL` in `.env` only needs to change if you're self-hosting their (also open-source) service.
-- **Mandi prices (data.gov.in)**: this one's different. The real government dataset ("Variety-wise Daily Market Prices of Commodity") exists and is well-documented, but using it requires *your own* free API key from data.gov.in and the dataset's current resource ID — both of which I have no way to obtain or verify from here, and neither is safe to hardcode (resource IDs on that platform change over time). So the module works two ways:
-  1. **Always available, zero setup**: admins enter/bulk-upload price records directly (`POST /mandi/prices`, `/mandi/prices/bulk`). This is the path the seeded crops and everything else in the module assumes.
-  2. **Optional**: set `DATA_GOV_IN_API_KEY` and `DATA_GOV_IN_RESOURCE_ID` in `.env` (see the comment above them for where to get these) and `POST /mandi/sync` will pull real records and upsert them, auto-creating any market/crop it doesn't recognize by name. The field mapping in `src/modules/mandi/ingestion.service.ts` matches this dataset's consistently-documented shape, but it hasn't been tested against a live key in this environment — verify it against a real response before relying on it in production.
+- **Mandi prices (data.gov.in)**: the real dataset ("Variety-wise Daily Market Prices of Commodity") requires *your own* free API key and the dataset's current resource ID, so it's optional — set `DATA_GOV_IN_API_KEY` and `DATA_GOV_IN_RESOURCE_ID` in `.env` and `POST /mandi/sync` pulls real records. Without either seller entering data manually via `POST /mandi/prices` / `/mandi/prices/bulk` still works with zero setup. The field mapping in `src/modules/mandi/ingestion.service.ts` (`State`/`District`/`Market`/`Commodity`/`Variety`/`Arrival_Date`/`Min_Price`/`Max_Price`/`Modal_Price`, PascalCase) has been **confirmed against a live response with a real key** — it's not a guess anymore.
 
 ## "Feedback" means two different things here — on purpose, kept apart
 
@@ -169,6 +176,8 @@ src/
     notification/  in-app + email notifications, preferences, feedback
     mandi/         markets, crops, prices, history, favorites, alerts, optional data.gov.in sync
     weather/       Open-Meteo integration + DB-backed cache
+    admin/         user management, platform analytics, review moderation queue, product oversight
+    seedstore/     independent seed catalog/cart/order/payment/review/wishlist (mirrors catalog+cart+order+payment)
   routes/          mounts every module under /api/v1
   app.ts           Express app + middleware
   server.ts        HTTP server + Socket.IO + graceful shutdown
@@ -198,17 +207,17 @@ A couple more, elsewhere:
 
 `npm install` needs network access this sandbox doesn't have, so a live DB round-trip
 hasn't been run here. What *was* checked without it:
-- Every relative import path (262 of them, across the whole project) was verified to
-  resolve to a real file, and every named/default import from a local module (302 of
+- Every relative import path (373 of them, across the whole project) was verified to
+  resolve to a real file, and every named/default import from a local module (435 of
   them) was cross-checked against that file's actual exports.
 - A manual, targeted re-check for the one class of Prisma typing mistake this project
   has actually hit before (using the relation-style `XUpdateInput` where scalar FK
   fields are being set directly, instead of `XUncheckedUpdateInput`) — none found in
-  the mandi/weather modules.
-- Compound unique-key names used in code (e.g. `mandiId_cropId_variety_priceDate`)
-  were checked against the exact field order in each model's `@@unique([...])`
-  declaration — Prisma derives the key name from that order, so a mismatch there is a
-  real, easy-to-make bug.
+  the admin/seedstore modules.
+- Compound unique-key names used in code (e.g. `cartId_seedId_variantId`,
+  `seedId_userId`) were checked against the exact field order in each model's
+  `@@unique([...])` declaration — Prisma derives the key name from that order, so a
+  mismatch there is a real, easy-to-make bug.
 - `tsc --noEmit` against a temporary `declare module '*'` stub was tried and abandoned
   as not useful: without real `node_modules`, that stub can't provide named exports
   for anything (Prisma's generated model types, Express's `Request`, Zod's `infer`,
@@ -216,5 +225,4 @@ hasn't been run here. What *was* checked without it:
   bug. The checks above are what actually caught something.
 
 Run `npm install && npm run typecheck && npm run prisma:migrate` locally before trusting
-this against real traffic.
 this against real traffic.

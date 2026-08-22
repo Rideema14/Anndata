@@ -5,73 +5,74 @@ import prisma from '../../config/prisma';
 import ApiError from '../../common/utils/ApiError';
 import { parsePagination, buildPaginationMeta } from '../../common/utils/pagination';
 import { emitOrderUpdate } from '../../config/socket';
-import type { CheckoutInput, ListOrdersQuery, UpdateStatusInput, CancelOrderInput } from './order.validation';
+import type { SeedCheckoutInput, ListSeedOrdersQuery, UpdateSeedOrderStatusInput, CancelSeedOrderInput } from './seedOrder.validation';
 
-const ORDER_INCLUDE_DETAIL = {
-  items: { include: { product: { select: { id: true, name: true, slug: true, sellerId: true } }, variant: true } },
+const SEED_ORDER_INCLUDE_DETAIL = {
+  items: { include: { seed: { select: { id: true, name: true, slug: true, sellerId: true } }, variant: true } },
   address: true,
   statusHistory: { orderBy: { changedAt: 'asc' as const } },
   payment: true,
-} satisfies Prisma.OrderInclude;
+} satisfies Prisma.SeedOrderInclude;
 
-type OrderWithDetail = Prisma.OrderGetPayload<{ include: typeof ORDER_INCLUDE_DETAIL }>;
+type SeedOrderWithDetail = Prisma.SeedOrderGetPayload<{ include: typeof SEED_ORDER_INCLUDE_DETAIL }>;
 
-// Placeholder business rules — adjust to your actual pricing policy.
+// Same placeholder business rules as the main store's order.service.ts —
+// adjust to your actual pricing policy, and keep both in sync if you do.
 const FREE_SHIPPING_THRESHOLD = 999;
 const FLAT_SHIPPING_FEE = 49;
-const TAX_RATE = 0.05; // 5% flat placeholder tax
+const TAX_RATE = 0.05;
 
-async function generateUniqueOrderNumber(): Promise<string> {
+async function generateUniqueSeedOrderNumber(): Promise<string> {
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const ymd = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     const rand = crypto.randomInt(1000, 9999);
-    const candidate = `ORD-${ymd}-${rand}`;
+    const candidate = `SORD-${ymd}-${rand}`;
     // eslint-disable-next-line no-await-in-loop
-    const clash = await prisma.order.findUnique({ where: { orderNumber: candidate } });
+    const clash = await prisma.seedOrder.findUnique({ where: { orderNumber: candidate } });
     if (!clash) return candidate;
   }
   throw ApiError.internal('Could not generate a unique order number. Please try again.');
 }
 
-function assertCanView(order: OrderWithDetail, user: User) {
+function assertCanView(order: SeedOrderWithDetail, user: User) {
   if (user.role === 'ADMIN') return;
   if (order.userId === user.id) return;
-  const isSellerOnOrder = order.items.some((item) => item.product?.sellerId === user.id);
+  const isSellerOnOrder = order.items.some((item) => item.seed?.sellerId === user.id);
   if (isSellerOnOrder) return;
   throw ApiError.forbidden('You do not have permission to view this order.');
 }
 
-export async function checkout(userId: string, { addressId, notes }: CheckoutInput): Promise<OrderWithDetail> {
+export async function checkoutSeeds(userId: string, { addressId, notes }: SeedCheckoutInput): Promise<SeedOrderWithDetail> {
   const address = await prisma.address.findFirst({ where: { id: addressId, userId } });
   if (!address) throw ApiError.badRequest('Address not found for this account.');
 
-  const cart = await prisma.cart.findUnique({
+  const cart = await prisma.seedCart.findUnique({
     where: { userId },
-    include: { items: { include: { product: true, variant: true } } },
+    include: { items: { include: { seed: true, variant: true } } },
   });
-  if (!cart || cart.items.length === 0) throw ApiError.badRequest('Your cart is empty.');
+  if (!cart || cart.items.length === 0) throw ApiError.badRequest('Your seed cart is empty.');
 
   for (const item of cart.items) {
-    if (!item.product.isActive) {
-      throw ApiError.badRequest(`"${item.product.name}" is no longer available. Remove it from your cart.`);
+    if (!item.seed.isActive) {
+      throw ApiError.badRequest(`"${item.seed.name}" is no longer available. Remove it from your cart.`);
     }
-    const availableStock = item.variant ? item.variant.stock : item.product.stock;
+    const availableStock = item.variant ? item.variant.stock : item.seed.stock;
     if (availableStock < item.quantity) {
-      throw ApiError.badRequest(`Only ${availableStock} unit(s) of "${item.product.name}" left in stock.`);
+      throw ApiError.badRequest(`Only ${availableStock} unit(s) of "${item.seed.name}" left in stock.`);
     }
   }
 
-  const orderNumber = await generateUniqueOrderNumber();
+  const orderNumber = await generateUniqueSeedOrderNumber();
 
   let subtotal = 0;
   const itemsData = cart.items.map((item) => {
-    const unitPrice = item.variant ? Number(item.variant.price) : Number(item.product.discountPrice ?? item.product.price);
+    const unitPrice = item.variant ? Number(item.variant.price) : Number(item.seed.discountPrice ?? item.seed.price);
     const totalPrice = Math.round(unitPrice * item.quantity * 100) / 100;
     subtotal += totalPrice;
     return {
-      productId: item.productId,
+      seedId: item.seedId,
       variantId: item.variantId,
-      productName: item.product.name,
+      seedName: item.seed.name,
       quantity: item.quantity,
       unitPrice,
       totalPrice,
@@ -84,7 +85,7 @@ export async function checkout(userId: string, { addressId, notes }: CheckoutInp
   const totalAmount = Math.round((subtotal + shippingFee + tax) * 100) / 100;
 
   const order = await prisma.$transaction(async (tx) => {
-    const created = await tx.order.create({
+    const created = await tx.seedOrder.create({
       data: {
         orderNumber,
         userId,
@@ -97,38 +98,31 @@ export async function checkout(userId: string, { addressId, notes }: CheckoutInp
         items: { create: itemsData },
         statusHistory: { create: { status: 'PENDING', note: 'Order placed.' } },
       },
-      include: ORDER_INCLUDE_DETAIL,
+      include: SEED_ORDER_INCLUDE_DETAIL,
     });
 
-    // Decrement stock now, at order-creation time, to prevent overselling
-    // while the buyer is on the payment screen. If payment fails, stock is
-    // restored (see cancelOrder / payment failure handling).
-    //
-    // The earlier availability check above is only a pre-check for a fast,
-    // friendly error — it does NOT prevent two concurrent checkouts from both
-    // passing it and over-selling the last unit. The real guard is here:
-    // updateMany with a `stock >= quantity` WHERE clause makes the decrement
-    // itself conditional, so under a race only one request's decrement can
-    // succeed. If the guarded update affects 0 rows, someone else won it —
-    // throwing here aborts and rolls back the whole transaction.
+    // Same race-safe guard as the main store: a conditional UPDATE ... WHERE
+    // stock >= quantity, not a plain decrement, so two concurrent checkouts
+    // for the last unit can't both succeed. See order.service.ts for the
+    // full explanation.
     for (const item of cart.items) {
       const target = item.variantId
-        ? tx.productVariant.updateMany({
+        ? tx.seedVariant.updateMany({
             where: { id: item.variantId, stock: { gte: item.quantity } },
             data: { stock: { decrement: item.quantity } },
           })
-        : tx.product.updateMany({
-            where: { id: item.productId, stock: { gte: item.quantity } },
+        : tx.seed.updateMany({
+            where: { id: item.seedId, stock: { gte: item.quantity } },
             data: { stock: { decrement: item.quantity } },
           });
       // eslint-disable-next-line no-await-in-loop
       const result = await target;
       if (result.count === 0) {
-        throw ApiError.conflict(`"${item.product.name}" just sold out while you were checking out. Please update your cart.`);
+        throw ApiError.conflict(`"${item.seed.name}" just sold out while you were checking out. Please update your cart.`);
       }
     }
 
-    await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
+    await tx.seedCartItem.deleteMany({ where: { cartId: cart.id } });
 
     return created;
   });
@@ -136,22 +130,22 @@ export async function checkout(userId: string, { addressId, notes }: CheckoutInp
   return order;
 }
 
-async function restoreStockForOrder(tx: Prisma.TransactionClient, order: OrderWithDetail) {
+async function restoreStockForSeedOrder(tx: Prisma.TransactionClient, order: SeedOrderWithDetail) {
   for (const item of order.items) {
     if (item.variantId) {
       // eslint-disable-next-line no-await-in-loop
-      await tx.productVariant.update({ where: { id: item.variantId }, data: { stock: { increment: item.quantity } } });
+      await tx.seedVariant.update({ where: { id: item.variantId }, data: { stock: { increment: item.quantity } } });
     } else {
       // eslint-disable-next-line no-await-in-loop
-      await tx.product.update({ where: { id: item.productId }, data: { stock: { increment: item.quantity } } });
+      await tx.seed.update({ where: { id: item.seedId }, data: { stock: { increment: item.quantity } } });
     }
   }
 }
 
-export async function listOrders(user: User, query: ListOrdersQuery) {
+export async function listSeedOrders(user: User, query: ListSeedOrdersQuery) {
   const { page, limit, skip, take } = parsePagination(query);
 
-  const where: Prisma.OrderWhereInput = {};
+  const where: Prisma.SeedOrderWhereInput = {};
   if (user.role === 'ADMIN') {
     if (query.userId) where.userId = query.userId;
   } else {
@@ -160,32 +154,32 @@ export async function listOrders(user: User, query: ListOrdersQuery) {
   if (query.status) where.status = query.status;
 
   const [items, totalItems] = await Promise.all([
-    prisma.order.findMany({
+    prisma.seedOrder.findMany({
       where,
       include: { items: true, payment: { select: { status: true, method: true } } },
       orderBy: { createdAt: 'desc' },
       skip,
       take,
     }),
-    prisma.order.count({ where }),
+    prisma.seedOrder.count({ where }),
   ]);
 
   return { items, meta: buildPaginationMeta(page, limit, totalItems) };
 }
 
-export async function getOrderById(orderId: string, user: User) {
-  const order = await prisma.order.findUnique({ where: { id: orderId }, include: ORDER_INCLUDE_DETAIL });
+export async function getSeedOrderById(orderId: string, user: User) {
+  const order = await prisma.seedOrder.findUnique({ where: { id: orderId }, include: SEED_ORDER_INCLUDE_DETAIL });
   if (!order) throw ApiError.notFound('Order not found.');
   assertCanView(order, user);
   return order;
 }
 
-export async function updateStatus(orderId: string, user: User, { status, note }: UpdateStatusInput) {
-  const order = await prisma.order.findUnique({ where: { id: orderId }, include: ORDER_INCLUDE_DETAIL });
+export async function updateSeedOrderStatus(orderId: string, user: User, { status, note }: UpdateSeedOrderStatusInput) {
+  const order = await prisma.seedOrder.findUnique({ where: { id: orderId }, include: SEED_ORDER_INCLUDE_DETAIL });
   if (!order) throw ApiError.notFound('Order not found.');
 
   if (user.role !== 'ADMIN') {
-    const isSellerOnOrder = order.items.some((item) => item.product?.sellerId === user.id);
+    const isSellerOnOrder = order.items.some((item) => item.seed?.sellerId === user.id);
     if (!isSellerOnOrder) throw ApiError.forbidden('You do not have permission to update this order.');
   }
 
@@ -194,13 +188,13 @@ export async function updateStatus(orderId: string, user: User, { status, note }
   }
 
   const updated = await prisma.$transaction(async (tx) => {
-    const result = await tx.order.update({
+    const result = await tx.seedOrder.update({
       where: { id: orderId },
       data: { status, statusHistory: { create: { status, note, changedById: user.id } } },
-      include: ORDER_INCLUDE_DETAIL,
+      include: SEED_ORDER_INCLUDE_DETAIL,
     });
     if (status === 'CANCELLED' || status === 'RETURNED') {
-      await restoreStockForOrder(tx, order);
+      await restoreStockForSeedOrder(tx, order);
     }
     return result;
   });
@@ -209,8 +203,8 @@ export async function updateStatus(orderId: string, user: User, { status, note }
   return updated;
 }
 
-export async function cancelOrder(orderId: string, user: User, { reason }: CancelOrderInput) {
-  const order = await prisma.order.findUnique({ where: { id: orderId }, include: ORDER_INCLUDE_DETAIL });
+export async function cancelSeedOrder(orderId: string, user: User, { reason }: CancelSeedOrderInput) {
+  const order = await prisma.seedOrder.findUnique({ where: { id: orderId }, include: SEED_ORDER_INCLUDE_DETAIL });
   if (!order) throw ApiError.notFound('Order not found.');
 
   if (user.role !== 'ADMIN' && order.userId !== user.id) {
@@ -221,16 +215,16 @@ export async function cancelOrder(orderId: string, user: User, { reason }: Cance
   }
 
   const updated = await prisma.$transaction(async (tx) => {
-    const result = await tx.order.update({
+    const result = await tx.seedOrder.update({
       where: { id: orderId },
       data: {
         status: 'CANCELLED',
         cancelReason: reason,
         statusHistory: { create: { status: 'CANCELLED', note: reason || 'Cancelled by request.', changedById: user.id } },
       },
-      include: ORDER_INCLUDE_DETAIL,
+      include: SEED_ORDER_INCLUDE_DETAIL,
     });
-    await restoreStockForOrder(tx, order);
+    await restoreStockForSeedOrder(tx, order);
     return result;
   });
 
