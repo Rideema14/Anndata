@@ -1,5 +1,6 @@
 import http from 'http';
 import { validateEnv, env } from './config/env';
+import { startKeepAliveCron } from './jobs/cron';
 
 // IMPORTANT: this must run before any other local module loads. TypeScript
 // compiles `import` statements to hoisted `require()` calls at the top of the
@@ -19,12 +20,16 @@ const { initSocket } = require('./config/socket');
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const logger = require('./common/utils/logger').default;
 
+const {startMetadataSync} = require("./jobs/metadataSync")
+
 const server = http.createServer(app);
 initSocket(server);
 
 server.listen(env.port, () => {
   logger.info(`Agri Marketplace API listening on port ${env.port} [${env.nodeEnv}]`);
   logger.info(`Swagger docs: http://localhost:${env.port}/api-docs`);
+  startMetadataSync()
+  startKeepAliveCron()
 });
 
 async function shutdown(signal: string) {
