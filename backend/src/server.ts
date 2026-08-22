@@ -21,7 +21,7 @@ const { initSocket } = require('./config/socket');
 const logger = require('./common/utils/logger').default;
 
 const {startMetadataSync} = require("./jobs/metadataSync")
-const {startMandiDailyCron} = require("./jobs/MandiDailyCron")
+const {startMandiDailyCron} = require("./jobs/mandiDailyCron")
 
 const server = http.createServer(app);
 initSocket(server);
