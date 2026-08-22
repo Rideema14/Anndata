@@ -6,7 +6,7 @@ export function startKeepAliveCron() {
   // Run every 15 minutes
   cron.schedule('*/15 * * * *', async () => {
     try {
-      const url = `http://localhost:${env.port}/`;
+      const url = process.env.BASE_URL;
       logger.info(`Running 15-min keep-alive ping to ${url}`);
       
       const response = await fetch(url);
