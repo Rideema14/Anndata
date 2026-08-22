@@ -22,10 +22,17 @@ const logger = require('./common/utils/logger').default;
 const server = http.createServer(app);
 initSocket(server);
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { startContinuousMetadataSync } = require('../continuous_metadata_sync');
+
 server.listen(env.port, () => {
   logger.info(`Agri Marketplace API listening on port ${env.port} [${env.nodeEnv}]`);
   logger.info(`Swagger docs: http://localhost:${env.port}/api-docs`);
   
+  // Run continuous metadata sync in the background
+  startContinuousMetadataSync().catch((err: Error) => {
+    logger.error('Continuous metadata sync failed:', err);
+  });
 });
 
 async function shutdown(signal: string) {
@@ -44,3 +51,6 @@ process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('unhandledRejection', (err) => {
   logger.error('Unhandled promise rejection:', err);
 });
+
+
+

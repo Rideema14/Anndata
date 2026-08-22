@@ -49,7 +49,7 @@ function saveState(state: SyncState) {
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-async function main() {
+export async function startContinuousMetadataSync() {
   if (!API_KEY || !RESOURCE_ID) {
     console.error('Missing API Key or Resource ID in .env');
     process.exit(1);
@@ -153,7 +153,9 @@ async function main() {
   }
 }
 
-main()
-  .catch(console.error)
-  .finally(() => prisma.$disconnect());
+if (require.main === module) {
+  startContinuousMetadataSync()
+    .catch(console.error)
+    .finally(() => prisma.$disconnect());
+}
 
