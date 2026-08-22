@@ -60,6 +60,9 @@ interface BackendOrder {
   items: BackendOrderItem[]
   address: BackendAddress
   payment?: BackendPayment | null
+  /** The buyer who placed the order. Present on every order, but only
+   *  relevant to sellers/admins viewing the fulfillment list. */
+  user?: { id: string; name: string }
 }
 
 function formatAddress(a: BackendAddress): string {
@@ -84,7 +87,21 @@ function mapOrder(o: BackendOrder): Order {
 
 function mapSummary(o: BackendOrder): OrderSummary {
   const label = o.items.map((i) => `${i.productName} × ${i.quantity}`).join(', ')
-  return { id: o.orderNumber, itemsLabel: label, total: Number(o.totalAmount), status: STATUS_MAP[o.status], placedAt: o.createdAt }
+  // `o.items` is already scoped server-side to "my products" when the
+  // viewer is a seller (see backend order.service.ts), but `totalAmount` is
+  // still the whole order's total (shipping/tax + every seller's cut). Sum
+  // just the visible line items so a seller's own revenue on this order
+  // doesn't include money that belongs to another seller.
+  const itemsSubtotal = o.items.reduce((sum, i) => sum + Number(i.totalPrice), 0)
+  return {
+    id: o.orderNumber,
+    itemsLabel: label,
+    total: Number(o.totalAmount),
+    itemsSubtotal,
+    status: STATUS_MAP[o.status],
+    placedAt: o.createdAt,
+    buyerName: o.user?.name,
+  }
 }
 
 /** Internal id (uuid) lookup — the frontend routes/displays by orderNumber, but PATCH/cancel need the real id. */
@@ -101,7 +118,7 @@ export const orderService = {
     return { order: mapOrder(order), razorpayOrderId: payment?.razorpayOrderId, amount: Number(payment?.amount) }
   },
 
-  async list(params: { page?: number; limit?: number; status?: BackendStatus } = {}): Promise<{
+  async list(params: { page?: number; limit?: number; status?: BackendStatus; scope?: 'mine' | 'selling' } = {}): Promise<{
     items: OrderSummary[]
     meta: PaginationMeta
   }> {
@@ -122,5 +139,17 @@ export const orderService = {
     const realId = idByOrderNumber.get(idOrNumber) ?? idOrNumber
     const res = await api.post<{ data: BackendOrder }>(`/orders/${realId}/cancel`, { reason })
     return mapOrder(res.data.data)
+  },
+
+  /** Seller/admin only — advances an order's fulfillment status. Backend re-checks that the
+   *  caller actually has a product in this order, so this can't be used to touch someone else's order. */
+  async updateStatus(idOrNumber: string, status: OrderStatus, note?: string): Promise<OrderSummary> {
+    const realId = idByOrderNumber.get(idOrNumber) ?? idOrNumber
+    const res = await api.patch<{ data: BackendOrder }>(`/orders/${realId}/status`, {
+      status: REVERSE_STATUS_MAP[status],
+      note,
+    })
+    idByOrderNumber.set(res.data.data.orderNumber, res.data.data.id)
+    return mapSummary(res.data.data)
   },
 }

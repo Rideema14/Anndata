@@ -28,6 +28,14 @@ export const listOrdersQuerySchema = z.object({
   limit: z.string().optional(),
   status: z.enum(ORDER_STATUSES).optional(),
   userId: z.string().uuid().optional(),
+  /**
+   * 'mine' (default) = orders this account placed as a buyer — normal order
+   * history, works for every role including sellers/admins buying things.
+   * 'selling' = orders that contain this account's own products — the
+   * seller fulfillment queue. Explicit, because a single account's `role`
+   * doesn't tell you which of these two very different lists they're after.
+   */
+  scope: z.enum(['mine', 'selling']).optional(),
 });
 export type ListOrdersQuery = z.infer<typeof listOrdersQuerySchema>;
 

@@ -20,7 +20,15 @@ const NEXT_ACTION_LABEL: Record<string, string> = {
 }
 
 export default function SellerOrdersPage() {
-  const { sellerOrders, advanceSellerOrderStatus } = useSeller()
+  const { sellerOrders, isLoadingOrders, advanceSellerOrderStatus } = useSeller()
+
+  if (isLoadingOrders && sellerOrders.length === 0) {
+    return (
+      <div className="mx-auto flex min-h-[60vh] max-w-md flex-col items-center justify-center px-6 text-center">
+        <p className="text-sm text-ink-400">Loading…</p>
+      </div>
+    )
+  }
 
   if (sellerOrders.length === 0) {
     return (
