@@ -26,8 +26,6 @@ server.listen(env.port, () => {
   logger.info(`Agri Marketplace API listening on port ${env.port} [${env.nodeEnv}]`);
   logger.info(`Swagger docs: http://localhost:${env.port}/api-docs`);
   
-  const {runSync} = require("../continuous_metadata_sync")
-  runSync()
 });
 
 async function shutdown(signal: string) {
