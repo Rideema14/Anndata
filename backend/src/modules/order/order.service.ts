@@ -12,6 +12,7 @@ const ORDER_INCLUDE_DETAIL = {
   address: true,
   statusHistory: { orderBy: { changedAt: 'asc' as const } },
   payment: true,
+  user: { select: { id: true, name: true } },
 } satisfies Prisma.OrderInclude;
 
 type OrderWithDetail = Prisma.OrderGetPayload<{ include: typeof ORDER_INCLUDE_DETAIL }>;
@@ -151,25 +152,55 @@ async function restoreStockForOrder(tx: Prisma.TransactionClient, order: OrderWi
 
 export async function listOrders(user: User, query: ListOrdersQuery) {
   const { page, limit, skip, take } = parsePagination(query);
+  const scope = query.scope ?? 'mine';
+
+  if (scope === 'selling' && user.role !== 'SELLER' && user.role !== 'ADMIN') {
+    throw ApiError.forbidden('Only sellers can view orders to fulfill.');
+  }
 
   const where: Prisma.OrderWhereInput = {};
-  if (user.role === 'ADMIN') {
-    if (query.userId) where.userId = query.userId;
+  if (scope === 'selling') {
+    // The seller fulfillment queue: any order containing at least one of
+    // this account's own products. Admins can inspect a specific seller's
+    // queue via ?userId=; otherwise this only ever matches the caller's own products.
+    const sellerId = user.role === 'ADMIN' && query.userId ? query.userId : user.id;
+    where.items = { some: { product: { sellerId } } };
+  } else if (user.role === 'ADMIN') {
+    // 'mine' for an admin: their own purchase history, or a specific
+    // buyer's history via ?userId= — never everyone's orders at once.
+    where.userId = query.userId ?? user.id;
   } else {
+    // 'mine' for anyone else (buyer or seller alike): orders THEY placed.
     where.userId = user.id;
   }
   if (query.status) where.status = query.status;
 
-  const [items, totalItems] = await Promise.all([
+  const [rawItems, totalItems] = await Promise.all([
     prisma.order.findMany({
       where,
-      include: { items: true, payment: { select: { status: true, method: true } } },
+      include: {
+        items: { include: { product: { select: { id: true, name: true, slug: true, sellerId: true } } } },
+        payment: { select: { status: true, method: true } },
+        user: { select: { id: true, name: true } },
+      },
       orderBy: { createdAt: 'desc' },
       skip,
       take,
     }),
     prisma.order.count({ where }),
   ]);
+
+  // In the 'selling' scope, an order can legitimately contain other sellers'
+  // items too (one cart, one checkout, multiple sellers). Trim each order's
+  // `items` down to just this seller's own lines so they never see line
+  // items — product names, quantities, prices — that belong to someone else.
+  const items =
+    scope === 'selling'
+      ? rawItems.map((order) => {
+          const sellerId = user.role === 'ADMIN' && query.userId ? query.userId : user.id;
+          return { ...order, items: order.items.filter((item) => item.product?.sellerId === sellerId) };
+        })
+      : rawItems;
 
   return { items, meta: buildPaginationMeta(page, limit, totalItems) };
 }
@@ -178,6 +209,13 @@ export async function getOrderById(orderId: string, user: User) {
   const order = await prisma.order.findUnique({ where: { id: orderId }, include: ORDER_INCLUDE_DETAIL });
   if (!order) throw ApiError.notFound('Order not found.');
   assertCanView(order, user);
+
+  // Same rule as listOrders: a seller viewing an order they can fulfill
+  // should only see their own line items, not another seller's products,
+  // quantities, or prices that happen to share the same order.
+  if (user.role === 'SELLER' && order.userId !== user.id) {
+    return { ...order, items: order.items.filter((item) => item.product?.sellerId === user.id) };
+  }
   return order;
 }
 
@@ -238,61 +276,3 @@ export async function cancelOrder(orderId: string, user: User, { reason }: Cance
   emitOrderUpdate(updated);
   return updated;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

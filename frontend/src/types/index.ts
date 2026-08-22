@@ -207,4 +207,8 @@ export interface OrderSummary {
   total: number
   status: OrderStatus
   placedAt: string
+  /** Name of the buyer who placed the order. Only meaningful to a seller/admin viewing their fulfillment list. */
+  buyerName?: string
+  /** Sum of just the caller's own line items — differs from `total` (the whole order's total) when other sellers' products share the same order. */
+  itemsSubtotal?: number
 }
