@@ -169,8 +169,8 @@ export async function getWeather(lat: number, lng: number, days: number) {
 
   await prisma.weatherCache.upsert({
     where: { locationKey },
-    update: { latitude: lat, longitude: lng, currentData: current, dailyData: daily, fetchedAt: new Date(), expiresAt },
-    create: { locationKey, latitude: lat, longitude: lng, currentData: current, dailyData: daily, expiresAt },
+    update: { latitude: lat, longitude: lng, currentData: current as any, dailyData: daily as any, fetchedAt: new Date(), expiresAt },
+    create: { locationKey, latitude: lat, longitude: lng, currentData: current as any, dailyData: daily as any, expiresAt },
   });
 
   return { current, daily: daily.slice(0, days), cached: false, fetchedAt: new Date() };

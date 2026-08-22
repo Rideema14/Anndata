@@ -11,7 +11,7 @@ async function upsertOnePrice(entry: PriceEntryInput, source: MandiPriceSource):
       mandiId_cropId_variety_priceDate: {
         mandiId: entry.mandiId,
         cropId: entry.cropId,
-        variety: entry.variety ?? null,
+        variety: entry.variety || '',
         priceDate: entry.priceDate,
       },
     },
@@ -141,7 +141,7 @@ export async function listPrices(query: PriceQuery) {
       throw ApiError.internal('Failed to fetch from data.gov.in');
     }
 
-    const data = await response.json();
+    const data = (await response.json()) as any;
     const records = data.records || [];
     
     // Deduplicate: Keep only the first (latest) entry for each Commodity

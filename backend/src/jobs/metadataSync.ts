@@ -68,7 +68,7 @@ export function startMetadataSync() {
           continue;
         }
 
-        const data = await response.json();
+        const data = (await response.json()) as any;
         const records = data.records || [];
         const total = data.total || 0;
 
