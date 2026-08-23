@@ -1,19 +1,8 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import {useState} from 'react'
+import {Link} from 'react-router-dom'
 import {
-  Bell,
-  ChevronRight,
-  ClipboardList,
-  Heart,
-  MapPin,
-  Pencil,
-  PlusCircle,
-  Settings,
-  ShieldCheck,
-  Sparkles,
-  Star,
-  Store,
-  Trash2,
+  Bell,ChevronRight,ClipboardList,Heart,MapPin,Pencil,PlusCircle,Settings, 
+  ShieldCheck,Sparkles,Star,Store, Trash2,
 } from 'lucide-react'
 import { AddressForm } from '@/components/common/AddressForm'
 import { useAuth } from '@/context/AuthContext'
@@ -30,7 +19,7 @@ function initials(name: string): string {
 }
 
 export default function ProfilePage() {
-  const { user, isBuyer, isSeller, isAdmin, addAddress, updateAddress, removeAddress, setDefaultAddress } = useAuth()
+  const { user, isSeller, isAdmin, addAddress, updateAddress, removeAddress, setDefaultAddress } = useAuth()
   const { t } = useLanguage()
   const [addingAddress, setAddingAddress] = useState(false)
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null)
@@ -80,20 +69,20 @@ export default function ProfilePage() {
           </Link>
         </div>
 
-        {/* This is the mandatory demonstration: one account, both roles, no separate seller login. */}
+        {/* Exactly one capability badge — matches whichever role actually
+            drives the sidebar/nav for this account, so this never implies
+            access the account doesn't have surfaced in its own UI. */}
         <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-ink-100 pt-4">
-          <span className="text-xs font-medium text-ink-400">Account capabilities:</span>
-          {isAdmin && (
+          <span className="text-xs font-medium text-ink-400">Account type:</span>
+          {isAdmin ? (
             <span className="inline-flex items-center gap-1 rounded-full bg-ink-900 px-2.5 py-1 text-xs font-semibold text-white">
               {t('roles.admin')} ✓
             </span>
-          )}
-          {isSeller && (
+          ) : isSeller ? (
             <span className="inline-flex items-center gap-1 rounded-full bg-gold-100 px-2.5 py-1 text-xs font-semibold text-gold-700">
               {t('roles.seller')} ✓
             </span>
-          )}
-          {isBuyer && (
+          ) : (
             <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-700">
               {t('roles.buyer')} ✓
             </span>

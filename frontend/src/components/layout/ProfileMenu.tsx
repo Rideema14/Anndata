@@ -15,7 +15,7 @@ function initials(name: string): string {
 }
 
 export function ProfileMenu({ className }: { className?: string }) {
-  const { user, isBuyer, isSeller, isAdmin, logout } = useAuth()
+  const { user, isSeller, isAdmin, logout } = useAuth()
   const { t } = useLanguage()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -63,17 +63,15 @@ export function ProfileMenu({ className }: { className?: string }) {
             <p className="truncate text-sm font-semibold text-ink-900">{user.name}</p>
             <p className="truncate text-xs text-ink-500">{user.phone}</p>
             <div className="mt-2 flex flex-wrap gap-1.5">
-              {isAdmin && (
+              {isAdmin ? (
                 <span className="rounded-full bg-ink-900 px-2 py-0.5 text-[11px] font-semibold text-white">
                   {t('roles.admin')} ✓
                 </span>
-              )}
-              {isSeller && (
+              ) : isSeller ? (
                 <span className="rounded-full bg-gold-100 px-2 py-0.5 text-[11px] font-semibold text-gold-700">
                   {t('roles.seller')} ✓
                 </span>
-              )}
-              {isBuyer && (
+              ) : (
                 <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-semibold text-brand-700">
                   {t('roles.buyer')} ✓
                 </span>
