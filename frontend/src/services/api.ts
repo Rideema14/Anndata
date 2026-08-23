@@ -13,7 +13,7 @@ import axios, { AxiosError } from 'axios'
  * Seller and admin tooling deliberately stay on local/mock state for now.
  */
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5000/api/v1',
+  baseURL: import.meta.env.VITE_API_BASE_URL,
   timeout: 15_000,
   headers: {
     'Content-Type': 'application/json',
