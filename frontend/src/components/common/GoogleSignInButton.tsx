@@ -53,6 +53,11 @@ export function GoogleSignInButton({ onSuccess, onError }: GoogleSignInButtonPro
   const containerRef = useRef<HTMLDivElement>(null)
   const { loginWithGoogle } = useAuth()
   const [ready, setReady] = useState(false)
+  // True for the stretch between Google returning a credential and our own
+  // backend finishing the login — Google's button gives no feedback of its
+  // own once tapped, so without this the screen looks frozen/unresponsive
+  // for however long that round trip takes.
+  const [isSigningIn, setIsSigningIn] = useState(false)
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
 
   useEffect(() => {
@@ -65,11 +70,14 @@ export function GoogleSignInButton({ onSuccess, onError }: GoogleSignInButtonPro
       window.google.accounts.id.initialize({
         client_id: clientId,
         callback: async (response) => {
+          setIsSigningIn(true)
           try {
             await loginWithGoogle(response.credential)
             onSuccess()
           } catch (err) {
             onError?.(getApiErrorMessage(err, 'Could not sign in with Google.'))
+          } finally {
+            setIsSigningIn(false)
           }
         },
       })
@@ -94,7 +102,23 @@ export function GoogleSignInButton({ onSuccess, onError }: GoogleSignInButtonPro
 
   return (
     <div className="flex flex-col items-center">
-      <div ref={containerRef} className={ready ? '' : 'h-11 w-[320px] animate-pulse rounded-full bg-surface-sunk'} />
+      <div className="relative">
+        <div
+          ref={containerRef}
+          className={ready ? '' : 'h-11 w-[320px] animate-pulse rounded-full bg-surface-sunk'}
+          aria-hidden={isSigningIn}
+        />
+        {isSigningIn && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="absolute inset-0 flex items-center justify-center gap-2 rounded-full bg-surface/90 backdrop-blur-sm"
+          >
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-brand-200 border-t-brand-600" aria-hidden="true" />
+            <span className="text-sm font-medium text-ink-600">Signing in…</span>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

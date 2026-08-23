@@ -891,7 +891,7 @@ export default function HomePage() {
 
           ================================================= */}
 
-          <aside className="flex h-250 min-h-0 flex-col gap-5">
+          <aside className="flex w-100 h-250 min-h-0 flex-col gap-5">
 
 
             {/* =================================================

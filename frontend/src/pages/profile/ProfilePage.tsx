@@ -9,6 +9,7 @@ import {
   Pencil,
   PlusCircle,
   Settings,
+  ShieldCheck,
   Sparkles,
   Star,
   Store,
@@ -29,7 +30,7 @@ function initials(name: string): string {
 }
 
 export default function ProfilePage() {
-  const { user, isBuyer, isSeller, addAddress, updateAddress, removeAddress, setDefaultAddress } = useAuth()
+  const { user, isBuyer, isSeller, isAdmin, addAddress, updateAddress, removeAddress, setDefaultAddress } = useAuth()
   const { t } = useLanguage()
   const [addingAddress, setAddingAddress] = useState(false)
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null)
@@ -82,9 +83,9 @@ export default function ProfilePage() {
         {/* This is the mandatory demonstration: one account, both roles, no separate seller login. */}
         <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-ink-100 pt-4">
           <span className="text-xs font-medium text-ink-400">Account capabilities:</span>
-          {isBuyer && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-700">
-              {t('roles.buyer')} ✓
+          {isAdmin && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-ink-900 px-2.5 py-1 text-xs font-semibold text-white">
+              {t('roles.admin')} ✓
             </span>
           )}
           {isSeller && (
@@ -92,7 +93,12 @@ export default function ProfilePage() {
               {t('roles.seller')} ✓
             </span>
           )}
-          {!isSeller && (
+          {isBuyer && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-700">
+              {t('roles.buyer')} ✓
+            </span>
+          )}
+          {!isSeller && !isAdmin && (
             <Link
               to="/seller/onboarding"
               className="inline-flex items-center gap-1 rounded-full border border-dashed border-brand-300 px-2.5 py-1 text-xs font-semibold text-brand-700 hover:bg-brand-50"
@@ -102,6 +108,20 @@ export default function ProfilePage() {
           )}
         </div>
       </div>
+
+      {/* Admin shortcut, only if the role is active */}
+      {isAdmin && (
+        <Link
+          to="/admin"
+          className="mt-4 flex items-center justify-between rounded-2xl bg-ink-900 p-4 text-white transition-transform hover:-translate-y-0.5"
+        >
+          <span className="flex items-center gap-3">
+            <ShieldCheck className="h-5 w-5" aria-hidden="true" />
+            <span className="text-sm font-semibold">{t('nav.adminDashboard')}</span>
+          </span>
+          <ChevronRight className="h-4 w-4" aria-hidden="true" />
+        </Link>
+      )}
 
       {/* Seller shortcut, only if the role is active */}
       {isSeller && (

@@ -32,7 +32,7 @@ const approvalBodySchema = z.object({ isApproved: z.boolean() });
  *     tags: [Products]
  *     summary: Search/filter/paginate the product catalog
  */
-router.get('/', validate({ query: productQuerySchema }), productController.list);
+router.get('/', optionalAuthenticate, validate({ query: productQuerySchema }), productController.list);
 
 router.get('/nearby', validate({ query: nearbyQuerySchema }), productController.nearby);
 

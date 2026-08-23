@@ -1,43 +1,52 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
-import { initialSellerApplications, type SellerApplication } from '@/data/mock/mockAdminData'
-import { mockProductCatalog } from '@/data/mock/mockProductCatalog'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { sellerService, type SellerApplication } from '@/services/sellerService'
+import { useAuth } from '@/context/AuthContext'
 
 interface AdminContextValue {
   sellerApplications: SellerApplication[]
-  approveApplication: (id: string) => void
-  rejectApplication: (id: string) => void
-  removedProductIds: string[]
-  removeProduct: (id: string) => void
-  removedReviewIds: string[]
-  removeReview: (id: string) => void
+  isLoadingApplications: boolean
+  refreshApplications: () => Promise<void>
+  approveApplication: (id: string) => Promise<void>
+  rejectApplication: (id: string) => Promise<void>
 }
 
 const AdminContext = createContext<AdminContextValue | null>(null)
 
 export function AdminProvider({ children }: { children: ReactNode }) {
-  const [sellerApplications, setSellerApplications] = useState<SellerApplication[]>(initialSellerApplications)
-  const [removedProductIds, setRemovedProductIds] = useState<string[]>([])
-  const [removedReviewIds, setRemovedReviewIds] = useState<string[]>([])
+  const { isAuthenticated, isAdmin } = useAuth()
+  const [sellerApplications, setSellerApplications] = useState<SellerApplication[]>([])
+  const [isLoadingApplications, setIsLoadingApplications] = useState(false)
 
-  const approveApplication = useCallback((id: string) => {
-    setSellerApplications((prev) => prev.map((a) => (a.id === id ? { ...a, status: 'verified' } : a)))
+  const refreshApplications = useCallback(async () => {
+    if (!isAuthenticated || !isAdmin) {
+      setSellerApplications([])
+      return
+    }
+    setIsLoadingApplications(true)
+    try {
+      setSellerApplications(await sellerService.listApplications())
+    } finally {
+      setIsLoadingApplications(false)
+    }
+  }, [isAuthenticated, isAdmin])
+
+  useEffect(() => {
+    refreshApplications()
+  }, [refreshApplications])
+
+  const approveApplication = useCallback(async (id: string) => {
+    const status = await sellerService.reviewApplication(id, 'APPROVE')
+    setSellerApplications((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)))
   }, [])
 
-  const rejectApplication = useCallback((id: string) => {
-    setSellerApplications((prev) => prev.map((a) => (a.id === id ? { ...a, status: 'rejected' } : a)))
-  }, [])
-
-  const removeProduct = useCallback((id: string) => {
-    setRemovedProductIds((prev) => [...prev, id])
-  }, [])
-
-  const removeReview = useCallback((id: string) => {
-    setRemovedReviewIds((prev) => [...prev, id])
+  const rejectApplication = useCallback(async (id: string) => {
+    const status = await sellerService.reviewApplication(id, 'REJECT')
+    setSellerApplications((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)))
   }, [])
 
   const value = useMemo(
-    () => ({ sellerApplications, approveApplication, rejectApplication, removedProductIds, removeProduct, removedReviewIds, removeReview }),
-    [sellerApplications, approveApplication, rejectApplication, removedProductIds, removeProduct, removedReviewIds, removeReview],
+    () => ({ sellerApplications, isLoadingApplications, refreshApplications, approveApplication, rejectApplication }),
+    [sellerApplications, isLoadingApplications, refreshApplications, approveApplication, rejectApplication],
   )
 
   return <AdminContext.Provider value={value}>{children}</AdminContext.Provider>
@@ -47,9 +56,4 @@ export function useAdmin(): AdminContextValue {
   const ctx = useContext(AdminContext)
   if (!ctx) throw new Error('useAdmin must be used within an AdminProvider')
   return ctx
-}
-
-export function useVisibleAdminProducts() {
-  const { removedProductIds } = useAdmin()
-  return mockProductCatalog.filter((p) => !removedProductIds.includes(p.id))
 }

@@ -41,7 +41,11 @@ export const productCreateSchema = z.object({
 });
 export type ProductCreateInput = z.infer<typeof productCreateSchema>;
 
-export const productUpdateSchema = productCreateSchema.partial();
+export const productUpdateSchema = productCreateSchema.partial().extend({
+  // Sellers toggle this from "My Listings" (activate/deactivate) — deliberately
+  // not on productCreateSchema since a brand-new listing always starts active.
+  isActive: z.boolean().optional(),
+});
 export type ProductUpdateInput = z.infer<typeof productUpdateSchema>;
 
 export const productQuerySchema = z.object({

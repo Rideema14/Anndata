@@ -14,7 +14,7 @@ const TOOLS = [
 
 export default function SellerHomePage() {
   const { listings, sellerOrders } = useSeller()
-  const activeCount = listings.filter((l) => l.status === 'active').length
+  const activeCount = listings.filter((l) => l.isActive !== false).length
   const pendingOrders = sellerOrders.filter((o) => o.status !== 'delivered').length
 
   return (

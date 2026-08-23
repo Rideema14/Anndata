@@ -23,6 +23,14 @@
     "sellerOrders": "ਪੂਰੇ ਕਰਨ ਵਾਲੇ ਆਰਡਰ",
     "analytics": "ਵਿਸ਼ਲੇਸ਼ਣ",
     "sellerFeedback": "ਫੀਡਬੈਕ",
+    "adminDashboard": "ਡੈਸ਼ਬੋਰਡ",
+    "adminUsers": "ਉਪਭੋਗਤਾ",
+    "adminSellers": "ਵਿਕਰੇਤਾ",
+    "adminProducts": "ਉਤਪਾਦ",
+    "adminCategories": "ਸ਼੍ਰੇਣੀਆਂ",
+    "adminReviews": "ਸਮੀਖਿਆਵਾਂ",
+    "adminSeeds": "ਬੀਜ ਪ੍ਰਬੰਧਨ",
+    "adminAnalytics": "ਵਿਸ਼ਲੇਸ਼ਣ",
     "admin": "ਐਡਮਿਨ",
     "settings": "ਸੈਟਿੰਗਾਂ",
     "logout": "ਲੌਗ ਆਊਟ"
@@ -36,6 +44,7 @@
   "roles": {
     "buyer": "ਖਰੀਦਦਾਰ",
     "seller": "ਵਿਕਰੇਤਾ",
+    "admin": "ਐਡਮਿਨ",
     "becomeSeller": "ਵਿਕਰੇਤਾ ਬਣੋ"
   },
   "common": {

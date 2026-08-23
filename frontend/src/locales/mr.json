@@ -23,6 +23,14 @@
     "sellerOrders": "पूर्ण करायच्या ऑर्डर",
     "analytics": "विश्लेषण",
     "sellerFeedback": "अभिप्राय",
+    "adminDashboard": "डॅशबोर्ड",
+    "adminUsers": "वापरकर्ते",
+    "adminSellers": "विक्रेते",
+    "adminProducts": "उत्पादने",
+    "adminCategories": "श्रेणी",
+    "adminReviews": "पुनरावलोकने",
+    "adminSeeds": "बियाणे व्यवस्थापन",
+    "adminAnalytics": "विश्लेषण",
     "admin": "अ‍ॅडमिन",
     "settings": "सेटिंग्ज",
     "logout": "लॉग आउट"
@@ -36,6 +44,7 @@
   "roles": {
     "buyer": "खरेदीदार",
     "seller": "विक्रेता",
+    "admin": "अ‍ॅडमिन",
     "becomeSeller": "विक्रेता व्हा"
   },
   "common": {

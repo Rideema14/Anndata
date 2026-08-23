@@ -24,6 +24,14 @@
     "analytics": "Analytics",
     "sellerFeedback": "Feedback",
     "admin": "Admin",
+    "adminDashboard": "Dashboard",
+    "adminUsers": "Users",
+    "adminSellers": "Sellers",
+    "adminProducts": "Products",
+    "adminCategories": "Categories",
+    "adminReviews": "Reviews",
+    "adminSeeds": "Seed Management",
+    "adminAnalytics": "Analytics",
     "settings": "Settings",
     "logout": "Log Out"
   },
@@ -36,6 +44,7 @@
   "roles": {
     "buyer": "Buyer",
     "seller": "Seller",
+    "admin": "Admin",
     "becomeSeller": "Become a Seller"
   },
   "common": {

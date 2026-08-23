@@ -1,11 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { MessageSquareText, Star } from 'lucide-react'
-import { mockSellerFeedback } from '@/data/mock/mockSellerFeedback'
+import { sellerService, type SellerReview } from '@/services/sellerService'
 
 type RatingFilter = 'all' | 'positive' | 'neutral' | 'negative' | '1' | '2' | '3' | '4' | '5'
 type SortOrder = 'newest' | 'highest' | 'lowest'
-
-const categoryOptions = ['All categories', ...new Set(mockSellerFeedback.map((feedback) => feedback.category))]
 
 function matchesRating(rating: number, filter: RatingFilter) {
   if (filter === 'all') return true
@@ -16,19 +14,35 @@ function matchesRating(rating: number, filter: RatingFilter) {
 }
 
 export default function SellerFeedbackPage() {
-  const [category, setCategory] = useState('All categories')
+  const [reviews, setReviews] = useState<SellerReview[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [ratingFilter, setRatingFilter] = useState<RatingFilter>('all')
   const [sortOrder, setSortOrder] = useState<SortOrder>('newest')
 
+  useEffect(() => {
+    let cancelled = false
+    sellerService
+      .getReviews({ limit: 100 })
+      .then(({ items }) => {
+        if (!cancelled) setReviews(items)
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   const feedback = useMemo(() => {
-    return mockSellerFeedback
-      .filter((item) => (category === 'All categories' || item.category === category) && matchesRating(item.rating, ratingFilter))
+    return reviews
+      .filter((item) => matchesRating(item.rating, ratingFilter))
       .sort((a, b) => {
         if (sortOrder === 'highest') return b.rating - a.rating
         if (sortOrder === 'lowest') return a.rating - b.rating
-        return new Date(b.date).getTime() - new Date(a.date).getTime()
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       })
-  }, [category, ratingFilter, sortOrder])
+  }, [reviews, ratingFilter, sortOrder])
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-5 md:px-6 md:py-8">
@@ -40,12 +54,7 @@ export default function SellerFeedbackPage() {
         <div className="rounded-xl bg-brand-50 px-3 py-2 text-sm font-semibold text-brand-700">{feedback.length} feedback{feedback.length === 1 ? '' : 's'}</div>
       </div>
 
-      <section aria-label="Filter feedback" className="mt-5 grid gap-3 rounded-2xl border border-ink-100 bg-surface p-4 sm:grid-cols-3">
-        <label className="text-xs font-semibold text-ink-600">Product category
-          <select value={category} onChange={(event) => setCategory(event.target.value)} className="mt-1.5 w-full rounded-lg border border-ink-200 bg-surface px-3 py-2 text-sm text-ink-800">
-            {categoryOptions.map((option) => <option key={option}>{option}</option>)}
-          </select>
-        </label>
+      <section aria-label="Filter feedback" className="mt-5 grid gap-3 rounded-2xl border border-ink-100 bg-surface p-4 sm:grid-cols-2">
         <label className="text-xs font-semibold text-ink-600">Feedback type / rating
           <select value={ratingFilter} onChange={(event) => setRatingFilter(event.target.value as RatingFilter)} className="mt-1.5 w-full rounded-lg border border-ink-200 bg-surface px-3 py-2 text-sm text-ink-800">
             <option value="all">All feedback</option><option value="positive">Good (4–5 stars)</option><option value="neutral">Average (3 stars)</option><option value="negative">Poor (1–2 stars)</option>
@@ -60,17 +69,23 @@ export default function SellerFeedbackPage() {
       </section>
 
       <div className="mt-5 space-y-3">
-        {feedback.map((item) => (
-          <article key={item.id} className="rounded-2xl border border-ink-100 bg-surface p-4 shadow-card">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div><p className="text-sm font-semibold text-ink-900">{item.giverName}</p><p className="mt-0.5 text-xs text-ink-500">Feedback for <span className="font-medium text-ink-700">{item.productName}</span> · {item.category}</p></div>
-              <div className="flex items-center gap-1 rounded-full bg-gold-50 px-2.5 py-1 text-xs font-semibold text-gold-700" aria-label={`${item.rating} out of 5 stars`}><Star className="h-3.5 w-3.5 fill-gold-400 text-gold-400" aria-hidden="true" /> {item.rating}/5</div>
-            </div>
-            <p className="mt-3 text-sm leading-6 text-ink-600">{item.comment}</p>
-            <time dateTime={item.date} className="mt-3 block text-xs text-ink-400">{new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(item.date))}</time>
-          </article>
-        ))}
-        {feedback.length === 0 && <div className="rounded-2xl border border-dashed border-ink-200 bg-surface p-10 text-center text-sm text-ink-500"><MessageSquareText className="mx-auto mb-3 h-7 w-7 text-ink-300" aria-hidden="true" />No feedback matches these filters.</div>}
+        {isLoading ? (
+          <p className="py-10 text-center text-sm text-ink-400">Loading…</p>
+        ) : (
+          <>
+            {feedback.map((item) => (
+              <article key={item.id} className="rounded-2xl border border-ink-100 bg-surface p-4 shadow-card">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div><p className="text-sm font-semibold text-ink-900">{item.user.name}</p><p className="mt-0.5 text-xs text-ink-500">Feedback for <span className="font-medium text-ink-700">{item.product.name}</span></p></div>
+                  <div className="flex items-center gap-1 rounded-full bg-gold-50 px-2.5 py-1 text-xs font-semibold text-gold-700" aria-label={`${item.rating} out of 5 stars`}><Star className="h-3.5 w-3.5 fill-gold-400 text-gold-400" aria-hidden="true" /> {item.rating}/5</div>
+                </div>
+                {item.comment && <p className="mt-3 text-sm leading-6 text-ink-600">{item.comment}</p>}
+                <time dateTime={item.createdAt} className="mt-3 block text-xs text-ink-400">{new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(item.createdAt))}</time>
+              </article>
+            ))}
+            {feedback.length === 0 && <div className="rounded-2xl border border-dashed border-ink-200 bg-surface p-10 text-center text-sm text-ink-500"><MessageSquareText className="mx-auto mb-3 h-7 w-7 text-ink-300" aria-hidden="true" />No feedback matches these filters.</div>}
+          </>
+        )}
       </div>
     </div>
   )

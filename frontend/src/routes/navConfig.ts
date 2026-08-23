@@ -12,10 +12,13 @@ import {
   PackageCheck,
   PlusSquare,
   Settings,
+  ShieldCheck,
   ShoppingCart,
   Sparkles,
+  Star,
   Store,
-  User,
+  Tags,
+  Users,
   Wheat,
 } from 'lucide-react'
 import type { TranslationKey } from '@/context/LanguageContext'
@@ -25,15 +28,6 @@ export interface NavItem {
   labelKey: TranslationKey
   icon: LucideIcon
 }
-
-/** Mobile bottom nav — deliberately fixed at 5 items per the SRS ("do not overcrowd"). */
-export const mobileBottomNavItems: NavItem[] = [
-  { path: '/home', labelKey: 'nav.home', icon: Home },
-  { path: '/market', labelKey: 'nav.market', icon: Store },
-  { path: '/ai', labelKey: 'nav.ai', icon: Sparkles },
-  { path: '/mandi', labelKey: 'nav.mandi', icon: LineChart },
-  { path: '/profile', labelKey: 'nav.profile', icon: User },
-]
 
 /** Desktop sidebar — Buy mode. */
 export const buyNavItems: NavItem[] = [
@@ -61,6 +55,18 @@ export const sellNavItems: NavItem[] = [
 /** Seller-only utility link, kept above notifications in the sidebar. */
 export const sellerUtilityNavItems: NavItem[] = [
   { path: '/seller/feedback', labelKey: 'nav.sellerFeedback', icon: MessageSquareText },
+]
+
+/** Desktop sidebar — Admin mode. Shown instead of buy/sell nav for admin accounts. */
+export const adminNavItems: NavItem[] = [
+  { path: '/admin', labelKey: 'nav.adminDashboard', icon: LayoutDashboard },
+  { path: '/admin/users', labelKey: 'nav.adminUsers', icon: Users },
+  { path: '/admin/sellers', labelKey: 'nav.adminSellers', icon: ShieldCheck },
+  { path: '/admin/products', labelKey: 'nav.adminProducts', icon: Store },
+  { path: '/admin/categories', labelKey: 'nav.adminCategories', icon: Tags },
+  { path: '/admin/reviews', labelKey: 'nav.adminReviews', icon: Star },
+  { path: '/admin/seeds', labelKey: 'nav.adminSeeds', icon: Wheat },
+  { path: '/admin/analytics', labelKey: 'nav.adminAnalytics', icon: BarChart3 },
 ]
 
 /** Always visible at the foot of the sidebar, regardless of mode. */

@@ -49,7 +49,7 @@ export interface AuthSession {
   refreshToken: string
 }
 
-export type AppMode = 'buy' | 'sell'
+export type AppMode = 'buy' | 'sell' | 'admin'
 
 /**
  * Minimal shape used by Home page teasers today. The full Product type
@@ -87,6 +87,7 @@ export interface Product {
   slug?: string
   images?: string[]
   isWishlisted?: boolean
+  isActive?: boolean
   variantOptions?: { id: string; name: string; price: number; stock: number }[]
 }
 

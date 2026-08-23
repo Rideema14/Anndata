@@ -26,6 +26,7 @@ interface BackendProductSummary {
   reviewCount: number
   sellerId: string
   createdAt: string
+  isActive?: boolean
   images: BackendImage[]
   category: { id: string; name: string; slug: string }
   subCategory?: { id: string; name: string; slug: string } | null
@@ -58,7 +59,23 @@ export interface ProductQuery {
   subCategory?: string
   minPrice?: number
   maxPrice?: number
+  sellerId?: string
   sortBy?: 'newest' | 'price_asc' | 'price_desc' | 'rating' | 'popular'
+}
+
+export interface ProductCreateInput {
+  categoryId: string
+  subCategoryId?: string
+  name: string
+  description?: string
+  brand?: string
+  price: number
+  discountPrice?: number
+  stock: number
+  unit: string
+  specifications?: Record<string, unknown>
+  latitude?: number
+  longitude?: number
 }
 
 function mapSummary(p: BackendProductSummary): Product {
@@ -86,6 +103,7 @@ function mapSummary(p: BackendProductSummary): Product {
     reviews: [],
     createdAt: p.createdAt,
     images: p.images?.map((img) => img.url) ?? [],
+    isActive: p.isActive,
   }
 }
 
@@ -195,6 +213,28 @@ export const productService = {
       reviews: [],
       createdAt: '',
     }))
+  },
+
+  async create(input: ProductCreateInput): Promise<Product> {
+    const res = await api.post<{ data: BackendProductDetail }>('/products', input)
+    return mapDetail(res.data.data)
+  },
+
+  async update(id: string, input: Partial<ProductCreateInput> & { isActive?: boolean }): Promise<Product> {
+    const res = await api.patch<{ data: BackendProductDetail }>(`/products/${id}`, input)
+    return mapDetail(res.data.data)
+  },
+
+  async remove(id: string): Promise<void> {
+    await api.delete(`/products/${id}`)
+  },
+
+  async uploadImages(productId: string, files: File[]): Promise<void> {
+    const form = new FormData()
+    files.forEach((file) => form.append('images', file))
+    await api.post(`/products/${productId}/images`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
   },
 
   async listReviews(productId: string): Promise<ProductReview[]> {

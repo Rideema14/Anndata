@@ -23,6 +23,14 @@
     "sellerOrders": "પૂરા કરવાના ઓર્ડર",
     "analytics": "એનાલિટિક્સ",
     "sellerFeedback": "પ્રતિભાવ",
+    "adminDashboard": "ડેશબોર્ડ",
+    "adminUsers": "વપરાશકર્તાઓ",
+    "adminSellers": "વિક્રેતાઓ",
+    "adminProducts": "ઉત્પાદનો",
+    "adminCategories": "શ્રેણીઓ",
+    "adminReviews": "સમીક્ષાઓ",
+    "adminSeeds": "બીજ સંચાલન",
+    "adminAnalytics": "વિશ્લેષણ",
     "admin": "એડમિન",
     "settings": "સેટિંગ્સ",
     "logout": "લોગ આઉટ"
@@ -36,6 +44,7 @@
   "roles": {
     "buyer": "ખરીદનાર",
     "seller": "વિક્રેતા",
+    "admin": "એડમિન",
     "becomeSeller": "વિક્રેતા બનો"
   },
   "common": {

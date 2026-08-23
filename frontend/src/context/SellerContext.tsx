@@ -1,30 +1,17 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { orderService } from '@/services/orderService'
+import { productService } from '@/services/productService'
 import { useAuth } from '@/context/AuthContext'
-import type { Listing, ListingStatus, SellerOrder } from '@/types'
-
-const initialListings: Listing[] = [
-  { id: 'lst_1', name: 'Soybean Seeds — JS-9560', categorySlug: 'seeds', price: 1450, unit: '30 kg bag', stock: 42, status: 'active', createdAt: '2026-06-01T00:00:00.000Z' },
-  { id: 'lst_2', name: 'Wheat Seeds — HD-3086', categorySlug: 'seeds', price: 1650, unit: '40 kg bag', stock: 80, status: 'active', createdAt: '2026-06-25T00:00:00.000Z' },
-  { id: 'lst_3', name: 'Vermicompost — Organic Manure', categorySlug: 'fertilizers', price: 380, unit: '25 kg bag', stock: 0, status: 'inactive', createdAt: '2026-05-10T00:00:00.000Z' },
-  { id: 'lst_4', name: 'Power Tiller Rental Listing', categorySlug: 'machinery', price: 900, unit: 'per day', stock: 1, status: 'pending', createdAt: '2026-08-10T00:00:00.000Z' },
-]
+import type { Product, SellerOrder } from '@/types'
 
 const STATUS_SEQUENCE: SellerOrder['status'][] = ['placed', 'confirmed', 'packed', 'shipped', 'delivered']
 
-interface NewListingInput {
-  name: string
-  categorySlug: string
-  price: number
-  unit: string
-  stock: number
-}
-
 interface SellerContextValue {
-  listings: Listing[]
-  addListing: (input: NewListingInput) => void
-  setListingStatus: (id: string, status: ListingStatus) => void
-  removeListing: (id: string) => void
+  listings: Product[]
+  isLoadingListings: boolean
+  refreshListings: () => Promise<void>
+  toggleListingActive: (id: string) => Promise<void>
+  removeListing: (id: string) => Promise<void>
   sellerOrders: SellerOrder[]
   isLoadingOrders: boolean
   advanceSellerOrderStatus: (id: string) => Promise<void>
@@ -34,10 +21,28 @@ interface SellerContextValue {
 const SellerContext = createContext<SellerContextValue | null>(null)
 
 export function SellerProvider({ children }: { children: ReactNode }) {
-  const { isAuthenticated, isSeller } = useAuth()
-  const [listings, setListings] = useState<Listing[]>(initialListings)
+  const { user, isAuthenticated, isSeller } = useAuth()
+  const [listings, setListings] = useState<Product[]>([])
+  const [isLoadingListings, setIsLoadingListings] = useState(false)
   const [sellerOrders, setSellerOrders] = useState<SellerOrder[]>([])
   const [isLoadingOrders, setIsLoadingOrders] = useState(false)
+
+  // The backend only includes a seller's inactive products in this list when
+  // sellerId matches the caller's own id — see product.service.ts — so this
+  // is the seller's true full inventory, not just what buyers can see.
+  const refreshListings = useCallback(async () => {
+    if (!isAuthenticated || !isSeller || !user) {
+      setListings([])
+      return
+    }
+    setIsLoadingListings(true)
+    try {
+      const { items } = await productService.list({ sellerId: user.id, limit: 100 })
+      setListings(items)
+    } finally {
+      setIsLoadingListings(false)
+    }
+  }, [isAuthenticated, isSeller, user])
 
   // GET /orders is scoped server-side by role: a seller only ever gets back
   // orders that contain their own products (see backend order.service.ts).
@@ -66,24 +71,19 @@ export function SellerProvider({ children }: { children: ReactNode }) {
   }, [isAuthenticated, isSeller])
 
   useEffect(() => {
+    refreshListings()
     refreshSellerOrders()
-  }, [refreshSellerOrders])
+  }, [refreshListings, refreshSellerOrders])
 
-  const addListing = useCallback((input: NewListingInput) => {
-    const listing: Listing = {
-      id: `lst_${Date.now()}`,
-      status: 'pending',
-      createdAt: new Date().toISOString(),
-      ...input,
-    }
-    setListings((prev) => [listing, ...prev])
-  }, [])
+  const toggleListingActive = useCallback(async (id: string) => {
+    const current = listings.find((l) => l.id === id)
+    if (!current) return
+    const updated = await productService.update(id, { isActive: !current.isActive })
+    setListings((prev) => prev.map((l) => (l.id === id ? { ...l, isActive: updated.isActive } : l)))
+  }, [listings])
 
-  const setListingStatus = useCallback((id: string, status: ListingStatus) => {
-    setListings((prev) => prev.map((l) => (l.id === id ? { ...l, status } : l)))
-  }, [])
-
-  const removeListing = useCallback((id: string) => {
+  const removeListing = useCallback(async (id: string) => {
+    await productService.remove(id)
     setListings((prev) => prev.filter((l) => l.id !== id))
   }, [])
 
@@ -101,15 +101,26 @@ export function SellerProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       listings,
-      addListing,
-      setListingStatus,
+      isLoadingListings,
+      refreshListings,
+      toggleListingActive,
       removeListing,
       sellerOrders,
       isLoadingOrders,
       advanceSellerOrderStatus,
       refreshSellerOrders,
     }),
-    [listings, addListing, setListingStatus, removeListing, sellerOrders, isLoadingOrders, advanceSellerOrderStatus, refreshSellerOrders],
+    [
+      listings,
+      isLoadingListings,
+      refreshListings,
+      toggleListingActive,
+      removeListing,
+      sellerOrders,
+      isLoadingOrders,
+      advanceSellerOrderStatus,
+      refreshSellerOrders,
+    ],
   )
 
   return <SellerContext.Provider value={value}>{children}</SellerContext.Provider>

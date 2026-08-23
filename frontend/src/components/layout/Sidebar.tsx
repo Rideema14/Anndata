@@ -4,6 +4,7 @@ import { NavLink, Link } from 'react-router-dom'
 import {
   ChevronRight,
   Menu,
+  ShieldCheck,
   X,
 } from 'lucide-react'
 
@@ -13,6 +14,7 @@ import { BuySellSwitch } from '@/components/layout/BuySellSwitch'
 import {
   buyNavItems,
   sellNavItems,
+  adminNavItems,
   sellerUtilityNavItems,
   utilityNavItems,
 } from '@/routes/navConfig'
@@ -24,12 +26,12 @@ import { cn } from '@/utils/cn'
 
 export function Sidebar() {
   const { mode } = useAppMode()
-  const { isSeller } = useAuth()
+  const { isSeller, isAdmin } = useAuth()
   const { t } = useLanguage()
 
   const [showMore, setShowMore] = useState(false)
 
-  const items = mode === 'buy' ? buyNavItems : sellNavItems
+  const items = mode === 'admin' ? adminNavItems : mode === 'buy' ? buyNavItems : sellNavItems
 
   /* =========================================================
      DESKTOP
@@ -120,7 +122,61 @@ export function Sidebar() {
             BUY / SELL
         ================================================= */}
 
-        {isSeller ? (
+        {isAdmin ? (
+          <div className="px-4 pb-6">
+            <div
+              className="
+                flex
+                items-center
+                gap-2.5
+                rounded-2xl
+                bg-[#2B3024]
+                px-4
+                py-3.5
+              "
+            >
+              <span
+                className="
+                  flex
+                  h-8
+                  w-8
+                  shrink-0
+                  items-center
+                  justify-center
+                  rounded-full
+                  bg-[#D8B15A]
+                  text-[#2B3024]
+                "
+              >
+                <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+              </span>
+              <div className="min-w-0">
+                <p
+                  className="
+                    text-[10px]
+                    font-bold
+                    uppercase
+                    tracking-[0.16em]
+                    text-[#D8B15A]
+                  "
+                >
+                  Admin Console
+                </p>
+                <p
+                  className="
+                    mt-0.5
+                    truncate
+                    text-[12px]
+                    font-semibold
+                    text-[#F5F2E9]
+                  "
+                >
+                  Platform management
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : isSeller ? (
           <div className="px-4 pb-6">
             <BuySellSwitch className="w-full" />
           </div>
@@ -207,9 +263,11 @@ export function Sidebar() {
 
         <nav
           aria-label={
-            mode === 'buy'
-              ? 'Buyer navigation'
-              : 'Seller navigation'
+            mode === 'admin'
+              ? 'Admin navigation'
+              : mode === 'buy'
+                ? 'Buyer navigation'
+                : 'Seller navigation'
           }
           className="
             sidebar-scroll

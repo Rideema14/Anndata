@@ -35,10 +35,15 @@ function sortToOrderBy(sortBy: ProductQuery['sortBy']): Prisma.ProductOrderByWit
   }
 }
 
-export async function listProducts(query: ProductQuery) {
+export async function listProducts(query: ProductQuery, viewerId?: string) {
   const { page, limit, skip, take } = parsePagination(query);
 
-  const where: Prisma.ProductWhereInput = { isActive: true };
+  // Public catalog browsing only ever sees active listings. The one
+  // exception: a seller looking at their own products (?sellerId=me) should
+  // also see their own inactive ones — otherwise deactivating a listing
+  // would make it invisible to the seller who owns it, not just to buyers.
+  const isOwnerLookingAtOwnProducts = Boolean(query.sellerId) && query.sellerId === viewerId;
+  const where: Prisma.ProductWhereInput = isOwnerLookingAtOwnProducts ? {} : { isActive: true };
 
   if (query.search) {
     where.OR = [
