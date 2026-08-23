@@ -4,7 +4,7 @@ import logger from '../common/utils/logger';
 
 export function startKeepAliveCron() {
   // Run every 15 minutes
-  cron.schedule('*/5 * * * *', async () => {
+  cron.schedule('*/10 * * * *', async () => {
     try {
       const url = process.env.BASE_URL || `http://localhost:${env.port}/`;
       logger.info(`Running 5-min keep-alive ping to ${url}`);
