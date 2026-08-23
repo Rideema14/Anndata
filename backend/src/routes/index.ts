@@ -18,6 +18,11 @@ import seedCartRoutes from '../modules/seedstore/seedCart.routes';
 import seedOrderRoutes from '../modules/seedstore/seedOrder.routes';
 import seedPaymentRoutes from '../modules/seedstore/seedPayment.routes';
 import seedRoutes from '../modules/seedstore/seed.routes';
+import machineryCategoryRoutes from '../modules/machinery/machineryCategory.routes';
+import machineryBookingRoutes from '../modules/machinery/machineryBooking.routes';
+import machineryPaymentRoutes from '../modules/machinery/machineryPayment.routes';
+import machineryAnalyticsRoutes from '../modules/machinery/machineryAnalytics.routes';
+import machineryRoutes from '../modules/machinery/machinery.routes';
 
 const router = Router();
 
@@ -47,6 +52,14 @@ router.use('/seeds/cart', seedCartRoutes);
 router.use('/seeds/orders', seedOrderRoutes);
 router.use('/seeds/payments', seedPaymentRoutes);
 router.use('/seeds', seedRoutes);
+
+// Machinery & Equipment Rental — same mount-order rule as Seed Store above:
+// specific /machinery/* prefixes before the bare '/machinery' mount.
+router.use('/machinery/categories', machineryCategoryRoutes);
+router.use('/machinery/bookings', machineryBookingRoutes);
+router.use('/machinery/payments', machineryPaymentRoutes);
+router.use('/machinery/analytics', machineryAnalyticsRoutes);
+router.use('/machinery', machineryRoutes);
 
 router.get('/health', (req, res) => res.json({ success: true, message: 'OK', timestamp: new Date().toISOString() }));
 

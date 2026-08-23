@@ -21,6 +21,7 @@ updates.
 | **Weather Intelligence** (`/weather`) | Current conditions + up to 16-day forecast via Open-Meteo (free, no API key needed), DB-backed cache (`WeatherCache`) to avoid re-fetching the same location on every request |
 | **Admin Console** (`/admin`) | Platform-wide analytics (user/seller counts, total orders, GMV + monthly GMV trend, order-status breakdown), user management (list/search/filter, activate/deactivate, role changes), a cross-product review moderation queue, and product oversight that (unlike the public catalog) also shows inactive listings. Category CRUD, review approval actions, and the seller-verification console already existed in Catalog/Sellers — this module adds what didn't: user management and platform-wide analytics. |
 | **Seed Store** (`/seeds`) | A fully independent sub-marketplace — own categories, catalog (with variety/sowing-season/germination-rate fields, plus variants and images), reviews, wishlist, cart, checkout, orders with status tracking, and its own Razorpay integration (own webhook endpoint too). Deliberately *not* built by reusing `Product`/`Order` — the spec calls for genuinely separate structures, and the frontend's `SeedCartContext` already assumes that independence. The "AI seed advisor" mentioned alongside this in the spec is intentionally excluded — that belongs with AI Farm Advisory (3.9), which needs its own provider decision first. |
+| **Machinery & Equipment Rental** (`/machinery`) | Genuinely different problem from the other modules: availability isn't a stored counter, it's computed per date-range from overlapping bookings (with a mandatory buffer period between rentals). Booking creation runs in a `Serializable` Postgres transaction with retry-on-conflict, so two people can't book the last unit at the same time. Also: quantity-based discount tiers, direct booking (no cart — matches the spec's "detail modal → booking action" framing), cancellation, reviews, its own Razorpay integration, and seller analytics including a booking calendar and fleet utilization rate. See "Machinery Rental — the availability model" below for the actual math. |
 
 Full endpoint list is in Swagger at `/api-docs` once the server is running.
 
@@ -29,11 +30,43 @@ Full endpoint list is in Swagger at `/api-docs` once the server is running.
 The original spec has 13 modules; this covers everything except:
 
 - **3.6 Land Marketplace** — listings + site-visit request workflow
-- **3.7 Machinery & Equipment Rental** — rental bookings with date ranges
 - **3.9 AI Farm Advisory Suite** — crop/disease/soil/fertilizer/irrigation/weather advice, AI chat, voice, and the seed advisor referenced in 3.5
 
 Ask to continue building either of these and it'll plug into the same `src/modules/<name>/`
 pattern and the existing Prisma schema.
+
+## Machinery Rental — the availability model
+
+This is the one module where "is it in stock" genuinely depends on *when* you're asking.
+A listing's `totalUnits` (fleet size) isn't decremented anywhere — availability for a
+given date range is computed live by summing the quantity of existing bookings that
+conflict with that range, then subtracting from `totalUnits`. "Conflict" includes each
+listing's `bufferDays` (recovery time before the same units can go out again): a booking
+ending Day 5 with a 1-day buffer keeps those units unavailable through Day 6, so the
+earliest a new booking can start is Day 7. The exact overlap math is documented in
+`machineryAvailability.service.ts`.
+
+Two consequences worth knowing:
+- **Search with date filters is a two-stage query**, not a single Prisma call: ordinary
+  attributes (category, price, search) are filtered first via the normal query builder,
+  then that candidate set is filtered again by real availability via one raw SQL query
+  (Prisma's query builder can't express a correlated "sum of overlapping bookings"
+  subquery directly). Candidates are capped at 500 per search as a safety bound — a
+  catalog that regularly exceeds that needs this reworked into a single indexed query.
+- **Booking creation runs in a `Serializable` transaction**, not a plain one. A plain
+  transaction can still let two concurrent requests both see "5 available" and both
+  book 5 — Postgres's serializable isolation detects that conflict itself and aborts one
+  side with a `P2034` error, which the service catches and retries (up to 3 times) rather
+  than silently over-booking. This is Prisma's own documented pattern for exactly this
+  kind of "check an aggregate constraint, then insert" race condition.
+
+The "calendar analytics" you asked for (`GET /machinery/analytics/calendar`) returns
+booking blocks — machine, quantity, start/end date, status — shaped for a calendar or
+timeline UI component to render. It is **not** an integration with Google's actual
+Calendar API/service; nothing in the request suggested bookings should sync to
+someone's Google account, so I built the data a calendar-*style* UI needs instead. Say
+so if real Google Calendar sync (OAuth, writing events to a user's calendar) is
+actually what you meant, and I'll build that separately.
 
 ## Seed Store routing — mount order matters
 
@@ -178,6 +211,7 @@ src/
     weather/       Open-Meteo integration + DB-backed cache
     admin/         user management, platform analytics, review moderation queue, product oversight
     seedstore/     independent seed catalog/cart/order/payment/review/wishlist (mirrors catalog+cart+order+payment)
+    machinery/     date-range availability, Serializable-transaction bookings, discount tiers, payment, seller analytics + calendar
   routes/          mounts every module under /api/v1
   app.ts           Express app + middleware
   server.ts        HTTP server + Socket.IO + graceful shutdown
@@ -207,17 +241,22 @@ A couple more, elsewhere:
 
 `npm install` needs network access this sandbox doesn't have, so a live DB round-trip
 hasn't been run here. What *was* checked without it:
-- Every relative import path (373 of them, across the whole project) was verified to
-  resolve to a real file, and every named/default import from a local module (435 of
+- Every relative import path (470 of them, across the whole project) was verified to
+  resolve to a real file, and every named/default import from a local module (545 of
   them) was cross-checked against that file's actual exports.
 - A manual, targeted re-check for the one class of Prisma typing mistake this project
   has actually hit before (using the relation-style `XUpdateInput` where scalar FK
   fields are being set directly, instead of `XUncheckedUpdateInput`) — none found in
   the admin/seedstore modules.
 - Compound unique-key names used in code (e.g. `cartId_seedId_variantId`,
-  `seedId_userId`) were checked against the exact field order in each model's
-  `@@unique([...])` declaration — Prisma derives the key name from that order, so a
-  mismatch there is a real, easy-to-make bug.
+  `seedId_userId`, `machineryId_minQuantity`) were checked against the exact field
+  order in each model's `@@unique([...])` declaration — Prisma derives the key name
+  from that order, so a mismatch there is a real, easy-to-make bug.
+- The `Serializable` transaction + retry-on-`P2034` pattern used for machinery booking
+  creation — the one piece of new logic in this project actually relying on subtle
+  database behavior — was checked against Prisma's own documentation rather than just
+  written from memory; it matches their officially recommended pattern for this exact
+  "check an aggregate constraint, then insert" race condition.
 - `tsc --noEmit` against a temporary `declare module '*'` stub was tried and abandoned
   as not useful: without real `node_modules`, that stub can't provide named exports
   for anything (Prisma's generated model types, Express's `Request`, Zod's `infer`,
