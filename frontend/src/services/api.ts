@@ -80,13 +80,33 @@ async function refreshAccessToken(): Promise<string | null> {
   return refreshInFlight
 }
 
+/**
+ * Endpoints where a 401 means "this credential/token is actually invalid"
+ * (wrong password, expired OTP, dead refresh token, ...) — retrying via
+ * refresh would be pointless or, for /auth/refresh itself, an infinite loop.
+ * Every OTHER endpoint — including /auth/me and /auth/logout — is a normal
+ * token-protected resource: a 401 there just means the 15-minute access
+ * token expired, which the refresh-and-retry flow below is exactly for.
+ */
+const NO_REFRESH_RETRY_PATHS = [
+  '/auth/login',
+  '/auth/refresh',
+  '/auth/register',
+  '/auth/verify-otp',
+  '/auth/resend-otp',
+  '/auth/google',
+  '/auth/forgot-password',
+  '/auth/reset-password',
+]
+
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const original = error.config as (typeof error.config & { _retried?: boolean }) | undefined
     const status = error.response?.status
+    const isNoRetryPath = NO_REFRESH_RETRY_PATHS.some((path) => original?.url?.includes(path))
 
-    if (status === 401 && original && !original._retried && !original.url?.includes('/auth/')) {
+    if (status === 401 && original && !original._retried && !isNoRetryPath) {
       original._retried = true
       const newToken = await refreshAccessToken()
       if (newToken) {

@@ -38,7 +38,7 @@ export default function WishlistPage() {
               className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-surface-sunk"
             >
               {product.images?.[0] ? (
-                <img src={product.images[0]} alt={product.name} className="h-full w-full object-cover" />
+                <img src={product.images[0]} alt={product.name} className="h-full w-full object-cover" loading="lazy" decoding="async" />
               ) : (
                 <Sprout className="h-6 w-6 text-brand-400" aria-hidden="true" />
               )}

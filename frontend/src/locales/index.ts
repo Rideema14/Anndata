@@ -1,18 +1,32 @@
 import en from './en.json'
-import hi from './hi.json'
-import mr from './mr.json'
-import pa from './pa.json'
-import gu from './gu.json'
 
 export type TranslationShape = typeof en
 
-/** Languages with a complete translation file today. */
-export const translations: Record<string, TranslationShape> = {
+/** Languages with a complete translation file today. English ships in the
+ *  main bundle since it's the default; the rest are fetched on demand via
+ *  loadTranslation() so a visitor never downloads 4 languages they didn't
+ *  ask for. */
+export const translations: Partial<Record<string, TranslationShape>> = {
   en,
-  hi,
-  mr,
-  pa,
-  gu,
+}
+
+const loaders: Record<string, () => Promise<{ default: TranslationShape }>> = {
+  hi: () => import('./hi.json'),
+  mr: () => import('./mr.json'),
+  pa: () => import('./pa.json'),
+  gu: () => import('./gu.json'),
+}
+
+/** Fetches and caches a language's translation file the first time it's
+ *  needed (language switch or a stored preference on load). Resolves
+ *  immediately from cache on subsequent calls. */
+export async function loadTranslation(code: string): Promise<TranslationShape | null> {
+  if (translations[code]) return translations[code]!
+  const loader = loaders[code]
+  if (!loader) return null
+  const mod = await loader()
+  translations[code] = mod.default
+  return mod.default
 }
 
 export interface LanguageOption {

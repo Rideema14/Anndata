@@ -289,7 +289,7 @@ export default function HomePage() {
 
           <div className="relative z-10 max-w-4xl">
 
-            <h1 className="max-w-4xl text-[1rem] font-semibold leading-[1.06] tracking-[-0.045em] text-[#fbf7ec] sm:text-[3.25rem] lg:text-[3rem]">
+            <h1 className="max-w-4xl text-[1.85rem] font-semibold leading-[1.15] tracking-[-0.02em] text-[#fbf7ec] sm:text-[2.75rem] sm:leading-[1.08] sm:tracking-[-0.035em] lg:text-[3.25rem] lg:leading-[1.06] lg:tracking-[-0.045em]">
 
               {t(greetingKey)}
               {firstName ? `, ${firstName}` : ""}.
@@ -792,6 +792,11 @@ export default function HomePage() {
                       <img
                         src={product.images?.[0]}
                         alt={product.name}
+                        width={350}
+                        height={175}
+                        loading="eager"
+                        decoding="async"
+                        fetchPriority="high"
                         className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                       />
 

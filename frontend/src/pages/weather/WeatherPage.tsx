@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Droplets, Info, MapPin, Wind, Cloud, Sun, CloudRain, CloudLightning, Snowflake, Loader2, Leaf } from 'lucide-react'
+import { Droplets, MapPin, Wind, Cloud, Sun, CloudRain, CloudLightning, Snowflake, Loader2, Leaf } from 'lucide-react'
 import { weatherService } from '@/services/weatherService'
 
 // Helper to map WMO weather codes to Lucide icons

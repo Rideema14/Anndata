@@ -299,7 +299,7 @@ export function getProductsByCategory(
 ========================================================= */
 
 export function getDiscountPercent(
-  product: ProductSummary,
+  _product: ProductSummary,
 ): number {
   // Products with no originalPrice have no discount.
   // Kept at 0 so existing components don't break.

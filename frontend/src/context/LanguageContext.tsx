@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   DEFAULT_LANGUAGE,
+  loadTranslation,
   plannedLanguages,
   supportedLanguages,
   translations,
@@ -17,6 +18,8 @@ type PathsOf<T> = {
   [K in keyof T & string]: T[K] extends object ? Join<K, PathsOf<T[K]>> : K
 }[keyof T & string]
 export type TranslationKey = PathsOf<TranslationShape>
+
+const supportedCodes = new Set(supportedLanguages.map((l) => l.code))
 
 function resolvePath(obj: unknown, path: string): string {
   const value = path.split('.').reduce<unknown>((acc, segment) => {
@@ -41,26 +44,40 @@ const LanguageContext = createContext<LanguageContextValue | null>(null)
 function getInitialLanguage(): string {
   if (typeof window === 'undefined') return DEFAULT_LANGUAGE
   const stored = window.localStorage.getItem(STORAGE_KEY)
-  if (stored && translations[stored]) return stored
+  if (stored && supportedCodes.has(stored)) return stored
   return DEFAULT_LANGUAGE
 }
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<string>(getInitialLanguage)
+  // Bumped once a lazily-fetched translation file finishes loading, so t()
+  // re-renders against the real table instead of staying on the English
+  // fallback it used while the file was in flight.
+  const [, forceRerender] = useState(0)
 
   useEffect(() => {
     document.documentElement.lang = language
     window.localStorage.setItem(STORAGE_KEY, language)
+
+    if (!translations[language]) {
+      let cancelled = false
+      loadTranslation(language).then(() => {
+        if (!cancelled) forceRerender((n) => n + 1)
+      })
+      return () => {
+        cancelled = true
+      }
+    }
   }, [language])
 
   const setLanguage = useCallback((code: string) => {
-    if (!translations[code]) return // not yet translated — picker marks these "coming soon"
+    if (!supportedCodes.has(code)) return // not yet translated — picker marks these "coming soon"
     setLanguageState(code)
   }, [])
 
   const t = useCallback(
     (key: TranslationKey, params?: Record<string, string | number>): string => {
-      const table = translations[language] ?? translations[DEFAULT_LANGUAGE]
+      const table = translations[language] ?? translations[DEFAULT_LANGUAGE]!
       let value = resolvePath(table, key)
       if (value === key) {
         // fall back to English rather than showing a raw dotted key

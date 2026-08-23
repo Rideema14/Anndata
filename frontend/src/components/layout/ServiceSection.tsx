@@ -8,7 +8,6 @@ import {
   ArrowRight,
   ShieldCheck,
   CheckCircle2,
-  Sparkles,
  type LucideIcon,
 } from 'lucide-react'
 

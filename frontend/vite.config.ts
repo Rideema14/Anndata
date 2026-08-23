@@ -44,4 +44,23 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Split rarely-changing third-party code from app code so browsers
+        // can cache vendor chunks across deploys instead of re-downloading
+        // them every time app code changes. Also keeps the heaviest libs
+        // (three.js, gsap, recharts) out of whichever page's chunk happens
+        // to import them first.
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined
+          if (id.includes('three')) return 'vendor-three'
+          if (id.includes('gsap') || id.includes('framer-motion')) return 'vendor-motion'
+          if (id.includes('recharts') || id.includes('d3-')) return 'vendor-charts'
+          if (id.includes('react-dom') || id.includes('/react/') || id.includes('react-router')) return 'vendor-react'
+          return 'vendor'
+        },
+      },
+    },
+  },
 })

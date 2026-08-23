@@ -80,7 +80,7 @@ export function MandiProvider({ children }: { children: ReactNode }) {
         await mandiService.removeFavorite(mandiId)
         setFavorites((prev) => prev.filter((f) => f.mandiId !== mandiId))
       } else {
-        const newFav = await mandiService.addFavorite(mandiId)
+        await mandiService.addFavorite(mandiId)
         // refresh to get populated mandi object if needed, or just append
         fetchData()
       }

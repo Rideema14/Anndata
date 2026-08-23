@@ -47,7 +47,7 @@ export function ProductCard({ product }: { product: Product }) {
       <Link to={`/product/${product.slug ?? product.id}`}>
         <div className="mb-2 flex h-24 items-center justify-center overflow-hidden rounded-xl bg-surface-sunk">
           {image ? (
-            <img src={image} alt={product.name} className="h-full w-full object-cover" />
+            <img src={image} alt={product.name} className="h-full w-full object-cover" loading="lazy" decoding="async" />
           ) : (
             <Sprout className="h-8 w-8 text-brand-400" strokeWidth={1.5} aria-hidden="true" />
           )}

@@ -530,8 +530,6 @@ export function PlantGrowthSection() {
     }
   }
 
-  const progressPercent = Math.round(scrollProgress * 100)
-
   return (
     <section id="growth" ref={sectionRef} className="relative w-full bg-[#0a0a0a] text-stone-100">
       {/* SEAMLESS TRANSITION GRADIENT */}

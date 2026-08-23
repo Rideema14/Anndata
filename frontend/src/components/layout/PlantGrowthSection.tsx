@@ -1439,11 +1439,6 @@ export function PlantGrowthSection() {
       }
     }
 
-  const progressPercent =
-    Math.round(
-      scrollProgress * 100,
-    )
-
   return (
     <section
       id="growth"

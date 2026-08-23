@@ -174,7 +174,7 @@ export default function ProductDetailsPage() {
                 idx === activeImage ? 'border-brand-500' : 'border-transparent',
               )}
             >
-              <img src={img} alt="" className="h-full w-full object-cover" />
+              <img src={img} alt="" className="h-full w-full object-cover" loading="lazy" decoding="async" />
             </button>
           ))}
         </div>

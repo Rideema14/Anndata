@@ -48,7 +48,7 @@ export default function CartPage() {
                   className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-surface-sunk"
                 >
                   {product.imageUrl ? (
-                    <img src={product.imageUrl} alt={product.name} className="h-full w-full object-cover" />
+                    <img src={product.imageUrl} alt={product.name} className="h-full w-full object-cover" loading="lazy" decoding="async" />
                   ) : (
                     <Sprout className="h-6 w-6 text-brand-400" aria-hidden="true" />
                   )}
@@ -118,7 +118,7 @@ export default function CartPage() {
                     <div key={line.productId} className="flex items-center gap-3 rounded-2xl border border-dashed border-ink-200 p-3">
                       <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-surface-sunk">
                         {product.imageUrl ? (
-                          <img src={product.imageUrl} alt={product.name} className="h-full w-full object-cover" />
+                          <img src={product.imageUrl} alt={product.name} className="h-full w-full object-cover" loading="lazy" decoding="async" />
                         ) : (
                           <Sprout className="h-5 w-5 text-ink-300" aria-hidden="true" />
                         )}
