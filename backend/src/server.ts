@@ -31,7 +31,7 @@ server.listen(env.port, () => {
   logger.info(`Swagger docs: http://localhost:${env.port}/api-docs`);
   
   if (env.nodeEnv === 'production') {
-    startMetadataSync();
+    // startMetadataSync();
     startKeepAliveCron();
     startMandiDailyCron();
   }
