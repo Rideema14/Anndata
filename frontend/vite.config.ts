@@ -4,9 +4,32 @@ import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { fileURLToPath } from 'url'
 
+// Fontsource ships every @font-face with `font-display: swap`. That means
+// on a visitor's very first (uncached) load, the browser paints with a
+// fallback font, then swaps to Inter/Manrope/Hind mid-render once the
+// woff2 finishes downloading — visible font + spacing jump. Repeat visits
+// look fine because the service worker has the fonts cached by then.
+// Rewriting to `font-display: optional` fixes the first-load case too: the
+// browser only uses the real font if it's ready within ~100ms, otherwise
+// it keeps the fallback for that whole page load instead of swapping in
+// later. Self-hosted subsetted fonts are small enough to make that window
+// almost every time, so the correct font just shows from first paint.
+function fontDisplayOptional() {
+  return {
+    name: 'font-display-optional',
+    enforce: 'pre' as const,
+    transform(code: string, id: string) {
+      if (id.includes('@fontsource') && id.endsWith('.css')) {
+        return code.replace(/font-display:\s*swap/g, 'font-display: optional')
+      }
+    },
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
+    fontDisplayOptional(),
     react(),
     tailwindcss(),
     VitePWA({

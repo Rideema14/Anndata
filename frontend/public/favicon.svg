@@ -1,13 +1,44 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#2A6B3F"/>
-  <g fill="#E3A628">
-    <line x1="32" y1="50" x2="32" y2="16" stroke="#E3A628" stroke-width="3"/>
-    <ellipse cx="27.2" cy="41" rx="6.4" ry="3.6"/>
-    <ellipse cx="36.8" cy="41" rx="6.4" ry="3.6"/>
-    <ellipse cx="27.9" cy="32" rx="5.2" ry="2.9"/>
-    <ellipse cx="36.1" cy="32" rx="5.2" ry="2.9"/>
-    <ellipse cx="28.6" cy="24" rx="3.9" ry="2.2"/>
-    <ellipse cx="35.4" cy="24" rx="3.9" ry="2.2"/>
-    <circle cx="32" cy="14.5" r="2.6"/>
-  </g>
+<svg
+  width="512"
+  height="512"
+  viewBox="0 0 512 512"
+  fill="none"
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <rect
+    x="16"
+    y="16"
+    width="480"
+    height="480"
+    rx="240"
+    fill="#022C22"
+  />
+
+  <rect
+    x="16"
+    y="16"
+    width="480"
+    height="480"
+    rx="240"
+    stroke="rgba(255,255,255,0.3)"
+    stroke-width="8"
+  />
+
+  <!-- Sprout -->
+  <path
+    d="M256 350V220"
+    stroke="white"
+    stroke-width="18"
+    stroke-linecap="round"
+  />
+
+  <path
+    d="M256 270C214 270 180 242 180 202C222 202 256 225 256 270Z"
+    fill="white"
+  />
+
+  <path
+    d="M256 245C256 202 290 168 332 168C332 210 299 245 256 245Z"
+    fill="white"
+  />
 </svg>
