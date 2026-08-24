@@ -18,6 +18,7 @@ import {
   Star,
   Store,
   Tags,
+  Tractor,
   Users,
   Wheat,
 } from 'lucide-react'
@@ -37,6 +38,7 @@ export const buyNavItems: NavItem[] = [
   { path: '/wishlist', labelKey: 'nav.wishlist', icon: Heart },
   { path: '/orders', labelKey: 'nav.orders', icon: PackageCheck },
   { path: '/mandi', labelKey: 'nav.mandi', icon: LineChart },
+  { path: '/machinery', labelKey: 'nav.machinery', icon: Tractor },
   { path: '/weather', labelKey: 'nav.weather', icon: CloudSun },
   { path: '/ai', labelKey: 'nav.ai', icon: Sparkles },
   { path: '/seeds', labelKey: 'nav.seeds', icon: Wheat },

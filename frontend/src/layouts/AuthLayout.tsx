@@ -4,10 +4,10 @@ import { Link, Outlet } from 'react-router-dom'
 import { Logo } from '@/components/common/Logo'
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher'
 import { PageLoader } from '@/components/common/PageLoader'
-import { useLanguage } from '@/context/LanguageContext'
+
 
 export function AuthLayout() {
-  const { t } = useLanguage()
+
 
   return (
     <div className="min-h-svh w-full bg-[#F5F6F0] text-[#28301F]">
