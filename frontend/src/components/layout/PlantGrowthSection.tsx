@@ -55,35 +55,35 @@ const WHEAT_LEAVES: WheatLeafDef[] = [
     side: -1,
     lengthRatio: 0.45,
     archFactor: 1.2,
-    hue: 88,
+    hue: 101,
   },
   {
     heightRatio: 0.28,
     side: 1,
     lengthRatio: 0.52,
     archFactor: 1.1,
-    hue: 92,
+    hue: 105,
   },
   {
     heightRatio: 0.42,
     side: -1,
     lengthRatio: 0.56,
     archFactor: 0.95,
-    hue: 85,
+    hue: 98,
   },
   {
     heightRatio: 0.58,
     side: 1,
     lengthRatio: 0.5,
     archFactor: 0.85,
-    hue: 90,
+    hue: 103,
   },
   {
     heightRatio: 0.72,
     side: -1,
     lengthRatio: 0.42,
     archFactor: 0.75,
-    hue: 82,
+    hue: 95,
   },
 ]
 
@@ -307,12 +307,12 @@ function drawWheatRoots(
 
     rootGrad.addColorStop(
       0,
-      '#f5bd06',
+      '#d6b841',
     )
 
     rootGrad.addColorStop(
       0.5,
-      '#65a30f',
+      '#5c744d',
     )
 
     rootGrad.addColorStop(
@@ -440,7 +440,7 @@ function drawWheatBladeLeaf(
   const currentHue =
     lerp(
       hue,
-      43,
+      47,
       ripeness,
     )
 
@@ -453,8 +453,8 @@ function drawWheatBladeLeaf(
 
   const saturation =
     lerp(
+      38,
       60,
-      85,
       ripeness,
     )
 
@@ -545,15 +545,15 @@ function drawWheatHead(
 
   const hue =
     lerp(
-      85,
-      43,
+      98,
+      47,
       ripeness,
     )
 
   const sat =
     lerp(
-      55,
-      90,
+      35,
+      62,
       ripeness,
     )
 
@@ -900,8 +900,8 @@ function drawWheatScene(
 
   const stemHue =
     lerp(
-      85,
-      44,
+      98,
+      47,
       ripeness,
     )
 
@@ -1426,14 +1426,14 @@ export function PlantGrowthSection() {
         case 'right-top':
           return `
             right-2 top-[58%]
-            sm:right-8 sm:top-[26%]
+            sm:right-8 sm:top-[21%]
             md:right-12
           `
 
         case 'right-bottom':
           return `
             right-2 top-[78%]
-            sm:right-8 sm:bottom-[12%] sm:top-auto
+            sm:right-8 sm:bottom-[9%] sm:top-auto
             md:right-12
           `
       }
@@ -1447,8 +1447,8 @@ export function PlantGrowthSection() {
         relative
         w-full
         overflow-hidden
-        bg-[#0a0a0a]
-        text-[#faf5e8]
+        bg-[#1c2a13]
+        text-[#f8f4e9]
       "
     >
       {/* TOP TRANSITION */}
@@ -1463,7 +1463,7 @@ export function PlantGrowthSection() {
           z-30
           h-28
           bg-gradient-to-b
-          from-[#0a0a0a]
+          from-[#1c2a13]
           to-transparent
         "
       />
@@ -1478,20 +1478,12 @@ export function PlantGrowthSection() {
           items-center
           justify-center
           overflow-hidden
-          bg-[#0a0a0a]
+          bg-[#1c2a13]
         "
       >
         {/* BACKGROUND */}
 
-        <div className="pointer-events-none absolute inset-0">
-          <div
-            className="
-              absolute
-              inset-0
-              bg-[radial-gradient(circle_at_50%_45%,rgba(245,189,6,0.06),transparent_42%)]
-            "
-          />
-        </div>
+        <div className="pointer-events-none absolute inset-0" />
 
         {/* =================================================
             HEADER
@@ -1653,14 +1645,14 @@ export function PlantGrowthSection() {
                     ${
                       isGreen
                         ? `
-                          border-[#2f6508]
-                          bg-[#102701]
-                          text-[#faf5e8]
+                          border-[#5c744d]
+                          bg-[#27351d]
+                          text-[#f8f4e9]
                         `
                         : `
-                          border-[#f5bd06]
-                          bg-[#3a2800]
-                          text-[#fff9df]
+                          border-[#d6b841]
+                          bg-[#43362b]
+                          text-[#f8f4e9]
                         `
                     }
                   `}
@@ -1701,12 +1693,12 @@ export function PlantGrowthSection() {
                         ${
                           isGreen
                             ? `
-                              bg-[#1e4a03]
-                              text-[#b5d66a]
+                              bg-[#394a2d]
+                              text-[#aebca2]
                             `
                             : `
-                              bg-[#5a4000]
-                              text-[#fde58a]
+                              bg-[#765c46]
+                              text-[#e0c64d]
                             `
                         }
                       `}
@@ -1737,14 +1729,14 @@ export function PlantGrowthSection() {
                         ${
                           isGreen
                             ? `
-                              border-[#65a30f]
-                              bg-[#163801]
-                              text-[#dcebb9]
+                              border-[#5c744d]
+                              bg-[#394a2d]
+                              text-[#d5d9d0]
                             `
                             : `
-                              border-[#f8c92f]
-                              bg-[#795600]
-                              text-[#fff1b8]
+                              border-[#d6b841]
+                              bg-[#765c46]
+                              text-[#e5d398]
                             `
                         }
                       `}
@@ -1775,7 +1767,7 @@ export function PlantGrowthSection() {
                       font-black
                       leading-tight
                       tracking-tight
-                      text-[#faf5e8]
+                      text-[#f8f4e9]
                       sm:text-base
                     "
                   >
@@ -1798,8 +1790,8 @@ export function PlantGrowthSection() {
 
                       ${
                         isGreen
-                          ? 'text-[#dcebb9]'
-                          : 'text-[#fff1b8]'
+                          ? 'text-[#d5d9d0]'
+                          : 'text-[#e5d398]'
                       }
                     `}
                   >

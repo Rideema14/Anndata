@@ -167,11 +167,9 @@ export function ServicesSection() {
     <section
       ref={containerRef}
       id="services"
-      className="relative bg-stone-950 py-24 sm:py-32 text-stone-100 font-['Plus_Jakarta_Sans',sans-serif] overflow-hidden "
+      className="relative bg-[#1c2a13] py-24 sm:py-32 text-[#f8f4e9] font-['Plus_Jakarta_Sans',sans-serif] overflow-hidden "
     >
-      {/* ================= HERO MATCH: SPOTLIGHT & MICRO-GRID ================= */}
-      <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(44, 25, 4, 0.22),rgba(12, 9, 8, 0.52))]" />
-      
+      {/* ================= HERO MATCH: MICRO-GRID ================= */}
 
       <div className=" -mt-15 relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
@@ -208,7 +206,7 @@ export function ServicesSection() {
               {/* Static Guide Line */}
               <path
                 d="M 250 150 C 250 300, 750 300, 750 450 C 750 600, 250 600, 250 750 C 250 900, 750 900, 750 1050"
-                stroke="#292524"
+                stroke="#394a2d"
                 strokeWidth="4"
                 strokeDasharray="8 8"
               />
@@ -217,7 +215,7 @@ export function ServicesSection() {
               <path
                 ref={pathRef}
                 d="M 250 150 C 250 300, 750 300, 750 450 C 750 600, 250 600, 250 750 C 250 900, 750 900, 750 1050"
-                stroke="#f59e0b"
+                stroke="#d6b841"
                 strokeWidth="5"
                 strokeDasharray={totalPathLength || 1500}
                 strokeDashoffset={strokeOffset}
@@ -227,9 +225,9 @@ export function ServicesSection() {
           </div>
 
           {/* MOBILE VERTICAL TRACK */}
-          <div className="lg:hidden absolute left-6 top-0 bottom-0 w-1 bg-stone-900 pointer-events-none z-0">
+          <div className="lg:hidden absolute left-6 top-0 bottom-0 w-1 bg-[#27351d] pointer-events-none z-0">
             <div
-              className="w-full bg-amber-500"
+              className="w-full bg-[#d6b841]"
               style={{ height: `${scrollProgress * 100}%` }}
             />
           </div>
@@ -252,19 +250,19 @@ export function ServicesSection() {
                 >
                   {/* --- STATIC PICTURE CARD (No hover zooms or glow) --- */}
                   <div className="w-full lg:w-1/2 pl-10 lg:pl-0">
-                    <div className="relative rounded-2xl overflow-hidden border border-stone-800/80 bg-stone-900/80 p-2 shadow-xl">
+                    <div className="relative rounded-2xl overflow-hidden border border-[#394a2d]/80 bg-[#27351d]/80 p-2 shadow-xl">
                       <div className="relative h-60 sm:h-72 w-full rounded-xl overflow-hidden">
                         <img
                           src={step.image}
                           alt={step.title}
                           className="h-full w-full object-cover"
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-950/20 to-transparent" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-[#1c2a13] via-[#1c2a13]/20 to-transparent" />
 
                         {/* Top Badge Overlay */}
-                        <div className="absolute top-3 left-3 flex items-center gap-2 rounded-full border border-stone-800 bg-stone-950/90 px-3.5 py-1">
-                          <Icon className="h-3.5 w-3.5 text-amber-400" />
-                          <span className="text-[11px] font-black uppercase tracking-wider text-stone-200">
+                        <div className="absolute top-3 left-3 flex items-center gap-2 rounded-full border border-[#394a2d] bg-[#1c2a13]/90 px-3.5 py-1">
+                          <Icon className="h-3.5 w-3.5 text-[#d6b841]" />
+                          <span className="text-[11px] font-black uppercase tracking-wider text-[#e7eee1]">
                             {step.badge}
                           </span>
                         </div>
@@ -282,8 +280,8 @@ export function ServicesSection() {
                     
                     {/* Subtitle Tag */}
                     <div className="inline-flex items-center gap-2">
-                      <span className="h-2 w-2 rounded-full bg-amber-400" />
-                      <span className="text-xs font-black uppercase tracking-widest text-amber-400">
+                      <span className="h-2 w-2 rounded-full bg-[#d6b841]" />
+                      <span className="text-xs font-black uppercase tracking-widest text-[#d6b841]">
                         {step.subtitle}
                       </span>
                     </div>
@@ -294,18 +292,18 @@ export function ServicesSection() {
                     </h3>
 
                     {/* Description Paragraph */}
-                    <p className="text-sm font-light text-stone-300 leading-relaxed max-w-lg">
+                    <p className="text-sm font-light text-[#d5d9d0] leading-relaxed max-w-lg">
                       {step.description}
                     </p>
 
                     {/* Bullet Points */}
-                    <ul className="space-y-2 pt-2 border-t border-stone-800/80">
+                    <ul className="space-y-2 pt-2 border-t border-[#394a2d]/80">
                       {step.features.map((feat, fIdx) => (
                         <li
                           key={fIdx}
-                          className="flex items-center gap-2.5 text-xs font-medium text-stone-300"
+                          className="flex items-center gap-2.5 text-xs font-medium text-[#d5d9d0]"
                         >
-                          <CheckCircle2 className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                          <CheckCircle2 className="h-3.5 w-3.5 text-[#d6b841] shrink-0" />
                           <span>{feat}</span>
                         </li>
                       ))}
@@ -315,7 +313,7 @@ export function ServicesSection() {
                     <div className="pt-1">
                       <Link
                         to="/login"
-                        className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-amber-400 hover:text-amber-300 transition-colors"
+                        className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-[#d6b841] hover:text-[#e0c64d] transition-colors"
                       >
                         <span>Explore Capability</span>
                         <ArrowRight className="h-3.5 w-3.5" />
@@ -330,18 +328,18 @@ export function ServicesSection() {
         </div>
 
         {/* ================= BOTTOM CTA BANNER ================= */}
-        <div className="mt-20 sm:mt-28 rounded-2xl border border-stone-800 bg-stone-900/90 p-8 sm:p-12 text-center relative overflow-hidden">
+        <div className="mt-20 sm:mt-28 rounded-2xl border border-[#394a2d] bg-[#27351d]/90 p-8 sm:p-12 text-center relative overflow-hidden">
           <div className="relative z-10 max-w-2xl mx-auto space-y-5">
             <h3 className="text-2xl sm:text-4xl font-black text-white tracking-tight leading-tight">
               Ready to elevate your harvest workflow?
             </h3>
-            <p className="text-xs sm:text-sm text-stone-400 leading-relaxed font-light">
+            <p className="text-xs sm:text-sm text-[#aebca2] leading-relaxed font-light">
               Join 45,000+ agricultural enterprises and farmers maximizing yields on Aandata.
             </p>
             <div className="pt-1">
               <Link
                 to="/register"
-                className="inline-flex items-center gap-2.5 rounded-xl bg-amber-400 px-8 py-3.5 text-xs font-black uppercase tracking-widest text-stone-950 transition-colors hover:bg-amber-300"
+                className="inline-flex items-center gap-2.5 rounded-xl bg-[#d6b841] px-8 py-3.5 text-xs font-black uppercase tracking-widest text-[#262c1d] transition-colors hover:bg-[#e0c64d]"
               >
                 <ShieldCheck className="h-4 w-4" />
                 <span>Create Free Account</span>

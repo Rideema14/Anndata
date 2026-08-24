@@ -112,19 +112,19 @@ export default function LandingPage() {
   // =========================================================
 
   const mobileLinkClass =
-    'flex items-center justify-between rounded-xl px-4 py-3.5 text-sm font-bold uppercase tracking-wider text-stone-300 transition-all duration-200 hover:bg-stone-900 hover:text-amber-400 active:scale-[0.98]'
+    'flex items-center justify-between rounded-xl px-4 py-3.5 text-sm font-bold uppercase tracking-wider text-[#d5d9d0] transition-all duration-200 hover:bg-[#27351d] hover:text-[#d6b841] active:scale-[0.98]'
 
   return (
     <div
       className="
         min-h-screen
         overflow-x-hidden
-        bg-stone-950
+        bg-[#1c2a13]
         font-['Plus_Jakarta_Sans',sans-serif]
-        text-stone-100
+        text-[#f8f4e9]
         antialiased
-        selection:bg-amber-500
-        selection:text-stone-950
+        selection:bg-[#d6b841]
+        selection:text-[#262c1d]
       "
     >
       {/* =====================================================
@@ -156,8 +156,8 @@ export default function LandingPage() {
         .brand-sticker-green {
           font-family: 'Fredoka', cursive, sans-serif;
           font-weight: 700;
-          color: #102701;
-          -webkit-text-stroke: var(--sticker-stroke) #faf5e8;
+          color: #27351d;
+          -webkit-text-stroke: var(--sticker-stroke) #f8f4e9;
           paint-order: stroke fill;
           stroke-linejoin: round;
           stroke-linecap: round;
@@ -169,8 +169,8 @@ export default function LandingPage() {
 
         .brand-script-yellow {
           font-family: 'Yellowtail', cursive;
-          color: #f5bd06;
-          -webkit-text-stroke: var(--script-stroke) #faf5e8;
+          color: #d6b841;
+          -webkit-text-stroke: var(--script-stroke) #f8f4e9;
           paint-order: stroke fill;
           stroke-linejoin: round;
           stroke-linecap: round;
@@ -202,8 +202,8 @@ export default function LandingPage() {
 
           ${
             scrolled
-              ? 'bg-stone-950/90 py-3 shadow-2xl shadow-black/80 backdrop-blur-xl'
-              : 'bg-gradient-to-b from-stone-950/90 via-stone-950/40 to-transparent py-4'
+              ? 'bg-[#1c2a13]/90 py-3 shadow-2xl shadow-black/80 backdrop-blur-xl'
+              : 'bg-gradient-to-b from-[#1c2a13]/90 via-[#1c2a13]/40 to-transparent py-4'
           }
         `}
       >
@@ -240,11 +240,11 @@ export default function LandingPage() {
                 rounded-full
                 border
                 border-white/30
-                bg-[#102701]
+                bg-[#27351d]
                 transition-all
                 duration-300
-                group-hover:border-emerald-400
-                group-hover:bg-emerald-500/20
+                group-hover:border-[#d6b841]
+                group-hover:bg-[#394a2d]
               "
             >
               <Sprout className="h-5 w-5 text-white" />
@@ -258,7 +258,7 @@ export default function LandingPage() {
                 text-white
                 transition-colors
                 duration-300
-                group-hover:text-amber-400
+                group-hover:text-[#d6b841]
                 sm:text-xl
               "
             >
@@ -279,7 +279,7 @@ export default function LandingPage() {
               font-bold
               uppercase
               tracking-[0.16em]
-              text-stone-200
+              text-[#e7eee1]
               md:flex
               lg:gap-8
               lg:text-sm
@@ -307,7 +307,7 @@ export default function LandingPage() {
                   left-0
                   h-[2px]
                   w-0
-                  bg-amber-400
+                  bg-[#d6b841]
                   transition-all
                   duration-300
                   ease-out
@@ -341,7 +341,7 @@ export default function LandingPage() {
                   left-0
                   h-[2px]
                   w-0
-                  bg-amber-400
+                  bg-[#d6b841]
                   transition-all
                   duration-300
                   ease-out
@@ -353,7 +353,7 @@ export default function LandingPage() {
             {/* SERVICES */}
 
             <a
-              href="#about"
+              href="#services"
               className="
                 group
                 relative
@@ -372,7 +372,7 @@ export default function LandingPage() {
                   left-0
                   h-[2px]
                   w-0
-                  bg-amber-400
+                  bg-[#d6b841]
                   transition-all
                   duration-300
                   ease-out
@@ -403,7 +403,7 @@ export default function LandingPage() {
                   left-0
                   h-[2px]
                   w-0
-                  bg-amber-400
+                  bg-[#d6b841]
                   transition-all
                   duration-300
                   ease-out
@@ -425,25 +425,25 @@ export default function LandingPage() {
             <div className="shrink-0">
               <LanguageSwitcher
                 className="
-                  [&>button]:border-stone-800
-                  [&>button]:bg-stone-900/90
-                  [&>button]:text-stone-200
+                  [&>button]:border-[#394a2d]
+                  [&>button]:bg-[#27351d]/90
+                  [&>button]:text-[#e7eee1]
 
-                  hover:[&>button]:border-amber-500/50
-                  hover:[&>button]:text-amber-300
+                  hover:[&>button]:border-[#d6b841]/50
+                  hover:[&>button]:text-[#e0c64d]
 
-                  [&>div[role=menu]]:bg-stone-950/95
-                  [&>div[role=menu]]:border-stone-800
-                  [&>div[role=menu]]:text-stone-200
+                  [&>div[role=menu]]:bg-[#1c2a13]/95
+                  [&>div[role=menu]]:border-[#394a2d]
+                  [&>div[role=menu]]:text-[#e7eee1]
 
-                  [&_p]:text-stone-500
+                  [&_p]:text-[#7d806f]
 
-                  [&_button[role=menuitemradio]]:text-stone-300
-                  hover:[&_button[role=menuitemradio]]:bg-stone-900
+                  [&_button[role=menuitemradio]]:text-[#d5d9d0]
+                  hover:[&_button[role=menuitemradio]]:bg-[#27351d]
                   hover:[&_button[role=menuitemradio]]:text-white
 
-                  [&_div[aria-disabled]]:text-stone-600
-                  [&_div.border-t]:border-stone-800
+                  [&_div[aria-disabled]]:text-[#7d806f]
+                  [&_div.border-t]:border-[#394a2d]
                 "
               />
             </div>
@@ -458,20 +458,20 @@ export default function LandingPage() {
                 items-center
                 gap-2
                 rounded-full
-                bg-stone-900/80
+                bg-[#27351d]/80
                 px-5
                 py-2.5
                 text-xs
                 font-extrabold
                 uppercase
                 tracking-wider
-                text-stone-100
+                text-[#f8f4e9]
                 shadow-md
                 backdrop-blur-md
                 transition-all
                 duration-300
-                hover:bg-amber-400
-                hover:text-stone-950
+                hover:bg-[#d6b841]
+                hover:text-[#262c1d]
                 active:scale-95
                 sm:text-sm
                 md:inline-flex
@@ -508,13 +508,13 @@ export default function LandingPage() {
                 justify-center
                 rounded-full
                 border
-                border-stone-800
-                bg-stone-900/90
-                text-stone-300
+                border-[#394a2d]
+                bg-[#27351d]/90
+                text-[#d5d9d0]
                 backdrop-blur-md
                 transition-all
                 duration-300
-                hover:border-amber-500/50
+                hover:border-[#d6b841]/50
                 hover:text-white
                 active:scale-95
                 md:hidden
@@ -559,8 +559,8 @@ export default function LandingPage() {
               max-w-7xl
               rounded-2xl
               border
-              border-stone-800
-              bg-stone-950/98
+              border-[#394a2d]
+              bg-[#1c2a13]/98
               p-3
               shadow-2xl
               shadow-black/70
@@ -576,7 +576,7 @@ export default function LandingPage() {
             >
               <span>Home</span>
 
-              <ChevronRight className="h-4 w-4 text-stone-500" />
+              <ChevronRight className="h-4 w-4 text-[#7d806f]" />
             </a>
 
             {/* FEATURES */}
@@ -588,7 +588,7 @@ export default function LandingPage() {
             >
               <span>Features</span>
 
-              <ChevronRight className="h-4 w-4 text-stone-500" />
+              <ChevronRight className="h-4 w-4 text-[#7d806f]" />
             </button>
 
             {/* SERVICES */}
@@ -600,7 +600,7 @@ export default function LandingPage() {
             >
               <span>Services</span>
 
-              <ChevronRight className="h-4 w-4 text-stone-500" />
+              <ChevronRight className="h-4 w-4 text-[#7d806f]" />
             </a>
 
             {/* ECOSYSTEM */}
@@ -612,14 +612,14 @@ export default function LandingPage() {
             >
               <span>Ecosystem</span>
 
-              <ChevronRight className="h-4 w-4 text-stone-500" />
+              <ChevronRight className="h-4 w-4 text-[#7d806f]" />
             </a>
 
             {/* =================================================
                 LOGIN / REGISTER INSIDE MOBILE MENU
             ================================================= */}
 
-            <div className="my-2 border-t border-stone-800" />
+            <div className="my-2 border-t border-[#394a2d]" />
 
             <Link
               to="/login"
@@ -629,17 +629,17 @@ export default function LandingPage() {
                 items-center
                 justify-between
                 rounded-xl
-                bg-amber-400
+                bg-[#d6b841]
                 px-4
                 py-3.5
                 text-sm
                 font-black
                 uppercase
                 tracking-wider
-                text-stone-950
+                text-[#262c1d]
                 transition-all
                 duration-200
-                hover:bg-amber-300
+                hover:bg-[#e0c64d]
                 active:scale-[0.98]
               "
             >
@@ -696,10 +696,10 @@ export default function LandingPage() {
               absolute
               inset-0
               bg-gradient-to-r
-              from-stone-950/95
-              via-stone-950/75
-              to-stone-950/20
-              sm:via-stone-950/70
+              from-[#1c2a13]/95
+              via-[#1c2a13]/75
+              to-[#1c2a13]/20
+              sm:via-[#1c2a13]/70
             "
           />
         </div>
@@ -799,7 +799,7 @@ export default function LandingPage() {
               text-sm
               font-light
               leading-relaxed
-              text-stone-300
+              text-[#d5d9d0]
               sm:text-base
               md:text-lg
             "
@@ -832,8 +832,8 @@ export default function LandingPage() {
                 gap-2
                 rounded-xl
                 border
-                border-[#102701]/80
-                bg-[#102701]
+                border-[#5c744d]
+                bg-[#394a2d]
                 px-6
                 py-3.5
                 text-xs
@@ -842,10 +842,8 @@ export default function LandingPage() {
                 tracking-wider
                 text-white
                 shadow-xl
-                backdrop-blur-sm
                 transition-all
-                hover:bg-[#173b04]
-                hover:shadow-[#102701]/20
+                hover:bg-[#435c39]
                 active:scale-[0.98]
                 sm:px-8
                 sm:py-4
@@ -864,18 +862,17 @@ export default function LandingPage() {
                 justify-center
                 gap-2
                 rounded-xl
-                bg-amber-500
+                bg-[#d6b841]
                 px-6
                 py-3.5
                 text-xs
                 font-black
                 uppercase
                 tracking-wider
-                text-stone-950
+                text-[#262c1d]
                 shadow-xl
                 transition-all
-                hover:bg-amber-400
-                hover:shadow-amber-500/40
+                hover:bg-[#e0c64d]
                 active:scale-[0.98]
                 sm:px-8
                 sm:py-4

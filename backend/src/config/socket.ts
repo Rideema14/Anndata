@@ -5,7 +5,6 @@
 import type { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
 import jwt from 'jsonwebtoken';
-import type { Order } from '@prisma/client';
 import { env } from './env';
 import logger from '../common/utils/logger';
 import type { AccessTokenPayload } from '../common/utils/jwt';
@@ -79,9 +78,22 @@ export function getIO(): Server {
   return io;
 }
 
-type OrderForBroadcast = Pick<Order, 'id' | 'orderNumber' | 'status' | 'updatedAt' | 'userId'>;
+// Any "order-like" record this app pushes live status updates for — Order
+// and SeedOrder share the OrderStatus enum so they satisfy this structurally
+// already; MachineryBooking has its own status enum (rental lifecycle isn't
+// the same shape as a purchase order's), so this is typed against a plain
+// string rather than OrderStatus specifically. The payload only ever
+// forwards the status value, never branches on it, so nothing here actually
+// needs the narrower enum type.
+interface OrderForBroadcast {
+  id: string;
+  orderNumber: string;
+  status: string;
+  updatedAt: Date;
+  userId: string;
+}
 
-/** Push an order status update to both the owning user's room and the order's own room. */
+/** Push an order/booking status update to both the owning user's room and the order's own room. */
 export function emitOrderUpdate(order: OrderForBroadcast): void {
   if (!io) return; // socket layer may be down; never let this break the HTTP request
   const payload = {

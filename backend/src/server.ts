@@ -21,7 +21,6 @@ const { initSocket } = require('./config/socket');
 const logger = require('./common/utils/logger').default;
 
 const {startMetadataSync} = require("./jobs/metadataSync")
-const {startMandiDailyCron} = require("./jobs/mandiDailyCron")
 
 const server = http.createServer(app);
 initSocket(server);
@@ -31,9 +30,8 @@ server.listen(env.port, () => {
   logger.info(`Swagger docs: http://localhost:${env.port}/api-docs`);
   
   if (env.nodeEnv === 'production') {
-    // startMetadataSync();
+    startMetadataSync();
     startKeepAliveCron();
-    startMandiDailyCron();
   }
 });
 
