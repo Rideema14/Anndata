@@ -146,17 +146,30 @@ export async function listSeedOrders(user: User, query: ListSeedOrdersQuery) {
   const { page, limit, skip, take } = parsePagination(query);
 
   const where: Prisma.SeedOrderWhereInput = {};
-  if (user.role === 'ADMIN') {
+  if (query.scope === 'selling') {
+    where.items = { some: { seed: { sellerId: user.id } } };
+  } else if (user.role === 'ADMIN') {
     if (query.userId) where.userId = query.userId;
   } else {
     where.userId = user.id;
   }
   if (query.status) where.status = query.status;
 
+  const itemsWhere = query.scope === 'selling' && user.role !== 'ADMIN'
+    ? { seed: { sellerId: user.id } }
+    : undefined;
+
   const [items, totalItems] = await Promise.all([
     prisma.seedOrder.findMany({
       where,
-      include: { items: true, payment: { select: { status: true, method: true } } },
+      include: {
+        items: {
+          where: itemsWhere,
+          include: { seed: { select: { id: true, name: true, slug: true, sellerId: true } }, variant: true },
+        },
+        user: { select: { id: true, name: true, email: true } },
+        payment: { select: { status: true, method: true } },
+      },
       orderBy: { createdAt: 'desc' },
       skip,
       take,

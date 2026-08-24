@@ -28,6 +28,7 @@ export const listOrdersQuerySchema = z.object({
   limit: z.string().optional(),
   status: z.enum(ORDER_STATUSES).optional(),
   userId: z.string().uuid().optional(),
+  scope: z.enum(['mine', 'selling']).optional(),
 });
 export type ListOrdersQuery = z.infer<typeof listOrdersQuerySchema>;
 

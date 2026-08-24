@@ -152,17 +152,30 @@ export async function listOrders(user: User, query: ListOrdersQuery) {
   const { page, limit, skip, take } = parsePagination(query);
 
   const where: Prisma.OrderWhereInput = {};
-  if (user.role === 'ADMIN') {
+  if (query.scope === 'selling') {
+    where.items = { some: { product: { sellerId: user.id } } };
+  } else if (user.role === 'ADMIN') {
     if (query.userId) where.userId = query.userId;
   } else {
     where.userId = user.id;
   }
   if (query.status) where.status = query.status;
 
+  const itemsWhere = query.scope === 'selling' && user.role !== 'ADMIN'
+    ? { product: { sellerId: user.id } }
+    : undefined;
+
   const [items, totalItems] = await Promise.all([
     prisma.order.findMany({
       where,
-      include: { items: true, payment: { select: { status: true, method: true } } },
+      include: {
+        items: {
+          where: itemsWhere,
+          include: { product: { select: { id: true, name: true, slug: true, sellerId: true } }, variant: true },
+        },
+        user: { select: { id: true, name: true, email: true } },
+        payment: { select: { status: true, method: true } },
+      },
       orderBy: { createdAt: 'desc' },
       skip,
       take,

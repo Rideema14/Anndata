@@ -129,7 +129,11 @@ export async function listBookings(user: User, query: ListBookingsQuery) {
   const { page, limit, skip, take } = parsePagination(query);
 
   const where: Prisma.MachineryBookingWhereInput = {};
-  if (user.role === 'ADMIN') {
+  if (query.scope === 'selling') {
+    where.machinery = { sellerId: user.id };
+  } else if (query.scope === 'mine') {
+    where.userId = user.id;
+  } else if (user.role === 'ADMIN') {
     if (query.userId) where.userId = query.userId;
   } else {
     // Either the renter, or the seller of the machinery being booked.

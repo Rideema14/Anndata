@@ -96,6 +96,7 @@ export const listBookingsQuerySchema = z.object({
   status: z.enum(MACHINERY_BOOKING_STATUSES).optional(),
   machineryId: z.string().uuid().optional(),
   userId: z.string().uuid().optional(),
+  scope: z.enum(['mine', 'selling']).optional(),
 });
 export type ListBookingsQuery = z.infer<typeof listBookingsQuerySchema>;
 
