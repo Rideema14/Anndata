@@ -5,6 +5,7 @@ import prisma from '../../config/prisma';
 import ApiError from '../../common/utils/ApiError';
 import { parsePagination, buildPaginationMeta } from '../../common/utils/pagination';
 import { emitOrderUpdate } from '../../config/socket';
+import { notifyUser } from '../notification/notification.service';
 import type { SeedCheckoutInput, ListSeedOrdersQuery, UpdateSeedOrderStatusInput, CancelSeedOrderInput } from './seedOrder.validation';
 
 const SEED_ORDER_INCLUDE_DETAIL = {
@@ -126,6 +127,20 @@ export async function checkoutSeeds(userId: string, { addressId, notes }: SeedCh
 
     return created;
   });
+
+  const sellerIds = [...new Set(cart.items.map((item) => item.seed.sellerId))];
+  Promise.all(sellerIds.map(sellerId => notifyUser({
+    userId: sellerId,
+    type: 'ORDER_STATUS',
+    title: 'New Seed Order Received',
+    message: `You have received a new seed order (#${orderNumber}). Please check your fulfillment dashboard.`,
+    relatedEntityType: 'SEED_ORDER',
+    relatedEntityId: order.id,
+    email: {
+      subject: `New Seed Order Received - #${orderNumber}`,
+      html: `<p>Great news! You have received a new seed order (<b>#${orderNumber}</b>).</p><p>Please log in to your seller dashboard to review and fulfill the order.</p>`,
+    }
+  }))).catch(() => {});
 
   return order;
 }

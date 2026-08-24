@@ -5,6 +5,7 @@ import prisma from '../../config/prisma';
 import ApiError from '../../common/utils/ApiError';
 import { parsePagination, buildPaginationMeta } from '../../common/utils/pagination';
 import { emitOrderUpdate } from '../../config/socket';
+import { notifyUser } from '../notification/notification.service';
 import type { CheckoutInput, ListOrdersQuery, UpdateStatusInput, CancelOrderInput } from './order.validation';
 
 const ORDER_INCLUDE_DETAIL = {
@@ -132,6 +133,20 @@ export async function checkout(userId: string, { addressId, notes }: CheckoutInp
 
     return created;
   });
+
+  const sellerIds = [...new Set(cart.items.map((item) => item.product.sellerId))];
+  Promise.all(sellerIds.map(sellerId => notifyUser({
+    userId: sellerId,
+    type: 'ORDER_STATUS',
+    title: 'New Order Received',
+    message: `You have received a new order (#${orderNumber}). Please check your fulfillment dashboard.`,
+    relatedEntityType: 'ORDER',
+    relatedEntityId: order.id,
+    email: {
+      subject: `New Order Received - #${orderNumber}`,
+      html: `<p>Great news! You have received a new order (<b>#${orderNumber}</b>).</p><p>Please log in to your seller dashboard to review and fulfill the order.</p>`,
+    }
+  }))).catch(() => {});
 
   return order;
 }

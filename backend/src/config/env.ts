@@ -85,7 +85,7 @@ export const env = {
 
   rateLimit: {
     authWindowMin: parseInt(process.env.AUTH_RATE_LIMIT_WINDOW_MIN || '15', 10),
-    authMax: parseInt(process.env.AUTH_RATE_LIMIT_MAX || '20', 10),
+    authMax: parseInt(process.env.AUTH_RATE_LIMIT_MAX || '2000', 10),
   },
 
   weather: {

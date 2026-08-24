@@ -63,6 +63,7 @@ export function SellerProvider({ children }: { children: ReactNode }) {
           total: o.itemsSubtotal ?? o.total,
           status: o.status,
           placedAt: o.placedAt,
+          updatedAt: o.updatedAt,
         })),
       )
     } finally {

@@ -173,6 +173,7 @@ export interface SellerOrder {
   total: number
   status: SellerOrderStatus
   placedAt: string
+  updatedAt: string
 }
 
 export type AiHistoryType = 'crop_advisor' | 'disease' | 'soil' | 'fertilizer' | 'chat'
@@ -198,6 +199,7 @@ export interface Order {
   total: number
   status: OrderStatus
   placedAt: string
+  updatedAt: string
   address: string
   paymentMethod: string
 }
@@ -208,6 +210,7 @@ export interface OrderSummary {
   total: number
   status: OrderStatus
   placedAt: string
+  updatedAt: string
   /** Name of the buyer who placed the order. Only meaningful to a seller/admin viewing their fulfillment list. */
   buyerName?: string
   /** Sum of just the caller's own line items — differs from `total` (the whole order's total) when other sellers' products share the same order. */

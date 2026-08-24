@@ -1,7 +1,7 @@
 import { PackageCheck, User } from 'lucide-react'
 import { Button } from '@/components/common/Button'
 import { useSeller } from '@/context/SellerContext'
-import { formatDateLabel, formatINR } from '@/utils/format'
+import { formatDateTimeLabel, formatINR } from '@/utils/format'
 import { cn } from '@/utils/cn'
 
 const STATUS_STYLES: Record<string, string> = {
@@ -56,9 +56,10 @@ export default function SellerOrdersPage() {
               {order.buyerName}
             </p>
             <p className="mt-1 text-xs text-ink-500">{order.itemsLabel}</p>
-            <div className="mt-2 flex items-center justify-between">
-              <span className="text-xs text-ink-400">{formatDateLabel(order.placedAt)}</span>
-              <span className="text-sm font-bold text-ink-900">{formatINR(order.total)}</span>
+            <div className="mt-3 grid grid-cols-[1fr,auto] gap-x-4 gap-y-1">
+              <span className="text-[11px] text-ink-400">Placed: {formatDateTimeLabel(order.placedAt)}</span>
+              <span className="row-span-2 place-self-center text-sm font-bold text-ink-900">{formatINR(order.total)}</span>
+              <span className="text-[11px] text-ink-400">Updated: {formatDateTimeLabel(order.updatedAt)}</span>
             </div>
             {order.status !== 'delivered' && (
               <Button variant="secondary" className="mt-3 h-9 px-4 text-xs" onClick={() => advanceSellerOrderStatus(order.id)}>

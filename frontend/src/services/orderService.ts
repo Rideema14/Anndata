@@ -57,6 +57,7 @@ interface BackendOrder {
   tax: number | string
   totalAmount: number | string
   createdAt: string
+  updatedAt: string
   items: BackendOrderItem[]
   address: BackendAddress
   payment?: BackendPayment | null
@@ -80,6 +81,7 @@ function mapOrder(o: BackendOrder): Order {
     total: Number(o.totalAmount),
     status: STATUS_MAP[o.status],
     placedAt: o.createdAt,
+    updatedAt: o.updatedAt,
     address: formatAddress(o.address),
     paymentMethod: o.payment ? 'Razorpay' : 'Pending',
   }
@@ -100,6 +102,7 @@ function mapSummary(o: BackendOrder): OrderSummary {
     itemsSubtotal,
     status: STATUS_MAP[o.status],
     placedAt: o.createdAt,
+    updatedAt: o.updatedAt,
     buyerName: o.user?.name,
   }
 }
