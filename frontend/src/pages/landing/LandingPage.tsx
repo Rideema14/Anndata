@@ -353,7 +353,7 @@ export default function LandingPage() {
             {/* SERVICES */}
 
             <a
-              href="#services"
+              href="#about"
               className="
                 group
                 relative

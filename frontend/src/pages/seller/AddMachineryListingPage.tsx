@@ -1,35 +1,84 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ChevronLeft, Tractor } from 'lucide-react'
+import { ChevronLeft, ImagePlus, Tractor } from 'lucide-react'
 import { Button } from '@/components/common/Button'
-import { TextAreaField, TextField } from '@/components/common/FormField'
-import { useMachinery } from '@/context/MachineryContext'
-import { useAuth } from '@/context/AuthContext'
+import { SelectField, TextAreaField, TextField } from '@/components/common/FormField'
+import { machineryService, type MachineryCategory } from '@/services/machineryService'
+import { getApiErrorMessage } from '@/services/api'
 
 export default function AddMachineryListingPage() {
-  const { addMachineryListing } = useMachinery()
-  const { user } = useAuth()
   const navigate = useNavigate()
 
+  const [categories, setCategories] = useState<MachineryCategory[]>([])
+  const [isLoadingCategories, setIsLoadingCategories] = useState(true)
+
+  const [categoryId, setCategoryId] = useState('')
   const [name, setName] = useState('')
-  const [location, setLocation] = useState(user?.location ?? '')
+  const [brand, setBrand] = useState('')
+  const [model, setModel] = useState('')
+  const [totalUnits, setTotalUnits] = useState('1')
   const [pricePerDay, setPricePerDay] = useState('')
+  const [bufferDays, setBufferDays] = useState('1')
   const [description, setDescription] = useState('')
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null)
+
+  const [isPublishing, setIsPublishing] = useState(false)
+  const [error, setError] = useState('')
   const [published, setPublished] = useState(false)
 
-  function handleSubmit(event: FormEvent) {
+  useEffect(() => {
+    let cancelled = false
+    machineryService
+      .listCategories()
+      .then((cats) => {
+        if (cancelled) return
+        setCategories(cats)
+        if (cats.length > 0) setCategoryId((prev) => prev || cats[0].id)
+      })
+      .catch(() => {
+        if (!cancelled) setError('Could not load machinery categories.')
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingCategories(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  function handleImagePick(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (!file) return
+    setImageFile(file)
+    setImagePreviewUrl(URL.createObjectURL(file))
+  }
+
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    if (!name.trim() || !pricePerDay) return
-    addMachineryListing({
-      name,
-      ownerName: user?.name ?? 'You',
-      location,
-      pricePerDay: Number(pricePerDay),
-      available: true,
-      rating: 5,
-      description,
-    })
-    setPublished(true)
+    if (!name.trim() || !pricePerDay || !categoryId) return
+    setError('')
+    setIsPublishing(true)
+    try {
+      const listing = await machineryService.create({
+        categoryId,
+        name,
+        brand: brand || undefined,
+        model: model || undefined,
+        totalUnits: Number(totalUnits) || 1,
+        pricePerDay: Number(pricePerDay),
+        bufferDays: Number(bufferDays) || 0,
+        description: description || undefined,
+      })
+      if (imageFile) {
+        await machineryService.uploadImages(listing.id, [imageFile])
+      }
+      setPublished(true)
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Could not publish this listing. Please try again.'))
+    } finally {
+      setIsPublishing(false)
+    }
   }
 
   if (published) {
@@ -57,11 +106,55 @@ export default function AddMachineryListingPage() {
       <p className="mb-5 text-sm text-ink-500">Publish a tractor, tool, or implement for other farmers to rent.</p>
 
       <form onSubmit={handleSubmit}>
+        {isLoadingCategories ? (
+          <p className="mb-4 text-sm text-ink-400">Loading categories…</p>
+        ) : (
+          <SelectField id="category" label="Category" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} required>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </SelectField>
+        )}
+
         <TextField id="name" label="Machinery Name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Mahindra 575 DI Tractor" required />
-        <TextField id="location" label="Location" value={location} onChange={(e) => setLocation(e.target.value)} required />
-        <TextField id="price" label="Rental Price per Day (₹)" type="number" value={pricePerDay} onChange={(e) => setPricePerDay(e.target.value)} required />
+
+        <div className="grid grid-cols-2 gap-3">
+          <TextField id="brand" label="Brand" value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="e.g. Mahindra" />
+          <TextField id="model" label="Model" value={model} onChange={(e) => setModel(e.target.value)} placeholder="e.g. 575 DI" />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <TextField id="price" label="Rental Price per Day (₹)" type="number" value={pricePerDay} onChange={(e) => setPricePerDay(e.target.value)} required />
+          <TextField id="units" label="Number of Units" type="number" min={1} value={totalUnits} onChange={(e) => setTotalUnits(e.target.value)} required />
+        </div>
+
+        <TextField
+          id="buffer"
+          label="Buffer Days Between Bookings"
+          type="number"
+          min={0}
+          value={bufferDays}
+          onChange={(e) => setBufferDays(e.target.value)}
+          hint="Recovery time needed after a rental before the same unit goes out again."
+        />
+
         <TextAreaField id="description" label="Description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Condition, attachments, operator availability…" />
-        <Button type="submit" fullWidth>
+
+        <label className="mb-4 flex w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-ink-200 py-8 text-ink-500 hover:border-brand-300">
+          {imagePreviewUrl ? (
+            <img src={imagePreviewUrl} alt="Machinery preview" className="h-20 w-20 rounded-xl object-cover" />
+          ) : (
+            <ImagePlus className="h-8 w-8" aria-hidden="true" />
+          )}
+          <span className="text-sm">{imagePreviewUrl ? 'Photo added — tap to change' : 'Tap to add a photo (optional)'}</span>
+          <input type="file" accept="image/*" className="hidden" onChange={handleImagePick} />
+        </label>
+
+        {error && <p className="mb-3 text-sm font-medium text-danger-500">{error}</p>}
+
+        <Button type="submit" fullWidth loading={isPublishing} disabled={!categoryId}>
           Publish Listing
         </Button>
       </form>

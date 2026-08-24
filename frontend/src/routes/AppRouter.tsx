@@ -367,7 +367,7 @@ const router = createBrowserRouter([
         element: <MachineryMarketplacePage />,
       },
       {
-        path: "/machinery/:id",
+        path: "/machinery/:slug",
         element: <MachineryDetailsPage />,
       },
       {

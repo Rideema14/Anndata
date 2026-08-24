@@ -1,5 +1,6 @@
 import { Suspense } from 'react'
 import { Link, Outlet } from 'react-router-dom'
+
 import { Logo } from '@/components/common/Logo'
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher'
 import { PageLoader } from '@/components/common/PageLoader'
@@ -7,22 +8,55 @@ import { useLanguage } from '@/context/LanguageContext'
 
 export function AuthLayout() {
   const { t } = useLanguage()
+
   return (
-    <div className="flex min-h-svh flex-col bg-bg">
-      <header className="flex items-center justify-between px-5 py-4">
-        <Link to="/">
+    <div className="min-h-svh w-full bg-[#F5F6F0] text-[#28301F]">
+
+      {/* =====================================================
+          HEADER
+      ===================================================== */}
+
+      <header
+        className="
+          flex
+          h-16
+          w-full
+          items-center
+          justify-between
+          px-5
+          sm:px-8
+          lg:px-10
+        "
+      >
+        <Link
+          to="/"
+          className="shrink-0"
+          aria-label="Anndata home"
+        >
           <Logo />
         </Link>
+
         <LanguageSwitcher />
       </header>
-      <main className="flex flex-1 flex-col items-center justify-center px-5 pb-10">
-        <div className="w-full max-w-sm">
-          <Suspense fallback={<PageLoader />}>
-            <Outlet />
-          </Suspense>
-        </div>
+
+      {/* =====================================================
+          AUTH CONTENT
+          
+          IMPORTANT:
+          No max-w-sm
+          No items-center
+          No artificial card container
+      ===================================================== */}
+
+      <main className="w-full">
+        <Suspense fallback={<PageLoader />}>
+          <Outlet />
+        </Suspense>
       </main>
-      <p className="pb-6 text-center text-xs text-ink-400">{t('app.tagline')}</p>
+
+      {/* =====================================================
+          FOOTER
+      ===================================================== */}
     </div>
   )
 }

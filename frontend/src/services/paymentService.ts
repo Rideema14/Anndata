@@ -43,11 +43,16 @@ function loadRazorpayScript(): Promise<boolean> {
 export const paymentService = {
   /**
    * Opens the Razorpay Checkout widget for a payment already created by
-   * `orderService.checkout`. Requires VITE_RAZORPAY_KEY_ID to be set (the
-   * public key id — safe to expose client-side — matching the backend's
-   * RAZORPAY_KEY_ID). Resolves once the widget's handler fires with a
-   * successful, server-verified payment; rejects if the script fails to
-   * load, the key is missing, or verification fails.
+   * `orderService.checkout` (or an equivalent module-specific checkout, e.g.
+   * `machineryService.createBooking`). Requires VITE_RAZORPAY_KEY_ID to be
+   * set (the public key id — safe to expose client-side — matching the
+   * backend's RAZORPAY_KEY_ID). Resolves once the widget's handler fires
+   * with a successful, server-verified payment; rejects if the script fails
+   * to load, the key is missing, or verification fails.
+   *
+   * `verifyEndpoint` defaults to the marketplace order flow's endpoint;
+   * pass a module-specific one (e.g. '/machinery/payments/verify') for
+   * other payment flows that have their own verify route.
    */
   async openCheckout(options: {
     razorpayOrderId: string
@@ -55,6 +60,8 @@ export const paymentService = {
     name: string
     email?: string
     phone?: string
+    description?: string
+    verifyEndpoint?: string
   }): Promise<void> {
     const keyId = import.meta.env.VITE_RAZORPAY_KEY_ID
     if (!keyId) {
@@ -71,13 +78,13 @@ export const paymentService = {
         amount: Math.round(options.amountInRupees * 100),
         currency: 'INR',
         name: 'Aandata',
-        description: 'Order payment',
+        description: options.description ?? 'Order payment',
         order_id: options.razorpayOrderId,
         prefill: { name: options.name, email: options.email, contact: options.phone },
         theme: { color: '#2A6B3F' },
         handler: async (response) => {
           try {
-            await api.post('/payments/verify', {
+            await api.post(options.verifyEndpoint ?? '/payments/verify', {
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,

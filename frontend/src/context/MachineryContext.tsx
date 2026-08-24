@@ -1,60 +1,39 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
-import { mockMachineryListings, type MachineryListing } from '@/data/mock/mockMachinery'
-
-export interface MachineryBooking {
-  id: string
-  machineryId: string
-  startDate: string
-  days: number
-  totalPrice: number
-  status: 'confirmed' | 'completed'
-}
-
-type NewMachineryInput = Omit<MachineryListing, 'id'>
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { machineryService, type MachineryBooking } from '@/services/machineryService'
+import { useAuth } from '@/context/AuthContext'
 
 interface MachineryContextValue {
   bookings: MachineryBooking[]
-  bookMachinery: (machineryId: string, startDate: string, days: number) => MachineryBooking
-  allListings: MachineryListing[]
-  sellerListings: MachineryListing[]
-  addMachineryListing: (input: NewMachineryInput) => MachineryListing
+  isLoading: boolean
+  refresh: () => Promise<void>
 }
 
 const MachineryContext = createContext<MachineryContextValue | null>(null)
 
 export function MachineryProvider({ children }: { children: ReactNode }) {
+  const { isAuthenticated } = useAuth()
   const [bookings, setBookings] = useState<MachineryBooking[]>([])
-  const [sellerListings, setSellerListings] = useState<MachineryListing[]>([])
+  const [isLoading, setIsLoading] = useState(false)
 
-  const allListings = useMemo(() => [...sellerListings, ...mockMachineryListings], [sellerListings])
+  const refresh = useCallback(async () => {
+    if (!isAuthenticated) {
+      setBookings([])
+      return
+    }
+    setIsLoading(true)
+    try {
+      const { items } = await machineryService.listBookings({ limit: 50 })
+      setBookings(items)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [isAuthenticated])
 
-  const bookMachinery = useCallback(
-    (machineryId: string, startDate: string, days: number): MachineryBooking => {
-      const machine = allListings.find((m) => m.id === machineryId)
-      const booking: MachineryBooking = {
-        id: `book_${Date.now()}`,
-        machineryId,
-        startDate,
-        days,
-        totalPrice: (machine?.pricePerDay ?? 0) * days,
-        status: 'confirmed',
-      }
-      setBookings((prev) => [booking, ...prev])
-      return booking
-    },
-    [allListings],
-  )
+  useEffect(() => {
+    refresh()
+  }, [refresh])
 
-  const addMachineryListing = useCallback((input: NewMachineryInput): MachineryListing => {
-    const listing: MachineryListing = { ...input, id: `mach_${Date.now()}` }
-    setSellerListings((prev) => [listing, ...prev])
-    return listing
-  }, [])
-
-  const value = useMemo(
-    () => ({ bookings, bookMachinery, allListings, sellerListings, addMachineryListing }),
-    [bookings, bookMachinery, allListings, sellerListings, addMachineryListing],
-  )
+  const value = useMemo(() => ({ bookings, isLoading, refresh }), [bookings, isLoading, refresh])
 
   return <MachineryContext.Provider value={value}>{children}</MachineryContext.Provider>
 }
