@@ -10,6 +10,7 @@ import type { CreateBookingInput, ListBookingsQuery, UpdateBookingStatusInput, C
 
 const BOOKING_INCLUDE_DETAIL = {
   machinery: { select: { id: true, name: true, slug: true, sellerId: true, bufferDays: true } },
+  user: { select: { id: true, name: true, phone: true, profileImage: true } },
   address: true,
   statusHistory: { orderBy: { changedAt: 'asc' as const } },
   payment: true,
@@ -147,6 +148,7 @@ export async function listBookings(user: User, query: ListBookingsQuery) {
       where,
       include: {
         machinery: { select: { id: true, name: true, slug: true, sellerId: true } },
+        user: { select: { id: true, name: true, phone: true, profileImage: true } },
         payment: { select: { status: true, method: true } },
       },
       orderBy: { createdAt: 'desc' },

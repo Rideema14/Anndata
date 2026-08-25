@@ -5,7 +5,7 @@ import asyncHandler from '../../common/middlewares/asyncHandler';
 import type { AvailabilityQuery } from './machinery.validation';
 
 export const list = asyncHandler(async (req, res) => {
-  const { items, meta } = await machineryService.listMachinery(req.query as any);
+  const { items, meta } = await machineryService.listMachinery(req.query as any, req.user);
   ApiResponse.paginated(res, items, meta);
 });
 

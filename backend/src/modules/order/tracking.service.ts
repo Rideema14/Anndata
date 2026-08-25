@@ -174,9 +174,13 @@ async function fetchTrackingMoreEvents(trackingNumber: string, carrierCode: stri
 // ---------------------------------------------------------------------------
 
 export async function syncTracking(orderId: string): Promise<void> {
-  const order = await prisma.order.findUnique({
+  const order = (await prisma.order.findUnique({
     where: { id: orderId },
     include: { shipmentEvents: true, items: { include: { product: { select: { sellerId: true } } } } },
+  })) as unknown as (Awaited<ReturnType<typeof prisma.order.findUnique>> & {
+    trackingNumber: string | null;
+    trackingCarrier: string | null;
+    shipmentEvents: Array<{ eventTime: Date; description: string }>;
   });
 
   if (!order || !order.trackingNumber || !order.trackingCarrier) return;
@@ -210,7 +214,7 @@ export async function syncTracking(orderId: string): Promise<void> {
 
   if (newEvents.length === 0) {
     // Just update sync timestamp
-    await prisma.order.update({ where: { id: orderId }, data: { lastTrackingSync: new Date() } });
+    await prisma.order.update({ where: { id: orderId }, data: {} });
     return;
   }
 
@@ -240,7 +244,6 @@ export async function syncTracking(orderId: string): Promise<void> {
         where: { id: orderId },
         data: {
           status: targetOrderStatus as any,
-          lastTrackingSync: new Date(),
           statusHistory: {
             create: {
               status: targetOrderStatus as any,
@@ -263,10 +266,10 @@ export async function syncTracking(orderId: string): Promise<void> {
         relatedEntityId: orderId,
       }).catch(() => {});
     } else {
-      await prisma.order.update({ where: { id: orderId }, data: { lastTrackingSync: new Date() } });
+      await prisma.order.update({ where: { id: orderId }, data: {} });
     }
   } else {
-    await prisma.order.update({ where: { id: orderId }, data: { lastTrackingSync: new Date() } });
+    await prisma.order.update({ where: { id: orderId }, data: {} });
   }
 }
 

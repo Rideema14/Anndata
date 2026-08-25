@@ -42,10 +42,16 @@ function sortToOrderBy(sortBy: MachineryQuery['sortBy']): Prisma.MachineryOrderB
 // approach reworked into a single indexed query rather than two stages.
 const AVAILABILITY_CANDIDATE_CAP = 500;
 
-export async function listMachinery(query: MachineryQuery) {
+export async function listMachinery(query: MachineryQuery, requester?: User) {
   const { page, limit, skip, take } = parsePagination(query);
 
-  const where: Prisma.MachineryWhereInput = { isActive: true };
+  // Only show inactive listings to the seller who owns them (or an admin) —
+  // everyone else, including a seller browsing other sellers' machinery,
+  // only ever sees active listings.
+  const includeInactive = Boolean(
+    query.sellerId && requester && (requester.role === 'ADMIN' || requester.id === query.sellerId)
+  );
+  const where: Prisma.MachineryWhereInput = includeInactive ? {} : { isActive: true };
   if (query.search) {
     where.OR = [
       { name: { contains: query.search, mode: 'insensitive' } },

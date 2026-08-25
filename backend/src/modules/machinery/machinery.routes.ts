@@ -31,7 +31,7 @@ const approvalBodySchema = z.object({ isApproved: z.boolean() });
  *     tags: [Machinery]
  *     summary: Search/filter/paginate machinery listings; pass startDate+endDate+quantity to only see listings with enough free units for that range
  */
-router.get('/', validate({ query: machineryQuerySchema }), machineryController.list);
+router.get('/', optionalAuthenticate, validate({ query: machineryQuerySchema }), machineryController.list);
 
 router.get('/:slug', validate({ params: slugParamSchema }), optionalAuthenticate, machineryController.getOne);
 

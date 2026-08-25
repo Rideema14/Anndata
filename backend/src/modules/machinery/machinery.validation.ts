@@ -29,7 +29,9 @@ export const machineryCreateSchema = z.object({
 });
 export type MachineryCreateInput = z.infer<typeof machineryCreateSchema>;
 
-export const machineryUpdateSchema = machineryCreateSchema.partial();
+export const machineryUpdateSchema = machineryCreateSchema.partial().extend({
+  isActive: z.boolean().optional(),
+});
 export type MachineryUpdateInput = z.infer<typeof machineryUpdateSchema>;
 
 // Availability filters are opt-in on the search endpoint: pass both dates to

@@ -218,7 +218,8 @@ export async function updateStatus(orderId: string, user: User, { status, note, 
 
     // For tracked orders (have tracking number), only allow the initial PENDING→CONFIRMED transition.
     // All subsequent status changes are handled automatically by the tracking cron.
-    if (order.trackingNumber && status !== 'CONFIRMED') {
+    const trackingNumber = (order as unknown as { trackingNumber?: string }).trackingNumber;
+    if (trackingNumber && status !== 'CONFIRMED') {
       throw ApiError.badRequest('This order has live tracking enabled. Status updates happen automatically based on carrier data.');
     }
 
@@ -251,20 +252,25 @@ export async function updateStatus(orderId: string, user: User, { status, note, 
   emitOrderUpdate(updated);
 
   // After seller confirms with tracking info, trigger the first tracking sync
-  if (status === 'CONFIRMED' && updated.trackingCarrier && updated.trackingNumber) {
-    const carrierName = updated.trackingCarrier;
-    const trackUrl = getTrackingUrl(carrierName, updated.trackingNumber);
+  const updatedWithTracking = updated as OrderWithDetail & {
+    trackingCarrier?: string | null;
+    trackingNumber?: string | null;
+  };
+  if (status === 'CONFIRMED' && updatedWithTracking.trackingCarrier && updatedWithTracking.trackingNumber) {
+    const carrierName = updatedWithTracking.trackingCarrier;
+    const trackingNumber = updatedWithTracking.trackingNumber;
+    const trackUrl = getTrackingUrl(carrierName, trackingNumber);
 
     notifyUser({
       userId: updated.userId,
       type: 'ORDER_STATUS',
       title: 'Order confirmed — tracking active',
-      message: `Your order #${updated.orderNumber} has been confirmed. Tracking number: ${updated.trackingNumber}. Status updates will appear automatically.`,
+      message: `Your order #${updated.orderNumber} has been confirmed. Tracking number: ${trackingNumber}. Status updates will appear automatically.`,
       relatedEntityType: 'ORDER',
       relatedEntityId: updated.id,
       email: {
         subject: `Your order #${updated.orderNumber} is confirmed`,
-        html: `<p>Your order has been confirmed.</p><p><b>Carrier:</b> ${carrierName}</p><p><b>Tracking:</b> ${updated.trackingNumber}</p>${trackUrl ? `<p><a href="${trackUrl}">Track your shipment</a></p>` : ''}`,
+        html: `<p>Your order has been confirmed.</p><p><b>Carrier:</b> ${carrierName}</p><p><b>Tracking:</b> ${trackingNumber}</p>${trackUrl ? `<p><a href="${trackUrl}">Track your shipment</a></p>` : ''}`,
       },
     }).catch(() => {});
 
