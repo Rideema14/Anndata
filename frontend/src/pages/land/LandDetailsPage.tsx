@@ -5,7 +5,6 @@ import {
   ChevronLeft,
   MapPin,
   Ruler,
-  User,
   Droplets,
   Layers,
   Phone,

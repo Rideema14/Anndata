@@ -3,18 +3,11 @@ import { Link } from 'react-router-dom'
 import {
   MapPin,
   Plus,
-  Ruler,
   CalendarCheck,
   CheckCircle2,
-  XCircle,
-  Clock,
   Trash2,
-  ExternalLink,
   Phone,
   Mail,
-  RefreshCw,
-  Eye,
-  SlidersHorizontal,
   ChevronLeft,
 } from 'lucide-react'
 import { useLand } from '@/context/LandContext'

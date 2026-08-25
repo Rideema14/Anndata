@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ChevronLeft, MapPin, Upload, X } from 'lucide-react'
+import { ChevronLeft, Upload, X } from 'lucide-react'
 import { Button } from '@/components/common/Button'
 import { SelectField, TextAreaField, TextField } from '@/components/common/FormField'
 import { useLand } from '@/context/LandContext'
