@@ -160,50 +160,19 @@
   }
 }
 /* =========================================================
-   MODERN CHATGPT-STYLE SIDEBAR SCROLLBAR
+   SIDEBAR SCROLLBAR (HIDDEN)
    ========================================================= */
 
-.sidebar-scroll {
+.sidebar-scroll,
+.more-menu-scroll {
   overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: transparent transparent;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
-/* Chrome / Edge / Safari */
-
-.sidebar-scroll::-webkit-scrollbar {
-  width: 6px;
-}
-
-.sidebar-scroll::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.sidebar-scroll::-webkit-scrollbar-thumb {
-  background: transparent;
-  border-radius: 999px;
-  transition: background 0.2s ease;
-}
-
-/* Show scrollbar subtly when the sidebar is hovered */
-
-.sidebar-scroll:hover {
-  scrollbar-color: #c8c3b8 transparent;
-}
-
-.sidebar-scroll:hover::-webkit-scrollbar-thumb {
-  background: #c8c3b8;
-}
-
-/* Slightly darker while actually scrolling/hovering thumb */
-
-.sidebar-scroll::-webkit-scrollbar-thumb:hover {
-  background: #aaa397;
-}
-
-/* Keep scrollbar away from the rounded content edges */
-
-.sidebar-scroll::-webkit-scrollbar-track {
-  margin-top: 4px;
-  margin-bottom: 4px;
+.sidebar-scroll::-webkit-scrollbar,
+.more-menu-scroll::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
