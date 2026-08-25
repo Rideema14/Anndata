@@ -22,6 +22,7 @@ const logger = require('./common/utils/logger').default;
 
 const {startMetadataSync} = require("./jobs/metadataSync")
 const {startTrackingCron} = require("./jobs/trackingCron")
+const {startMandiDailyCron} = require("./jobs/mandiDailyCron")
 
 const server = http.createServer(app);
 initSocket(server);
@@ -34,7 +35,8 @@ server.listen(env.port, () => {
   startTrackingCron();
 
   if (env.nodeEnv === 'production') {
-    startMetadataSync();
+    // startMetadataSync();
+    startMandiDailyCron()
     startKeepAliveCron();
   }
 });
