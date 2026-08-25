@@ -7,6 +7,8 @@ import { useLand } from '@/context/LandContext'
 import { useAuth } from '@/context/AuthContext'
 import type { BackendLandDealType } from '@/services/landService'
 
+import { LoadingOverlay } from '@/components/common/LoadingOverlay'
+
 export default function AddLandListingPage() {
   const { addLandListing, isActionLoading } = useLand()
   const { user } = useAuth()
@@ -76,7 +78,12 @@ export default function AddLandListingPage() {
   }
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-6 md:px-6 md:py-8">
+    <div className="relative mx-auto max-w-lg px-4 py-6 md:px-6 md:py-8">
+      <LoadingOverlay
+        isLoading={isActionLoading}
+        title="Publishing Land Listing…"
+        message="Uploading plot photos and publishing to Aandata marketplace."
+      />
       <Link to="/seller/land" className="mb-4 inline-flex items-center gap-1 text-xs font-semibold text-brand-600 hover:underline">
         <ChevronLeft className="h-4 w-4" />
         Back to Seller Land Management

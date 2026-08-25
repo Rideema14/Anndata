@@ -5,6 +5,7 @@ import { Button } from '@/components/common/Button'
 import { SelectField, TextAreaField, TextField } from '@/components/common/FormField'
 import { machineryService, type MachineryCategory } from '@/services/machineryService'
 import { getApiErrorMessage } from '@/services/api'
+import { LoadingOverlay } from '@/components/common/LoadingOverlay'
 
 export default function AddMachineryListingPage() {
   const navigate = useNavigate()
@@ -103,7 +104,12 @@ export default function AddMachineryListingPage() {
   }
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-6 md:px-6 md:py-8">
+    <div className="relative mx-auto max-w-lg px-4 py-6 md:px-6 md:py-8">
+      <LoadingOverlay
+        isLoading={isPublishing}
+        title="Listing Machinery…"
+        message="Uploading equipment photo and creating listing for rent."
+      />
       <Link to="/seller" className="mb-4 flex items-center gap-1 text-xs font-semibold text-brand-600 hover:underline">
         <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
         Seller Hub

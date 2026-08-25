@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CheckCircle2, ImagePlus, Sprout } from 'lucide-react'
 import { Button } from '@/components/common/Button'
+import { LoadingOverlay } from '@/components/common/LoadingOverlay'
 import { StepperHeader } from '@/components/common/StepperHeader'
 import { SelectField, TextField } from '@/components/common/FormField'
 import { categoryService, type Category } from '@/services/categoryService'
@@ -112,7 +113,12 @@ export default function AddProductPage() {
   }
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-6 md:px-6 md:py-8">
+    <div className="relative mx-auto max-w-lg px-4 py-6 md:px-6 md:py-8">
+      <LoadingOverlay
+        isLoading={isPublishing}
+        title="Publishing Listing…"
+        message="Uploading product photo and publishing to Aandata marketplace."
+      />
       <h1 className="mb-1 text-xl">Add Product</h1>
       <p className="mb-5 text-sm text-ink-500">List a product for sale on Aandata.</p>
 
