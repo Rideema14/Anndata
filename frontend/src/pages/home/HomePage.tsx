@@ -927,7 +927,7 @@ export default function HomePage() {
 
               {/* ORDER CONTENT */}
 
-              <div className="min-h-0 flex-1 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-[#d1c9b9] scrollbar-track-transparent">
+              <div className="min-h-0 flex-1 overflow-y-auto pr-1 scrollbar-none">
 
                 {recentOrders.length === 0 ? (
 
@@ -1057,7 +1057,7 @@ export default function HomePage() {
 
               {/* MANDI CONTENT */}
 
-              <div className="min-h-0 flex-1 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-[#756555] scrollbar-track-transparent">
+              <div className="min-h-0 flex-1 overflow-y-auto pr-1 scrollbar-none">
 
                 {mandiRows.length === 0 ? (
 
