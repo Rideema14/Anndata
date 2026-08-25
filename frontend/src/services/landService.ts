@@ -200,11 +200,7 @@ export async function uploadLandImages(landId: string, files: File[]): Promise<B
   const response = await api.post<{
     success: boolean
     data: BackendLandImage[]
-  }>(`/land/${landId}/images`, formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  })
+  }>(`/land/${landId}/images`, formData)
   return response.data.data
 }
 

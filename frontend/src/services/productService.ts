@@ -232,9 +232,7 @@ export const productService = {
   async uploadImages(productId: string, files: File[]): Promise<void> {
     const form = new FormData()
     files.forEach((file) => form.append('images', file))
-    await api.post(`/products/${productId}/images`, form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
+    await api.post(`/products/${productId}/images`, form)
   },
 
   async listReviews(productId: string): Promise<ProductReview[]> {

@@ -6,12 +6,14 @@ import { StepperHeader } from '@/components/common/StepperHeader'
 import { SelectField, TextField } from '@/components/common/FormField'
 import { categoryService, type Category } from '@/services/categoryService'
 import { productService } from '@/services/productService'
+import { useSeller } from '@/context/SellerContext'
 import { formatINR } from '@/utils/format'
 
 const STEPS = ['Category', 'Details', 'Images', 'Price & Stock', 'Location', 'Preview', 'Publish']
 
 export default function AddProductPage() {
   const navigate = useNavigate()
+  const { refreshListings } = useSeller()
   const [categories, setCategories] = useState<Category[]>([])
   const [isLoadingCategories, setIsLoadingCategories] = useState(true)
 
@@ -74,15 +76,18 @@ export default function AddProductPage() {
         price: Number(price) || 0,
         stock: Number(stock) || 0,
         unit,
-        // The backend has no free-text "pickup location" field on a product —
-        // location comes from the seller's own profile/geo-coordinates, not
-        // per-listing. Folding it into the description keeps the info visible
-        // to buyers without inventing a field the schema doesn't have.
         description: location ? `Pickup location: ${location}` : undefined,
       })
       if (imageFile) {
-        await productService.uploadImages(product.id, [imageFile])
+        try {
+          await productService.uploadImages(product.id, [imageFile])
+        } catch (uploadErr) {
+          // ACID Rollback: Remove newly created product if image upload fails
+          await productService.remove(product.id).catch(() => {})
+          throw uploadErr
+        }
       }
+      await refreshListings().catch(() => {})
       setPublished(true)
     } catch (err) {
       setPublishError(err instanceof Error ? err.message : 'Could not publish this listing. Please try again.')

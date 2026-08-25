@@ -182,15 +182,24 @@ export function LandProvider({ children }: { children: ReactNode }) {
   const addLandListing = useCallback(
     async (data: CreateLandInput, imageFiles?: File[]): Promise<BackendLandItem> => {
       setIsActionLoading(true)
+      let created: BackendLandItem | null = null
       try {
-        let created = await createLandListing(data)
+        created = await createLandListing(data)
         if (imageFiles && imageFiles.length > 0) {
-          const uploaded = await uploadLandImages(created.id, imageFiles)
-          created = { ...created, images: uploaded }
+          try {
+            const uploaded = await uploadLandImages(created.id, imageFiles)
+            created = { ...created, images: uploaded }
+          } catch (uploadErr) {
+            // ACID Rollback: Delete newly created land listing if photo upload fails
+            if (created?.id) {
+              await deleteLandListing(created.id).catch(() => {})
+            }
+            throw uploadErr
+          }
         }
-        setSellerListings((prev) => [created, ...prev])
-        setListings((prev) => [created, ...prev])
-        return created
+        setSellerListings((prev) => [created!, ...prev])
+        setListings((prev) => [created!, ...prev])
+        return created!
       } catch (err) {
         const msg = getApiErrorMessage(err, 'Failed to create land listing')
         throw new Error(msg)

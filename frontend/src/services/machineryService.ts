@@ -371,9 +371,7 @@ export const machineryService = {
   async uploadImages(machineryId: string, files: File[]): Promise<void> {
     const form = new FormData()
     files.forEach((file) => form.append('images', file))
-    await api.post(`/machinery/${machineryId}/images`, form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
+    await api.post(`/machinery/${machineryId}/images`, form)
   },
 
   async listReviews(machineryId: string): Promise<MachineryReview[]> {

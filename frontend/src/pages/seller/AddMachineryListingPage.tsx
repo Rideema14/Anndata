@@ -71,7 +71,13 @@ export default function AddMachineryListingPage() {
         description: description || undefined,
       })
       if (imageFile) {
-        await machineryService.uploadImages(listing.id, [imageFile])
+        try {
+          await machineryService.uploadImages(listing.id, [imageFile])
+        } catch (uploadErr) {
+          // ACID Rollback: Remove newly created machinery listing if image upload fails
+          await machineryService.remove(listing.id).catch(() => {})
+          throw uploadErr
+        }
       }
       setPublished(true)
     } catch (err) {
