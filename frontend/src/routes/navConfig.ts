@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   LineChart,
   List,
+  MapPin,
   PackageCheck,
   PlusSquare,
   Settings,
@@ -34,6 +35,7 @@ export interface NavItem {
 export const buyNavItems: NavItem[] = [
   { path: '/home', labelKey: 'nav.home', icon: Home },
   { path: '/market', labelKey: 'nav.market', icon: Store },
+  { path: '/land', labelKey: 'nav.land', icon: MapPin },
   { path: '/cart', labelKey: 'nav.cart', icon: ShoppingCart },
   { path: '/wishlist', labelKey: 'nav.wishlist', icon: Heart },
   { path: '/orders', labelKey: 'nav.orders', icon: PackageCheck },
@@ -49,6 +51,7 @@ export const sellNavItems: NavItem[] = [
   { path: '/seller/dashboard', labelKey: 'nav.sellerDashboard', icon: LayoutDashboard },
   { path: '/seller/listings', labelKey: 'nav.myListings', icon: List },
   { path: '/seller/add-product', labelKey: 'nav.addProduct', icon: PlusSquare },
+  { path: '/seller/land', labelKey: 'nav.land', icon: MapPin },
   { path: '/seller/machinery', labelKey: 'nav.machinery', icon: Tractor },
   { path: '/seller/orders', labelKey: 'nav.sellerOrders', icon: PackageCheck },
   { path: '/seller/analytics', labelKey: 'nav.analytics', icon: BarChart3 },

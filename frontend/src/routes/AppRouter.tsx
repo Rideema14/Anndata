@@ -97,6 +97,12 @@ const LandDetailsPage = lazy(() => import("@/pages/land/LandDetailsPage"));
 const LandVisitRequestPage = lazy(
   () => import("@/pages/land/LandVisitRequestPage"),
 );
+const MyLandVisitsPage = lazy(
+  () => import("@/pages/land/MyLandVisitsPage"),
+);
+const SellerLandPage = lazy(
+  () => import("@/pages/seller/SellerLandPage"),
+);
 
 // Machinery
 const MachineryMarketplacePage = lazy(
@@ -356,6 +362,10 @@ const router = createBrowserRouter([
         element: <LandMarketplacePage />,
       },
       {
+        path: "/land/visits",
+        element: <MyLandVisitsPage />,
+      },
+      {
         path: "/land/:id",
         element: <LandDetailsPage />,
       },
@@ -410,6 +420,10 @@ const router = createBrowserRouter([
       {
         path: "/seller/feedback",
         element: <SellerFeedbackPage />,
+      },
+      {
+        path: "/seller/land",
+        element: <SellerLandPage />,
       },
       {
         path: "/seller/add-land",
