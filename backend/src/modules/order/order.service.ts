@@ -299,7 +299,7 @@ export async function cancelOrder(idOrNumber: string, user: User, { reason }: Ca
   if (user.role !== 'ADMIN' && order.userId !== user.id) {
     throw ApiError.forbidden('You do not have permission to cancel this order.');
   }
-  if (!['PENDING', 'CONFIRMED'].includes(order.status)) {
+  if (order.status !== 'PENDING') {
     throw ApiError.badRequest(`Order can no longer be cancelled once it is ${order.status.toLowerCase()}.`);
   }
 

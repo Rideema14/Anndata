@@ -23,6 +23,8 @@ import machineryBookingRoutes from '../modules/machinery/machineryBooking.routes
 import machineryPaymentRoutes from '../modules/machinery/machineryPayment.routes';
 import machineryAnalyticsRoutes from '../modules/machinery/machineryAnalytics.routes';
 import machineryRoutes from '../modules/machinery/machinery.routes';
+import landRoutes from '../modules/land/land.routes';
+import landVisitRoutes from '../modules/land/landVisit.routes';
 
 const router = Router();
 
@@ -60,6 +62,11 @@ router.use('/machinery/bookings', machineryBookingRoutes);
 router.use('/machinery/payments', machineryPaymentRoutes);
 router.use('/machinery/analytics', machineryAnalyticsRoutes);
 router.use('/machinery', machineryRoutes);
+
+
+// Land Marketplace
+router.use('/land/visit-requests', landVisitRoutes);
+router.use('/land', landRoutes);
 
 router.get('/health', (req, res) => res.json({ success: true, message: 'OK', timestamp: new Date().toISOString() }));
 

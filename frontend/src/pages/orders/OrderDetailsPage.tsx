@@ -121,7 +121,7 @@ export default function OrderDetailsPage() {
 
   const isTerminalOffPath = order.status === 'cancelled' || order.status === 'returned'
   const currentIndex = STATUS_SEQUENCE.indexOf(order.status)
-  const canCancel = order.status === 'placed' || order.status === 'confirmed'
+  const canCancel = order.status === 'placed'
   const carrierName = formatCarrierName(order.trackingCarrier)
 
   return (

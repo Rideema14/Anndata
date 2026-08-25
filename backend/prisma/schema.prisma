@@ -105,6 +105,19 @@ enum MachineryBookingStatus {
   CANCELLED
 }
 
+enum LandDealType {
+  SALE
+  LEASE
+}
+
+enum LandVisitStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  COMPLETED
+  CANCELLED
+}
+
 // ---------------------------------------------------------------------------
 // 3.1 User Management & Authentication
 // ---------------------------------------------------------------------------
@@ -165,6 +178,8 @@ model User {
   machineryReviews       MachineryReview[]
   machineryPayments      MachineryPayment[]
   machineryStatusChanges MachineryBookingStatusHistory[] @relation("MachineryStatusChangedBy")
+  sellerLand             Land[]                          @relation("SellerLand")
+  landVisitRequests      LandVisitRequest[]              @relation("LandVisitBuyer")
 
   @@index([email])
   @@map("users")
@@ -1146,4 +1161,89 @@ model MachineryReview {
   @@unique([machineryId, userId])
   @@index([machineryId])
   @@map("machinery_reviews")
+}
+// ---------------------------------------------------------------------------
+// 3.6 Land Marketplace
+//
+// Listing + site-visit workflow, not a cart/order flow — there is nothing to
+// "buy now" here. A seller lists land (with images and a map-pin location);
+// a buyer requests a physical visit for a date/time, and the seller accepts,
+// rejects, or later marks it completed. `LandVisitRequest.status` carries
+// the whole lifecycle; no separate history table, mirroring how lightweight
+// the frontend's own VisitRequest model already is (LandContext.tsx).
+// ---------------------------------------------------------------------------
+
+model Land {
+  id          String       @id @default(uuid())
+  sellerId    String
+  seller      User         @relation("SellerLand", fields: [sellerId], references: [id], onDelete: Cascade)
+
+  title       String
+  slug        String       @unique
+  description String?
+  areaAcres   Decimal      @db.Decimal(10, 2)
+  dealType    LandDealType
+  price       Decimal      @db.Decimal(14, 2)
+
+  location    String       // free-text place name shown on cards, e.g. "Bahoriband, Katni"
+  city        String?
+  state       String?
+  latitude    Float?
+  longitude   Float?
+
+  soilType    String?
+  waterSource String?
+
+  isActive    Boolean      @default(true)
+  viewCount   Int          @default(0)
+
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  images        LandImage[]
+  visitRequests LandVisitRequest[]
+
+  @@index([sellerId])
+  @@index([isActive])
+  @@map("land_listings")
+}
+
+model LandImage {
+  id        String   @id @default(uuid())
+  landId    String
+  land      Land     @relation(fields: [landId], references: [id], onDelete: Cascade)
+  url       String
+  publicId  String?
+  isPrimary Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([landId])
+  @@map("land_images")
+}
+
+model LandVisitRequest {
+  id       String          @id @default(uuid())
+  landId   String
+  land     Land            @relation(fields: [landId], references: [id], onDelete: Cascade)
+  buyerId  String
+  buyer    User            @relation("LandVisitBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+
+  visitDate    DateTime    @db.Date
+  visitTime    String      // free-text slot, e.g. "10:00 AM" — matches the frontend's plain string field
+  message      String?
+  status       LandVisitStatus @default(PENDING)
+  responseNote String?     // seller's note when accepting/rejecting
+
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  // One buyer only needs one live request per listing at a time — same
+  // "replace the previous request" behaviour the frontend's LandContext
+  // already implements client-side (requestVisit filters out the old one).
+  @@unique([landId, buyerId])
+  @@index([landId])
+  @@index([buyerId])
+  @@index([status])
+  @@map("land_visit_requests")
 }
