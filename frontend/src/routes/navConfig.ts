@@ -49,6 +49,7 @@ export const sellNavItems: NavItem[] = [
   { path: '/seller/dashboard', labelKey: 'nav.sellerDashboard', icon: LayoutDashboard },
   { path: '/seller/listings', labelKey: 'nav.myListings', icon: List },
   { path: '/seller/add-product', labelKey: 'nav.addProduct', icon: PlusSquare },
+  { path: '/seller/machinery', labelKey: 'nav.machinery', icon: Tractor },
   { path: '/seller/orders', labelKey: 'nav.sellerOrders', icon: PackageCheck },
   { path: '/seller/analytics', labelKey: 'nav.analytics', icon: BarChart3 },
   { path: '/mandi', labelKey: 'nav.mandi', icon: LineChart },

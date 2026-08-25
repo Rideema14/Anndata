@@ -134,6 +134,9 @@ const AddLandListingPage = lazy(
 const AddMachineryListingPage = lazy(
   () => import("@/pages/seller/AddMachineryListingPage"),
 );
+const SellerMachineryPage = lazy(
+  () => import("@/pages/seller/SellerMachineryPage"),
+);
 
 // Admin
 const AdminDashboardPage = lazy(
@@ -415,6 +418,10 @@ const router = createBrowserRouter([
       {
         path: "/seller/add-machinery",
         element: <AddMachineryListingPage />,
+      },
+      {
+        path: "/seller/machinery",
+        element: <SellerMachineryPage />,
       },
 
       // Admin

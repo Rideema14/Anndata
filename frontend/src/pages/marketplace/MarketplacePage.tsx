@@ -361,7 +361,7 @@ export default function MarketplacePage() {
                 return (
                   <Link
                     key={cat.id}
-                    to={`/market/${cat.slug}`}
+                    to={cat.slug === 'machinery' ? '/machinery' : `/market/${cat.slug}`}
                     className="
                       group
                       flex

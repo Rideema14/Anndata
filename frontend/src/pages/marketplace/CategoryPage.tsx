@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, Navigate, useParams } from 'react-router-dom'
 import { ChevronLeft, PackageX } from 'lucide-react'
 import { ProductCard } from '@/components/common/ProductCard'
 import { categoryService, type Category } from '@/services/categoryService'
@@ -15,7 +15,7 @@ export default function CategoryPage() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    if (!category) return
+    if (!category || category === 'machinery') return
     let cancelled = false
     setIsLoading(true)
     Promise.all([
@@ -31,6 +31,11 @@ export default function CategoryPage() {
       cancelled = true
     }
   }, [category])
+
+  // Machinery is rental-only; it isn't a browsable product category.
+  if (category === 'machinery') {
+    return <Navigate to="/machinery" replace />
+  }
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-5 md:px-6 md:py-8">

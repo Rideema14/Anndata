@@ -35,8 +35,11 @@ export default function AddProductPage() {
       .list()
       .then((cats) => {
         if (cancelled) return
-        setCategories(cats)
-        if (cats.length > 0) setCategoryId((prev) => prev || cats[0].id)
+        // Machinery is rental-only — sellers list it via "List Machinery"
+        // (/seller/add-machinery), never as a sellable product here.
+        const sellable = cats.filter((c) => c.slug !== 'machinery')
+        setCategories(sellable)
+        if (sellable.length > 0) setCategoryId((prev) => prev || sellable[0].id)
       })
       .finally(() => {
         if (!cancelled) setIsLoadingCategories(false)

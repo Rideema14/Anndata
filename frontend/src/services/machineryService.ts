@@ -81,6 +81,7 @@ interface BackendMachineryBooking {
   createdAt: string
   updatedAt: string
   machinery?: { id: string; name: string; slug: string; sellerId: string; bufferDays?: number }
+  user?: { id: string; name: string; phone?: string | null; profileImage?: string | null }
   payment?: { status: string; method?: string | null; razorpayOrderId?: string } | null
 }
 
@@ -173,12 +174,16 @@ export interface MachineryBooking {
   machineryId: string
   machineryName: string
   machinerySlug: string
+  machinerySellerId: string
+  renterName: string
+  renterPhone?: string
   startDate: string
   endDate: string
   quantity: number
   totalPrice: number
   status: MachineryBookingStatus
   paymentStatus?: string
+  notes?: string
 }
 
 const STATUS_MAP: Record<BackendBookingStatus, MachineryBookingStatus> = {
@@ -187,6 +192,23 @@ const STATUS_MAP: Record<BackendBookingStatus, MachineryBookingStatus> = {
   ACTIVE: 'active',
   COMPLETED: 'completed',
   CANCELLED: 'cancelled',
+}
+
+const BACKEND_STATUS_MAP: Record<MachineryBookingStatus, BackendBookingStatus> = {
+  pending: 'PENDING',
+  confirmed: 'CONFIRMED',
+  active: 'ACTIVE',
+  completed: 'COMPLETED',
+  cancelled: 'CANCELLED',
+}
+
+export interface MachineryDashboardStats {
+  activeListings: number
+  totalListings: number
+  bookingsToFulfill: number
+  activeRentalsToday: number
+  totalRevenue: number
+  revenueLast30Days: number
 }
 
 /* =========================================================
@@ -249,12 +271,16 @@ function mapBooking(b: BackendMachineryBooking): MachineryBooking {
     machineryId: b.machineryId,
     machineryName: b.machinery?.name ?? 'Machinery',
     machinerySlug: b.machinery?.slug ?? '',
+    machinerySellerId: b.machinery?.sellerId ?? '',
+    renterName: b.user?.name ?? 'Farmer',
+    renterPhone: b.user?.phone ?? undefined,
     startDate: b.startDate,
     endDate: b.endDate,
     quantity: b.quantity,
     totalPrice: Number(b.totalAmount),
     status: STATUS_MAP[b.status],
     paymentStatus: b.payment?.status,
+    notes: b.notes ?? undefined,
   }
 }
 
@@ -303,8 +329,43 @@ export const machineryService = {
     return mapListingDetail(res.data.data)
   },
 
+  async setActive(id: string, isActive: boolean): Promise<MachineryListing> {
+    const res = await api.patch<{ data: BackendMachineryDetail }>(`/machinery/${id}`, { isActive })
+    return mapListingDetail(res.data.data)
+  },
+
   async remove(id: string): Promise<void> {
     await api.delete(`/machinery/${id}`)
+  },
+
+  async removeImage(machineryId: string, imageId: string): Promise<void> {
+    await api.delete(`/machinery/${machineryId}/images/${imageId}`)
+  },
+
+  async addDiscountTier(machineryId: string, minQuantity: number, discountPercent: number): Promise<void> {
+    await api.post(`/machinery/${machineryId}/discount-tiers`, { minQuantity, discountPercent })
+  },
+
+  async updateDiscountTier(machineryId: string, tierId: string, input: { minQuantity?: number; discountPercent?: number }): Promise<void> {
+    await api.patch(`/machinery/${machineryId}/discount-tiers/${tierId}`, input)
+  },
+
+  async removeDiscountTier(machineryId: string, tierId: string): Promise<void> {
+    await api.delete(`/machinery/${machineryId}/discount-tiers/${tierId}`)
+  },
+
+  /** Seller/admin action on a booking made for their machinery: confirm, start, complete, or reject. */
+  async updateBookingStatus(id: string, status: MachineryBookingStatus, note?: string): Promise<MachineryBooking> {
+    const res = await api.patch<{ data: BackendMachineryBooking }>(`/machinery/bookings/${id}/status`, {
+      status: BACKEND_STATUS_MAP[status],
+      note,
+    })
+    return mapBooking(res.data.data)
+  },
+
+  async getDashboard(): Promise<MachineryDashboardStats> {
+    const res = await api.get<{ data: MachineryDashboardStats }>('/machinery/analytics/dashboard')
+    return res.data.data
   },
 
   async uploadImages(machineryId: string, files: File[]): Promise<void> {
@@ -342,7 +403,7 @@ export const machineryService = {
     return { booking: mapBooking(booking), razorpayOrderId: payment?.razorpayOrderId, amount: payment ? payment.amount / 100 : undefined }
   },
 
-  async listBookings(params: { page?: number; limit?: number; status?: BackendBookingStatus } = {}): Promise<{
+  async listBookings(params: { page?: number; limit?: number; status?: BackendBookingStatus; scope?: 'mine' | 'selling' } = {}): Promise<{
     items: MachineryBooking[]
     meta: PaginationMeta
   }> {

@@ -7,7 +7,7 @@ const TOOLS = [
   { to: '/seller/listings', label: 'My Listings', icon: List, color: 'bg-gold-50 text-gold-700' },
   { to: '/seller/add-product', label: 'Add Product', icon: PlusSquare, color: 'bg-sky-50 text-sky-700' },
   { to: '/seller/add-land', label: 'List Land', icon: MapPin, color: 'bg-soil-50 text-soil-700' },
-  { to: '/seller/add-machinery', label: 'List Machinery', icon: Tractor, color: 'bg-soil-50 text-soil-700' },
+  { to: '/seller/machinery', label: 'Manage Machinery', icon: Tractor, color: 'bg-soil-50 text-soil-700' },
   { to: '/seller/orders', label: 'Orders to Fulfill', icon: PackageCheck, color: 'bg-brand-50 text-brand-700' },
   { to: '/seller/analytics', label: 'Analytics', icon: BarChart3, color: 'bg-danger-50 text-danger-500' },
 ]

@@ -718,7 +718,7 @@ export default function HomePage() {
 
                   <Link
                     key={cat.id}
-                    to={`/market/${cat.slug}`}
+                    to={cat.slug === 'machinery' ? '/machinery' : `/market/${cat.slug}`}
                     className="group flex min-w-[105px] shrink-0 flex-col rounded-[18px] border border-[#ddd6c6] bg-[#fffdf7] p-3.5 transition-all duration-300 hover:-translate-y-1 hover:border-[#aebca2] hover:shadow-[0_12px_25px_rgba(60,55,40,0.07)]"
                   >
 
