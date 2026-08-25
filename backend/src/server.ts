@@ -21,6 +21,7 @@ const { initSocket } = require('./config/socket');
 const logger = require('./common/utils/logger').default;
 
 const {startMetadataSync} = require("./jobs/metadataSync")
+const {startTrackingCron} = require("./jobs/trackingCron")
 
 const server = http.createServer(app);
 initSocket(server);
@@ -29,6 +30,9 @@ server.listen(env.port, () => {
   logger.info(`Agri Marketplace API listening on port ${env.port} [${env.nodeEnv}]`);
   logger.info(`Swagger docs: http://localhost:${env.port}/api-docs`);
   
+  // Start tracking cron in all environments (simulation mode works locally)
+  startTrackingCron();
+
   if (env.nodeEnv === 'production') {
     startMetadataSync();
     startKeepAliveCron();

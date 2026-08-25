@@ -11,6 +11,7 @@ const initialSeedOrders: SeedOrder[] = [
     total: 1450,
     status: 'delivered',
     placedAt: '2026-07-20T09:00:00.000Z',
+    updatedAt: '2026-07-20T09:00:00.000Z',
     address: 'Village Bahoriband, Near Primary School, Katni, MP – 483501',
     paymentMethod: 'UPI',
   },
@@ -72,6 +73,7 @@ export function SeedCartProvider({ children }: { children: ReactNode }) {
         total: items.reduce((sum, i) => sum + i.price * i.quantity, 0),
         status: 'placed',
         placedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
         address,
         paymentMethod,
       }

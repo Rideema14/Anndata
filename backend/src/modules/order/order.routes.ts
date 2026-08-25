@@ -12,6 +12,9 @@ const idParamSchema = z.object({ id: z.string().uuid() });
 
 router.use(authenticate);
 
+/** GET /orders/carriers — list supported carriers for the dropdown */
+router.get('/carriers', controller.getCarriers);
+
 /**
  * @openapi
  * /orders/checkout:
@@ -29,6 +32,9 @@ router.post('/checkout', validate({ body: checkoutSchema }), controller.checkout
  *     summary: List the current user's orders (or all orders, for admins)
  */
 router.get('/', validate({ query: listOrdersQuerySchema }), controller.list);
+
+/** GET /orders/:id/tracking — shipment event timeline */
+router.get('/:id/tracking', validate({ params: idParamSchema }), controller.getTracking);
 
 router.get('/:id', validate({ params: idParamSchema }), controller.getOne);
 

@@ -1,5 +1,6 @@
 import * as orderService from './order.service';
 import * as paymentService from '../payment/payment.service';
+import { getTrackingTimeline, SUPPORTED_CARRIERS } from './tracking.service';
 import ApiResponse from '../../common/utils/ApiResponse';
 import ApiError from '../../common/utils/ApiError';
 import asyncHandler from '../../common/middlewares/asyncHandler';
@@ -38,4 +39,19 @@ export const cancel = asyncHandler(async (req, res) => {
   if (!req.user) throw ApiError.unauthorized('Authentication required.');
   const order = await orderService.cancelOrder(req.params.id, req.user, req.body);
   ApiResponse.ok(res, order, 'Order cancelled.');
+});
+
+/** Returns the shipment tracking timeline for a given order. */
+export const getTracking = asyncHandler(async (req, res) => {
+  if (!req.user) throw ApiError.unauthorized('Authentication required.');
+  // Verify the user can view this order first
+  await orderService.getOrderById(req.params.id, req.user);
+  const events = await getTrackingTimeline(req.params.id);
+  ApiResponse.ok(res, events);
+});
+
+/** Returns the list of supported carriers for the frontend dropdown. */
+export const getCarriers = asyncHandler(async (_req, res) => {
+  const carriers = SUPPORTED_CARRIERS.map((c) => ({ code: c.code, name: c.name }));
+  ApiResponse.ok(res, carriers);
 });

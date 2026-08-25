@@ -14,7 +14,8 @@ interface SellerContextValue {
   removeListing: (id: string) => Promise<void>
   sellerOrders: SellerOrder[]
   isLoadingOrders: boolean
-  advanceSellerOrderStatus: (id: string) => Promise<void>
+  isUpdatingOrder: boolean
+  advanceSellerOrderStatus: (id: string, trackingInfo?: { carrier: string; number: string }) => Promise<void>
   refreshSellerOrders: () => Promise<void>
 }
 
@@ -26,6 +27,7 @@ export function SellerProvider({ children }: { children: ReactNode }) {
   const [isLoadingListings, setIsLoadingListings] = useState(false)
   const [sellerOrders, setSellerOrders] = useState<SellerOrder[]>([])
   const [isLoadingOrders, setIsLoadingOrders] = useState(false)
+  const [isUpdatingOrder, setIsUpdatingOrder] = useState(false)
 
   // The backend only includes a seller's inactive products in this list when
   // sellerId matches the caller's own id — see product.service.ts — so this
@@ -88,15 +90,23 @@ export function SellerProvider({ children }: { children: ReactNode }) {
     setListings((prev) => prev.filter((l) => l.id !== id))
   }, [])
 
-  const advanceSellerOrderStatus = useCallback(async (id: string) => {
+  const advanceSellerOrderStatus = useCallback(async (id: string, trackingInfo?: { carrier: string; number: string }) => {
     const current = sellerOrders.find((o) => o.id === id)
     if (!current) return
     const idx = STATUS_SEQUENCE.indexOf(current.status)
     const nextStatus = STATUS_SEQUENCE[Math.min(idx + 1, STATUS_SEQUENCE.length - 1)]
-    // The backend re-verifies the caller has a product on this order before
-    // allowing the status change — this can't be used to touch someone else's order.
-    const updated = await orderService.updateStatus(id, nextStatus)
-    setSellerOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status: updated.status } : o)))
+    setIsUpdatingOrder(true)
+    try {
+      const updated = await orderService.updateStatus(
+        id,
+        nextStatus,
+        undefined,
+        nextStatus === 'confirmed' && trackingInfo ? { carrier: trackingInfo.carrier, number: trackingInfo.number } : undefined,
+      )
+      setSellerOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status: updated.status } : o)))
+    } finally {
+      setIsUpdatingOrder(false)
+    }
   }, [sellerOrders])
 
   const value = useMemo(
@@ -108,6 +118,7 @@ export function SellerProvider({ children }: { children: ReactNode }) {
       removeListing,
       sellerOrders,
       isLoadingOrders,
+      isUpdatingOrder,
       advanceSellerOrderStatus,
       refreshSellerOrders,
     }),
@@ -119,6 +130,7 @@ export function SellerProvider({ children }: { children: ReactNode }) {
       removeListing,
       sellerOrders,
       isLoadingOrders,
+      isUpdatingOrder,
       advanceSellerOrderStatus,
       refreshSellerOrders,
     ],

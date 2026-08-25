@@ -94,8 +94,9 @@ async function markPaymentPaid({ razorpayOrderId, razorpayPaymentId, razorpaySig
     return tx.order.update({
       where: { id: payment.orderId },
       data: {
-        status: 'CONFIRMED',
-        statusHistory: { create: { status: 'CONFIRMED', note: 'Payment received.' } },
+        // Keep the order as PENDING — the seller must manually confirm it.
+        // We only record that payment was received in the status history.
+        statusHistory: { create: { status: 'PENDING', note: 'Payment received.' } },
       },
       include: { items: true },
     });

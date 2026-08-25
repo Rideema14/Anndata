@@ -98,4 +98,10 @@ export const env = {
     resourceId: process.env.DATA_GOV_IN_RESOURCE_ID,
     baseUrl: process.env.DATA_GOV_IN_BASE_URL || 'https://api.data.gov.in/resource',
   },
+
+  tracking: {
+    apiKey: process.env.TRACKINGMORE_API_KEY,
+    simulate: process.env.TRACKING_SIMULATE === 'true',
+    pollIntervalMinutes: parseInt(process.env.TRACKING_POLL_MINUTES || '10', 10),
+  },
 };

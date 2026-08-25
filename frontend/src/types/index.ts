@@ -174,6 +174,8 @@ export interface SellerOrder {
   status: SellerOrderStatus
   placedAt: string
   updatedAt: string
+  trackingCarrier?: string
+  trackingNumber?: string
 }
 
 export type AiHistoryType = 'crop_advisor' | 'disease' | 'soil' | 'fertilizer' | 'chat'
@@ -193,6 +195,20 @@ export interface OrderItem {
   price: number
 }
 
+export interface ShipmentEvent {
+  id: string
+  status: string
+  description: string
+  location: string | null
+  eventTime: string
+  source: string
+}
+
+export interface Carrier {
+  code: string
+  name: string
+}
+
 export interface Order {
   id: string
   items: OrderItem[]
@@ -202,6 +218,9 @@ export interface Order {
   updatedAt: string
   address: string
   paymentMethod: string
+  trackingCarrier?: string
+  trackingNumber?: string
+  trackingUrl?: string
 }
 
 export interface OrderSummary {
