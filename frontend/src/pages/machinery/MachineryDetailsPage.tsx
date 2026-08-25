@@ -11,9 +11,26 @@ import { useMachinery } from '@/context/MachineryContext'
 import { formatINR } from '@/utils/format'
 
 function addDaysToDateString(dateStr: string, days: number): string {
-  const d = new Date(`${dateStr}T00:00:00`)
-  d.setDate(d.getDate() + days)
+  // Do the math in UTC only. Parsing "YYYY-MM-DDT00:00:00" (no Z) reads the
+  // date in the browser's LOCAL timezone, but .toISOString() always writes
+  // it back out in UTC — so in any timezone ahead of UTC (like India,
+  // UTC+5:30) the result silently rolls back to the previous day. That was
+  // producing an end date before the start date and tripping the "start
+  // date must be before end date" booking error.
+  const [year, month, day] = dateStr.split('-').map(Number)
+  const d = new Date(Date.UTC(year, month - 1, day))
+  d.setUTCDate(d.getUTCDate() + days)
   return d.toISOString().slice(0, 10)
+}
+
+/** Turns a technical backend error into plain, everyday language for the booking form. */
+function friendlyBookingError(message: string): string {
+  const m = message.toLowerCase()
+  if (m.includes('past')) return "That start date has already passed. Please pick today or a later date."
+  if (m.includes('start') && m.includes('end')) return "Please check your dates — the start date should come before the end date."
+  if (m.includes('available') || m.includes('unit')) return "Not enough machines are free for those dates. Try different dates or fewer units."
+  if (m.includes('validation')) return "Something in the form doesn't look right. Please check your dates and try again."
+  return message
 }
 
 export default function MachineryDetailsPage() {
@@ -65,7 +82,7 @@ export default function MachineryDetailsPage() {
   if (notFound || !machine) {
     return (
       <div className="mx-auto max-w-md px-6 py-16 text-center">
-        <p className="text-sm text-ink-500">Listing not found.</p>
+        <p className="text-sm text-ink-500">We couldn't find this machine.</p>
         <Link to="/machinery" className="mt-3 inline-block text-sm font-semibold text-brand-600 hover:underline">
           Back to Machinery Rental
         </Link>
@@ -110,7 +127,7 @@ export default function MachineryDetailsPage() {
       await refreshBookings()
       setConfirmed({ bookingNumber: booking.bookingNumber, total: booking.totalPrice })
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Could not complete the booking. Please try again.'))
+      setError(friendlyBookingError(getApiErrorMessage(err, 'Could not complete the booking. Please try again.')))
     } finally {
       setIsBooking(false)
     }
@@ -137,7 +154,7 @@ export default function MachineryDetailsPage() {
     )
   }
 
-  const total = machine.pricePerDay * days * quantity
+  const total = machine.pricePerDay * Math.max(1, days) * Math.max(1, quantity)
 
   return (
     <div className="mx-auto max-w-lg px-4 py-5 md:px-6 md:py-8">
@@ -178,33 +195,41 @@ export default function MachineryDetailsPage() {
 
       {machine.available ? (
         <form onSubmit={handleSubmit} className="mt-6 rounded-2xl border border-ink-100 bg-surface p-4">
-          <h2 className="mb-3 text-sm font-semibold text-ink-800">Book this machinery</h2>
+          <h2 className="mb-3 text-sm font-semibold text-ink-800">Rent This Machine</h2>
           <div className="grid grid-cols-2 gap-3">
-            <TextField id="start-date" label="Start Date" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
-            <TextField id="days" label="Number of Days" type="number" min={1} value={days} onChange={(e) => setDays(Number(e.target.value))} required />
+            <TextField id="start-date" label="When do you need it?" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
+            <TextField
+              id="days"
+              label="How many days?"
+              type="number"
+              min={1}
+              value={days}
+              onChange={(e) => setDays(Math.max(1, Number(e.target.value) || 1))}
+              required
+            />
           </div>
           {machine.totalUnits > 1 && (
             <TextField
               id="quantity"
-              label={`Units (up to ${machine.totalUnits})`}
+              label={`How many machines? (up to ${machine.totalUnits})`}
               type="number"
               min={1}
               max={machine.totalUnits}
               value={quantity}
-              onChange={(e) => setQuantity(Number(e.target.value))}
+              onChange={(e) => setQuantity(Math.max(1, Math.min(machine.totalUnits, Number(e.target.value) || 1)))}
             />
           )}
           <p className="mb-3 text-sm text-ink-500">
-            Total: <span className="font-bold text-ink-900">{formatINR(total)}</span>
+            You will pay: <span className="font-bold text-ink-900">{formatINR(total)}</span>
           </p>
           {error && <p className="mb-3 text-xs font-medium text-danger-500">{error}</p>}
           <Button type="submit" fullWidth loading={isBooking}>
-            {isAuthenticated ? 'Confirm Booking' : 'Log in to Book'}
+            {isAuthenticated ? 'Book Now' : 'Log In to Book'}
           </Button>
         </form>
       ) : (
         <p className="mt-6 rounded-2xl bg-danger-50 p-4 text-center text-sm font-medium text-danger-600">
-          This listing is currently unavailable.
+          This machine isn't available for rent right now.
         </p>
       )}
     </div>

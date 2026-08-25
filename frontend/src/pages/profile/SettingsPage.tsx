@@ -4,6 +4,7 @@ import { Bell, Check, Globe, LogOut, MessageSquareText, Smartphone } from 'lucid
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { cn } from '@/utils/cn'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 
 function Toggle({ checked, onChange, label }: { checked: boolean; onChange: () => void; label: string }) {
   return (
@@ -30,8 +31,10 @@ export default function SettingsPage() {
   const { language, setLanguage, supportedLanguages, t } = useLanguage()
   const navigate = useNavigate()
   const [notifs, setNotifs] = useState({ mandi: true, orders: true, ai: true, sms: false })
+  const [confirmingLogout, setConfirmingLogout] = useState(false)
 
   async function handleLogout() {
+    setConfirmingLogout(false)
     await logout()
     navigate('/login')
   }
@@ -102,12 +105,22 @@ export default function SettingsPage() {
 
       <button
         type="button"
-        onClick={handleLogout}
+        onClick={() => setConfirmingLogout(true)}
         className="flex w-full items-center justify-center gap-2 rounded-full border border-danger-200 py-2.5 text-sm font-semibold text-danger-500 hover:bg-danger-50"
       >
         <LogOut className="h-4 w-4" aria-hidden="true" />
         {t('nav.logout')}
       </button>
+
+      <ConfirmDialog
+        open={confirmingLogout}
+        title="Log out?"
+        message="You'll need to log in again to access your account."
+        confirmLabel="Log Out"
+        variant="danger"
+        onCancel={() => setConfirmingLogout(false)}
+        onConfirm={handleLogout}
+      />
     </div>
   )
 }

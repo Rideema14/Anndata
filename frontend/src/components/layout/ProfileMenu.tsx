@@ -4,6 +4,7 @@ import { ChevronRight, LogOut, Settings, User } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { cn } from '@/utils/cn'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 
 function initials(name: string): string {
   return name
@@ -18,6 +19,7 @@ export function ProfileMenu({ className }: { className?: string }) {
   const { user, isSeller, isAdmin, logout } = useAuth()
   const { t } = useLanguage()
   const [open, setOpen] = useState(false)
+  const [confirmingLogout, setConfirmingLogout] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -111,7 +113,7 @@ export function ProfileMenu({ className }: { className?: string }) {
               type="button"
               onClick={() => {
                 setOpen(false)
-                logout()
+                setConfirmingLogout(true)
               }}
               className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-danger-500 hover:bg-danger-50"
             >
@@ -121,6 +123,19 @@ export function ProfileMenu({ className }: { className?: string }) {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmingLogout}
+        title="Log out?"
+        message="You'll need to log in again to access your account."
+        confirmLabel="Log Out"
+        variant="danger"
+        onCancel={() => setConfirmingLogout(false)}
+        onConfirm={() => {
+          setConfirmingLogout(false)
+          logout()
+        }}
+      />
     </div>
   )
 }

@@ -134,7 +134,7 @@ export default function SellerMachineryPage() {
       </Link>
 
       <div className="mb-5 flex items-center justify-between">
-        <h1 className="text-xl">Machinery Management</h1>
+        <h1 className="text-xl">My Machines for Rent</h1>
         <Link to="/seller/add-machinery" className="flex items-center gap-1.5 rounded-full bg-brand-600 px-4 py-2 text-xs font-semibold text-white">
           <PlusSquare className="h-3.5 w-3.5" aria-hidden="true" />
           Add
@@ -145,10 +145,10 @@ export default function SellerMachineryPage() {
 
       {stats && (
         <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <StatCard label="Active Listings" value={stats.activeListings} />
-          <StatCard label="Bookings to Fulfill" value={stats.bookingsToFulfill} />
-          <StatCard label="Renting Today" value={stats.activeRentalsToday} />
-          <StatCard label="Revenue (30d)" value={formatINR(stats.revenueLast30Days)} />
+          <StatCard label="Live Listings" value={stats.activeListings} />
+          <StatCard label="Bookings to Handle" value={stats.bookingsToFulfill} />
+          <StatCard label="Out on Rent Today" value={stats.activeRentalsToday} />
+          <StatCard label="Earnings (30 days)" value={formatINR(stats.revenueLast30Days)} />
         </div>
       )}
 
@@ -158,7 +158,7 @@ export default function SellerMachineryPage() {
       >
         <span className="flex items-center gap-2 font-medium text-ink-800">
           <BarChart3 className="h-4 w-4 text-brand-600" aria-hidden="true" />
-          Total lifetime revenue
+          Total earnings so far
         </span>
         <span className="font-semibold text-ink-900">{stats ? formatINR(stats.totalRevenue) : '—'}</span>
       </Link>
@@ -197,7 +197,7 @@ export default function SellerMachineryPage() {
                 <div className="min-w-0 flex-1">
                   <p className="line-clamp-1 text-sm font-medium text-ink-900">{listing.name}</p>
                   <p className="text-xs text-ink-400">
-                    {formatINR(listing.pricePerDay)}/day · {listing.totalUnits} unit{listing.totalUnits > 1 ? 's' : ''}
+                    {formatINR(listing.pricePerDay)}/day · {listing.totalUnits} machine{listing.totalUnits > 1 ? 's' : ''}
                   </p>
                 </div>
                 <span
@@ -235,7 +235,7 @@ export default function SellerMachineryPage() {
       ) : bookings.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-14 text-center">
           <Calendar className="mb-3 h-10 w-10 text-ink-300" aria-hidden="true" />
-          <p className="text-sm text-ink-500">No one has booked your machinery yet.</p>
+          <p className="text-sm text-ink-500">No one has booked your machines yet.</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -250,7 +250,7 @@ export default function SellerMachineryPage() {
                   </p>
                   <p className="mt-0.5 text-xs text-ink-500">
                     {new Date(booking.startDate).toLocaleDateString()} – {new Date(booking.endDate).toLocaleDateString()}
-                    {booking.quantity > 1 ? ` · ${booking.quantity} units` : ''}
+                    {booking.quantity > 1 ? ` · ${booking.quantity} machines` : ''}
                   </p>
                 </div>
                 <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize', STATUS_STYLE[booking.status])}>
@@ -302,9 +302,9 @@ function EmptyState() {
   return (
     <div className="flex flex-col items-center justify-center py-14 text-center">
       <Tractor className="mb-3 h-10 w-10 text-ink-300" aria-hidden="true" />
-      <p className="text-sm text-ink-500">You haven't listed any machinery yet.</p>
+      <p className="text-sm text-ink-500">You haven't added any machines yet.</p>
       <Link to="/seller/add-machinery" className="mt-4 rounded-full bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700">
-        List Machinery
+        Add a Machine
       </Link>
     </div>
   )

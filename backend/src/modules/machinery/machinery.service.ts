@@ -140,7 +140,7 @@ export async function getMachineryAvailability(machineryId: string, startDate: D
   const machinery = await prisma.machinery.findUnique({ where: { id: machineryId } });
   if (!machinery || !machinery.isActive) throw ApiError.notFound('Machinery listing not found.');
   if (startDate < new Date(new Date().toDateString())) {
-    throw ApiError.badRequest('startDate cannot be in the past.');
+    throw ApiError.badRequest('You cannot book a start date that has already passed. Please choose today or a later date.');
   }
 
   const result = await checkAvailability(prisma, machineryId, machinery.totalUnits, machinery.bufferDays, startDate, endDate);
@@ -158,7 +158,7 @@ export async function createMachinery(seller: User, data: MachineryCreateInput) 
   const { discountTiers, ...machineryData } = data;
 
   const category = await prisma.machineryCategory.findUnique({ where: { id: machineryData.categoryId } });
-  if (!category) throw ApiError.badRequest('categoryId does not exist.');
+  if (!category) throw ApiError.badRequest('Please choose a valid category.');
 
   const baseSlug = slugify(machineryData.name);
   const clash = await prisma.machinery.findUnique({ where: { slug: baseSlug } });

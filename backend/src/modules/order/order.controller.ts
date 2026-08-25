@@ -44,9 +44,10 @@ export const cancel = asyncHandler(async (req, res) => {
 /** Returns the shipment tracking timeline for a given order. */
 export const getTracking = asyncHandler(async (req, res) => {
   if (!req.user) throw ApiError.unauthorized('Authentication required.');
-  // Verify the user can view this order first
-  await orderService.getOrderById(req.params.id, req.user);
-  const events = await getTrackingTimeline(req.params.id);
+  // Resolve first (accepts either the internal id or the order number) so
+  // we look up tracking events against the order's real internal id.
+  const order = await orderService.getOrderById(req.params.id, req.user);
+  const events = await getTrackingTimeline(order.id);
   ApiResponse.ok(res, events);
 });
 

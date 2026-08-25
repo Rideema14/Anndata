@@ -201,16 +201,23 @@ export async function listOrders(user: User, query: ListOrdersQuery) {
   return { items, meta: buildPaginationMeta(page, limit, totalItems) };
 }
 
-export async function getOrderById(orderId: string, user: User) {
-  const order = await prisma.order.findUnique({ where: { id: orderId }, include: ORDER_INCLUDE_DETAIL });
+export async function getOrderById(idOrNumber: string, user: User) {
+  const order = await prisma.order.findFirst({
+    where: { OR: [{ id: idOrNumber }, { orderNumber: idOrNumber }] },
+    include: ORDER_INCLUDE_DETAIL,
+  });
   if (!order) throw ApiError.notFound('Order not found.');
   assertCanView(order, user);
   return order;
 }
 
-export async function updateStatus(orderId: string, user: User, { status, note, trackingCarrier, trackingNumber }: UpdateStatusInput) {
-  const order = await prisma.order.findUnique({ where: { id: orderId }, include: ORDER_INCLUDE_DETAIL });
+export async function updateStatus(idOrNumber: string, user: User, { status, note, trackingCarrier, trackingNumber }: UpdateStatusInput) {
+  const order = await prisma.order.findFirst({
+    where: { OR: [{ id: idOrNumber }, { orderNumber: idOrNumber }] },
+    include: ORDER_INCLUDE_DETAIL,
+  });
   if (!order) throw ApiError.notFound('Order not found.');
+  const orderId = order.id;
 
   if (user.role !== 'ADMIN') {
     const isSellerOnOrder = order.items.some((item) => item.product?.sellerId === user.id);
@@ -281,9 +288,13 @@ export async function updateStatus(orderId: string, user: User, { status, note, 
   return updated;
 }
 
-export async function cancelOrder(orderId: string, user: User, { reason }: CancelOrderInput) {
-  const order = await prisma.order.findUnique({ where: { id: orderId }, include: ORDER_INCLUDE_DETAIL });
+export async function cancelOrder(idOrNumber: string, user: User, { reason }: CancelOrderInput) {
+  const order = await prisma.order.findFirst({
+    where: { OR: [{ id: idOrNumber }, { orderNumber: idOrNumber }] },
+    include: ORDER_INCLUDE_DETAIL,
+  });
   if (!order) throw ApiError.notFound('Order not found.');
+  const orderId = order.id;
 
   if (user.role !== 'ADMIN' && order.userId !== user.id) {
     throw ApiError.forbidden('You do not have permission to cancel this order.');

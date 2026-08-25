@@ -52,7 +52,7 @@ export const machineryQuerySchema = z
     sortBy: z.enum(['newest', 'price_asc', 'price_desc', 'rating', 'popular']).default('newest'),
   })
   .refine((data) => !(data.startDate && data.endDate) || data.startDate <= data.endDate, {
-    message: 'startDate must be on or before endDate',
+    message: 'Please choose an end date that is on or after the start date.',
     path: ['startDate'],
   });
 export type MachineryQuery = z.infer<typeof machineryQuerySchema>;
@@ -64,7 +64,7 @@ export const availabilityQuerySchema = z
     quantity: z.coerce.number().int().positive().default(1),
   })
   .refine((data) => data.startDate <= data.endDate, {
-    message: 'startDate must be on or before endDate',
+    message: 'Please choose an end date that is on or after the start date.',
     path: ['startDate'],
   });
 export type AvailabilityQuery = z.infer<typeof availabilityQuerySchema>;
@@ -79,7 +79,7 @@ export const createBookingSchema = z
     notes: z.string().trim().max(500).optional(),
   })
   .refine((data) => data.startDate <= data.endDate, {
-    message: 'startDate must be on or before endDate',
+    message: 'Please choose an end date that is on or after the start date.',
     path: ['startDate'],
   });
 export type CreateBookingInput = z.infer<typeof createBookingSchema>;

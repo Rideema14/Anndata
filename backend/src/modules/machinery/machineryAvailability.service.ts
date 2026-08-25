@@ -104,8 +104,8 @@ export async function assertAvailable(
   if (availableQuantity < quantity) {
     throw ApiError.conflict(
       availableQuantity <= 0
-        ? 'No units are available for those dates.'
-        : `Only ${availableQuantity} unit(s) available for those dates.`
+        ? 'No machines are free for those dates. Please try different dates.'
+        : `Only ${availableQuantity} machine(s) free for those dates. Please reduce the amount or pick different dates.`
     );
   }
 }

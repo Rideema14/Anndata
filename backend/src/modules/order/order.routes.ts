@@ -8,7 +8,12 @@ import { checkoutSchema, updateStatusSchema, listOrdersQuerySchema, cancelOrderS
 
 const router = Router();
 
-const idParamSchema = z.object({ id: z.string().uuid() });
+// The frontend addresses orders by their human-readable order number
+// (e.g. "ORD-20260825-1234") in the URL, and only opportunistically caches
+// the real UUID in memory once it's seen one. On a refresh, bookmark, or
+// shared link that cache is empty, so this must accept either form — the
+// service layer resolves whichever one it gets.
+const idParamSchema = z.object({ id: z.string().trim().min(1) });
 
 router.use(authenticate);
 

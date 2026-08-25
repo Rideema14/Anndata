@@ -74,7 +74,7 @@ async function runSerializable<T>(fn: (tx: Prisma.TransactionClient) => Promise<
 export async function createBooking(userId: string, data: CreateBookingInput): Promise<BookingWithDetail> {
   const today = new Date(new Date().toDateString());
   if (data.startDate < today) {
-    throw ApiError.badRequest('startDate cannot be in the past.');
+    throw ApiError.badRequest('You cannot book a start date that has already passed. Please choose today or a later date.');
   }
 
   if (data.addressId) {

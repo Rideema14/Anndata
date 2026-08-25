@@ -102,8 +102,8 @@ export default function AddMachineryListingPage() {
         <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
         Seller Hub
       </Link>
-      <h1 className="mb-1 text-xl">List Machinery for Rent</h1>
-      <p className="mb-5 text-sm text-ink-500">Publish a tractor, tool, or implement for other farmers to rent.</p>
+      <h1 className="mb-1 text-xl">Add a Machine for Rent</h1>
+      <p className="mb-5 text-sm text-ink-500">Add your tractor or tool here so other farmers nearby can rent it from you.</p>
 
       <form onSubmit={handleSubmit}>
         {isLoadingCategories ? (
@@ -126,18 +126,18 @@ export default function AddMachineryListingPage() {
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <TextField id="price" label="Rental Price per Day (₹)" type="number" value={pricePerDay} onChange={(e) => setPricePerDay(e.target.value)} required />
-          <TextField id="units" label="Number of Units" type="number" min={1} value={totalUnits} onChange={(e) => setTotalUnits(e.target.value)} required />
+          <TextField id="price" label="Price per Day (₹)" type="number" value={pricePerDay} onChange={(e) => setPricePerDay(e.target.value)} required />
+          <TextField id="units" label="How many do you have?" type="number" min={1} value={totalUnits} onChange={(e) => setTotalUnits(e.target.value)} required />
         </div>
 
         <TextField
           id="buffer"
-          label="Buffer Days Between Bookings"
+          label="Rest days after each rental"
           type="number"
           min={0}
           value={bufferDays}
           onChange={(e) => setBufferDays(e.target.value)}
-          hint="Recovery time needed after a rental before the same unit goes out again."
+          hint="Days to clean or service the machine before it goes out again. Enter 0 if it can go straight to the next renter."
         />
 
         <TextAreaField id="description" label="Description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Condition, attachments, operator availability…" />
@@ -155,7 +155,7 @@ export default function AddMachineryListingPage() {
         {error && <p className="mb-3 text-sm font-medium text-danger-500">{error}</p>}
 
         <Button type="submit" fullWidth loading={isPublishing} disabled={!categoryId}>
-          Publish Listing
+          Add My Machine
         </Button>
       </form>
     </div>
