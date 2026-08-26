@@ -1,9 +1,12 @@
 import { lazy } from "react";
-import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { createBrowserRouter, Navigate, RouterProvider } from "react-router-dom";
 
 import { AppLayout } from "@/layouts/AppLayout";
 import { AuthLayout } from "@/layouts/AuthLayout";
 import { NotFoundPage } from "@/pages/NotFoundPage";
+import { RequireAuth } from "@/routes/RequireAuth";
+import { GuestOnly } from "@/routes/GuestOnly";
+import { useAuth } from "@/context/AuthContext";
 
 // Always-loaded
 import HomePage from "@/pages/home/HomePage";
@@ -161,53 +164,75 @@ const AdminAnalyticsPage = lazy(
 );
 
 // =====================================================
+// ROOT ROUTE HELPER
+// =====================================================
+
+/** Renders the marketing LandingPage for guests; sends a signed-in visitor
+ *  straight to /home instead, so a persisted session never shows the
+ *  "Login / Register" landing page again. */
+function LandingOrHome() {
+  const { isAuthenticated } = useAuth();
+  if (isAuthenticated) return <Navigate to="/home" replace />;
+  return <LandingPage />;
+}
+
+// =====================================================
 // ROUTER
 // =====================================================
 
 const router = createBrowserRouter([
   // ===================================================
-  // PUBLIC LANDING PAGE
+  // PUBLIC LANDING PAGE (skipped straight to /home if already logged in,
+  // so a returning, still-signed-in visitor never has to hit "Login" again)
   // ===================================================
   {
     path: "/",
-    element: <LandingPage />,
+    element: <LandingOrHome />,
   },
 
   // ===================================================
-  // AUTHENTICATION
+  // AUTHENTICATION (redirects away if already logged in)
   // ===================================================
   {
-    element: <AuthLayout />,
+    element: <GuestOnly />,
     children: [
       {
-        path: "/login",
-        element: <LoginPage />,
-      },
-      {
-        path: "/register",
-        element: <RegisterPage />,
-      },
-      {
-        path: "/otp-verification",
-        element: <OtpVerificationPage />,
-      },
-      {
-        path: "/forgot-password",
-        element: <ForgotPasswordPage />,
-      },
-      {
-        path: "/reset-password",
-        element: <ResetPasswordPage />,
+        element: <AuthLayout />,
+        children: [
+          {
+            path: "/login",
+            element: <LoginPage />,
+          },
+          {
+            path: "/register",
+            element: <RegisterPage />,
+          },
+          {
+            path: "/otp-verification",
+            element: <OtpVerificationPage />,
+          },
+          {
+            path: "/forgot-password",
+            element: <ForgotPasswordPage />,
+          },
+          {
+            path: "/reset-password",
+            element: <ResetPasswordPage />,
+          },
+        ],
       },
     ],
   },
 
   // ===================================================
-  // APPLICATION / LOGGED-IN AREA
+  // APPLICATION / LOGGED-IN AREA (requires an active session)
   // ===================================================
   {
-    element: <AppLayout />,
+    element: <RequireAuth />,
     children: [
+      {
+        element: <AppLayout />,
+        children: [
       // Home
       {
         path: "/home",
@@ -475,6 +500,8 @@ const router = createBrowserRouter([
       {
         path: "*",
         element: <NotFoundPage />,
+      },
+        ],
       },
     ],
   },

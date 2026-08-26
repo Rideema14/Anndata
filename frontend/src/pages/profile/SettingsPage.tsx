@@ -36,7 +36,7 @@ export default function SettingsPage() {
   async function handleLogout() {
     setConfirmingLogout(false)
     await logout()
-    navigate('/login')
+    navigate('/login', { replace: true })
   }
 
   return (

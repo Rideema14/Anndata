@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { ChevronRight, LogOut, Settings, User } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
@@ -18,6 +18,7 @@ function initials(name: string): string {
 export function ProfileMenu({ className }: { className?: string }) {
   const { user, isSeller, isAdmin, logout } = useAuth()
   const { t } = useLanguage()
+  const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [confirmingLogout, setConfirmingLogout] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -133,7 +134,7 @@ export function ProfileMenu({ className }: { className?: string }) {
         onCancel={() => setConfirmingLogout(false)}
         onConfirm={() => {
           setConfirmingLogout(false)
-          logout()
+          logout().then(() => navigate('/login', { replace: true }))
         }}
       />
     </div>
