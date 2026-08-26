@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowRight,
-  ShoppingBag,
+  Tractor,
   Sprout,
   User,
   Menu,
@@ -12,6 +12,7 @@ import {
 
 import { PlantGrowthSection } from '@/components/layout/PlantGrowthSection'
 import { ServicesSection } from '@/components/layout/ServiceSection'
+import { ContactSection } from '@/components/layout/ContactSection'
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher'
 
 export default function LandingPage() {
@@ -262,7 +263,7 @@ export default function LandingPage() {
                 sm:text-xl
               "
             >
-              Anndataa
+              FarmVerse
             </span>
           </Link>
 
@@ -381,10 +382,10 @@ export default function LandingPage() {
               />
             </a>
 
-            {/* ECOSYSTEM */}
+            {/* CONTACT */}
 
             <a
-              href="#features"
+              href="#contact"
               className="
                 group
                 relative
@@ -394,7 +395,7 @@ export default function LandingPage() {
                 hover:text-white
               "
             >
-              <span>Ecosystem</span>
+              <span>Contact</span>
 
               <span
                 className="
@@ -603,14 +604,14 @@ export default function LandingPage() {
               <ChevronRight className="h-4 w-4 text-[#7d806f]" />
             </a>
 
-            {/* ECOSYSTEM */}
+            {/* CONTACT */}
 
             <a
-              href="#features"
+              href="#contact"
               onClick={() => setMobileMenuOpen(false)}
               className={mobileLinkClass}
             >
-              <span>Ecosystem</span>
+              <span>Contact</span>
 
               <ChevronRight className="h-4 w-4 text-[#7d806f]" />
             </a>
@@ -680,8 +681,8 @@ export default function LandingPage() {
 
         <div className="absolute inset-0 z-0">
           <img
-            src="https://images.unsplash.com/photo-1623958045855-0b7a60cfb9eb?q=80&w=870&auto=format&fit=crop"
-            alt="Farmers harvesting crop in field"
+            src="https://images.unsplash.com/photo-1592982537447-7440770cbfc9?q=80&w=1600&auto=format&fit=crop"
+            alt="Tractor working a farm field"
             className="
               h-full
               w-full
@@ -742,7 +743,7 @@ export default function LandingPage() {
                 lg:text-[96px]
               "
             >
-              Every Meal
+              Rent Machines.
             </h1>
 
             <div
@@ -771,7 +772,7 @@ export default function LandingPage() {
                   lg:text-8xl
                 "
               >
-                begins with
+                Lease Land.
               </span>
 
               <h2
@@ -785,7 +786,7 @@ export default function LandingPage() {
                   lg:text-[96px]
                 "
               >
-                a Farmer.
+                Sell Smart.
               </h2>
             </div>
           </div>
@@ -804,9 +805,9 @@ export default function LandingPage() {
               md:text-lg
             "
           >
-            Empowering agricultural communities with direct
-            produce markets, real-time mandi prices, modern
-            equipment rentals, and AI-driven crop intelligence.
+            Book tractors and harvesters by the day, find farmland to lease
+            near you, and track live mandi prices across 2,500+ markets —
+            everything your farm needs, in one place.
           </p>
 
           {/* CTA BUTTONS */}
@@ -849,9 +850,9 @@ export default function LandingPage() {
                 sm:py-4
               "
             >
-              <ShoppingBag className="h-4 w-4 sm:h-5 sm:w-5" />
+              <Tractor className="h-4 w-4 sm:h-5 sm:w-5" />
 
-              Explore Marketplace
+              Browse Machinery
             </Link>
 
             <Link
@@ -897,6 +898,12 @@ export default function LandingPage() {
       ===================================================== */}
 
       <ServicesSection />
+
+      {/* =====================================================
+          CONTACT
+      ===================================================== */}
+
+      <ContactSection />
     </div>
   )
 }

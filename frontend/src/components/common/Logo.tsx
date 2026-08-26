@@ -14,7 +14,7 @@ export function Logo({ className, showWordmark = true }: LogoProps) {
               </span>
             </div>
       {showWordmark && (
-        <span className="font-display text-lg font-extrabold tracking-tight text-ink-900">Anndataa</span>
+        <span className="font-display text-lg font-extrabold tracking-tight text-ink-900">FarmVerse</span>
       )}
     </span>
   )
