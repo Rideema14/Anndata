@@ -1,5 +1,7 @@
 import type { Content, Part } from '@google/genai';
+import { toFile } from 'groq-sdk';
 import genai from '../../config/gemini';
+import groq, { isGroqConfigured } from '../../config/groq';
 import { env } from '../../config/env';
 import ApiError from '../../common/utils/ApiError';
 import logger from '../../common/utils/logger';
@@ -17,9 +19,30 @@ export interface AiMessage {
 const TTS_SAMPLE_RATE = 24000;
 
 /**
+ * This module is a small router in front of two providers, not a single
+ * client. Text-only chat/advisory calls and voice transcription go to Groq
+ * when it's configured, because Groq's LPU inference is several times
+ * faster than Gemini for both — and a farmer waiting on a voice-assistant
+ * reply feels every extra second. Image-based calls (disease detection)
+ * always stay on Gemini: Groq's only multimodal model is a preview model
+ * that Groq's own docs say isn't meant for production, and "usually
+ * diagnoses your crop correctly" isn't good enough. If Groq is unset, or a
+ * Groq call fails for any reason, everything transparently falls back to
+ * Gemini — callers of chatComplete/chatCompleteJson/transcribeAudio/
+ * synthesizeSpeech never need to know or care which provider actually
+ * answered.
+ */
+
+// ---------------------------------------------------------------------------
+// Gemini implementation (vision-capable chat/JSON, fallback transcription,
+// default TTS)
+// ---------------------------------------------------------------------------
+
+/**
  * Downloads an image and returns it as base64 inline data, since Gemini's
  * generateContent takes image bytes directly rather than a fetchable URL
- * (unlike OpenAI's image_url, which the model fetched server-side itself).
+ * (unlike OpenAI/Groq's image_url, which the model fetches server-side
+ * itself).
  */
 async function urlToInlineImage(url: string): Promise<Part> {
   let res: Response;
@@ -77,7 +100,7 @@ async function toGeminiRequest(messages: AiMessage[]): Promise<{ systemInstructi
   return { systemInstruction, contents };
 }
 
-async function callGenerateContent(messages: AiMessage[], jsonMode: boolean): Promise<string> {
+async function geminiGenerateContent(messages: AiMessage[], jsonMode: boolean): Promise<string> {
   try {
     const { systemInstruction, contents } = await toGeminiRequest(messages);
 
@@ -102,36 +125,16 @@ async function callGenerateContent(messages: AiMessage[], jsonMode: boolean): Pr
   }
 }
 
-/** Plain-text reply — used for open-ended chat. */
-export async function chatComplete(messages: AiMessage[]): Promise<string> {
-  return callGenerateContent(messages, false);
-}
-
 /**
- * Structured reply — used for every one-shot advisory type. json_object mode
- * (responseMimeType: 'application/json') guarantees syntactically valid
- * JSON, so a parse failure here would mean something is genuinely wrong
- * upstream, not a normal case to design around.
+ * Transcribes an uploaded audio file to text via Gemini. This is the
+ * fallback path (used when Groq is unset or a Groq transcription call
+ * fails) — Gemini has no dedicated transcription endpoint, so audio is
+ * transcribed by passing it as multimodal input to generateContent with an
+ * instruction to transcribe verbatim. The mimetype from a browser recording
+ * often carries a codec suffix (e.g. 'audio/webm;codecs=opus'), which
+ * Gemini doesn't expect, so it's stripped down to the bare type.
  */
-export async function chatCompleteJson<T>(messages: AiMessage[]): Promise<T> {
-  const raw = await callGenerateContent(messages, true);
-  try {
-    return JSON.parse(raw) as T;
-  } catch (err) {
-    logger.error(`Gemini returned non-JSON despite json_object mode: ${raw.slice(0, 500)}`);
-    throw ApiError.internal('The AI service returned a response we could not parse. Please try again.');
-  }
-}
-
-/**
- * Transcribes an uploaded audio file to text. Gemini has no dedicated
- * transcription endpoint (unlike OpenAI's Whisper) — audio is transcribed by
- * passing it as multimodal input to generateContent with an instruction to
- * transcribe verbatim. The mimetype from a browser recording often carries a
- * codec suffix (e.g. 'audio/webm;codecs=opus'), which Gemini doesn't expect,
- * so it's stripped down to the bare type.
- */
-export async function transcribeAudio(buffer: Buffer, filename: string, mimetype: string): Promise<string> {
+async function geminiTranscribeAudio(buffer: Buffer, filename: string, mimetype: string): Promise<string> {
   try {
     const bareMimeType = mimetype.split(';')[0].trim() || 'audio/webm';
 
@@ -161,8 +164,8 @@ export async function transcribeAudio(buffer: Buffer, filename: string, mimetype
   }
 }
 
-/** Synthesizes speech from text, returning raw MP3-equivalent audio bytes as a playable WAV file. */
-export async function synthesizeSpeech(text: string): Promise<Buffer> {
+/** Synthesizes speech from text via Gemini, returning a playable WAV file. */
+async function geminiSynthesizeSpeech(text: string): Promise<Buffer> {
   try {
     const response = await genai.models.generateContent({
       model: env.gemini.ttsModel,
@@ -176,9 +179,9 @@ export async function synthesizeSpeech(text: string): Promise<Buffer> {
     const base64Pcm = response.data;
     if (!base64Pcm) throw ApiError.internal('The AI service returned no audio.');
 
-    // Gemini TTS returns headerless 16-bit PCM, not a ready-to-play file like
-    // OpenAI's MP3 was — wrap it in a WAV header so every downstream
-    // consumer (Cloudinary, <audio> tags) can play it directly.
+    // Gemini TTS returns headerless 16-bit PCM, not a ready-to-play file —
+    // wrap it in a WAV header so every downstream consumer (Cloudinary,
+    // <audio> tags) can play it directly.
     const pcm = Buffer.from(base64Pcm, 'base64');
     return pcmToWav(pcm, { sampleRate: TTS_SAMPLE_RATE, channels: 1, bitDepth: 16 });
   } catch (err) {
@@ -187,4 +190,148 @@ export async function synthesizeSpeech(text: string): Promise<Buffer> {
     logger.error(`Gemini speech synthesis failed: ${message}`);
     throw ApiError.internal('Could not generate speech audio. Please try again.');
   }
+}
+
+// ---------------------------------------------------------------------------
+// Groq implementation (fast text-only chat/JSON, fast transcription,
+// optional TTS)
+// ---------------------------------------------------------------------------
+
+/** True if any message carries an image block — these calls must go to Gemini. */
+function needsVision(messages: AiMessage[]): boolean {
+  return messages.some((m) => Array.isArray(m.content) && m.content.some((b) => b.type === 'image_url'));
+}
+
+/** Flattens an AiMessage's content to plain text for Groq, which is text-only here by construction. */
+function flattenText(content: string | AiContentBlock[]): string {
+  if (typeof content === 'string') return content;
+  return content
+    .filter((b): b is Extract<AiContentBlock, { type: 'text' }> => b.type === 'text')
+    .map((b) => b.text)
+    .join('\n');
+}
+
+async function groqGenerateContent(messages: AiMessage[], jsonMode: boolean): Promise<string> {
+  const completion = await groq.chat.completions.create({
+    model: env.groq.chatModel,
+    messages: messages.map((m) => ({ role: m.role, content: flattenText(m.content) })),
+    temperature: 0.4, // advisory answers should be fairly consistent, not creative
+    // Groq's reasoning models default to spending time "thinking" before
+    // answering; advisory replies don't need that, and skipping it is most
+    // of where Groq's speed advantage over Gemini actually comes from.
+    reasoning_effort: 'low',
+    response_format: jsonMode ? { type: 'json_object' } : undefined,
+  });
+
+  const text = completion.choices[0]?.message?.content;
+  if (!text) throw new Error('Groq returned an empty response.');
+  return text;
+}
+
+/** Transcribes audio via Groq's dedicated Whisper Large v3 Turbo endpoint. */
+async function groqTranscribeAudio(buffer: Buffer, filename: string, mimetype: string): Promise<string> {
+  const bareMimeType = mimetype.split(';')[0].trim() || 'audio/webm';
+  const file = await toFile(buffer, filename || 'audio.webm', { type: bareMimeType });
+
+  const transcription = await groq.audio.transcriptions.create({
+    model: env.groq.whisperModel,
+    file,
+    response_format: 'text',
+  });
+
+  // The SDK's TS types claim this always returns { text: string }, but with
+  // response_format: 'text' the API actually responds with a raw text/plain
+  // body and the client hands that back as a bare string — a known quirk
+  // inherited from the OpenAI-compatible SDK generator. Handling both shapes
+  // means this keeps working whichever one shows up.
+  return (typeof transcription === 'string' ? transcription : transcription.text || '').trim();
+}
+
+/** Synthesizes speech via Groq's Orpheus TTS. Returns a ready-to-play WAV — no PCM wrapping needed, unlike Gemini. */
+async function groqSynthesizeSpeech(text: string): Promise<Buffer> {
+  const response = await groq.audio.speech.create({
+    model: env.groq.ttsModel,
+    voice: env.groq.ttsVoice,
+    input: text,
+    response_format: 'wav',
+  });
+
+  return Buffer.from(await response.arrayBuffer());
+}
+
+// ---------------------------------------------------------------------------
+// Router — the only exports the rest of the app talks to
+// ---------------------------------------------------------------------------
+
+async function routeGenerateContent(messages: AiMessage[], jsonMode: boolean): Promise<string> {
+  if (needsVision(messages) || !isGroqConfigured) {
+    return geminiGenerateContent(messages, jsonMode);
+  }
+
+  try {
+    return await groqGenerateContent(messages, jsonMode);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.warn(`Groq chat completion failed, falling back to Gemini: ${message}`);
+    return geminiGenerateContent(messages, jsonMode);
+  }
+}
+
+/** Plain-text reply — used for open-ended chat. Routes to Groq when configured, Gemini otherwise/on failure. */
+export async function chatComplete(messages: AiMessage[]): Promise<string> {
+  return routeGenerateContent(messages, false);
+}
+
+/**
+ * Structured reply — used for every one-shot advisory type. Both providers'
+ * JSON modes guarantee syntactically valid JSON, so a parse failure here
+ * would mean something is genuinely wrong upstream, not a normal case to
+ * design around.
+ */
+export async function chatCompleteJson<T>(messages: AiMessage[]): Promise<T> {
+  const raw = await routeGenerateContent(messages, true);
+  try {
+    return JSON.parse(raw) as T;
+  } catch (err) {
+    logger.error(`AI provider returned non-JSON despite JSON mode: ${raw.slice(0, 500)}`);
+    throw ApiError.internal('The AI service returned a response we could not parse. Please try again.');
+  }
+}
+
+/**
+ * Transcribes an uploaded audio file to text. Tries Groq's Whisper Large v3
+ * Turbo first when configured (purpose-built for this, and noticeably
+ * faster than Gemini's multimodal workaround), falling back to Gemini on
+ * any failure so a Groq outage or rate limit never breaks the voice
+ * assistant outright.
+ */
+export async function transcribeAudio(buffer: Buffer, filename: string, mimetype: string): Promise<string> {
+  if (isGroqConfigured) {
+    try {
+      const transcript = await groqTranscribeAudio(buffer, filename, mimetype);
+      if (transcript) return transcript;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.warn(`Groq transcription failed (file: ${filename}), falling back to Gemini: ${message}`);
+    }
+  }
+  return geminiTranscribeAudio(buffer, filename, mimetype);
+}
+
+/**
+ * Synthesizes speech from text. Defaults to Gemini (free); set
+ * AI_TTS_PROVIDER=groq to use Groq's Orpheus voices instead, which are more
+ * expressive but billed per character. Falls back to Gemini if the Groq
+ * call fails for any reason.
+ */
+export async function synthesizeSpeech(text: string): Promise<Buffer> {
+  if (env.groq.ttsProvider === 'groq' && isGroqConfigured) {
+    try {
+      return await groqSynthesizeSpeech(text);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.warn(`Groq speech synthesis failed, falling back to Gemini: ${message}`);
+    }
+  }
+  return geminiSynthesizeSpeech(text);
 }

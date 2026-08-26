@@ -37,6 +37,14 @@ export function validateEnv(): void {
     // eslint-disable-next-line no-console
     console.warn('[ENV] RAZORPAY_WEBHOOK_SECRET is not set — the payment webhook endpoint will reject all events.');
   }
+
+  if (!process.env.GROQ_API_KEY) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      '[ENV] GROQ_API_KEY is not set — text chat/advisory and voice transcription will run on Gemini only ' +
+        '(noticeably slower than Groq for these). See .env.example; this is optional, not required.'
+    );
+  }
 }
 
 export const env = {
@@ -139,5 +147,36 @@ export const env = {
     // One of Gemini TTS's ~30 prebuilt voice names (see the TTS docs for the
     // full list) — Kore is a clear, neutral default; override freely.
     ttsVoice: process.env.GEMINI_TTS_VOICE || 'Kore',
+  },
+
+  groq: {
+    // Entirely optional — deliberately NOT in REQUIRED_VARS above, so the
+    // app runs fine on Gemini alone with this blank. When present,
+    // aiProvider.service.ts routes text chat/advisory and voice
+    // transcription through Groq instead (see that file for exactly which
+    // calls move and why), because Groq's LPU inference is dramatically
+    // faster than Gemini for both: openai/gpt-oss-120b runs at roughly
+    // 500 tokens/sec vs. Gemini Flash's typical throughput, and Whisper
+    // Large v3 Turbo is a purpose-built transcription endpoint rather than
+    // Gemini's "feed audio into a text model" workaround. Free tier, no
+    // card required: https://console.groq.com/keys.
+    apiKey: process.env.GROQ_API_KEY,
+    // openai/gpt-oss-120b is Groq's current flagship open-weight model and
+    // is what Groq itself recommends migrating to now that
+    // llama-3.3-70b-versatile has been retired (Aug 2026). Swap to
+    // openai/gpt-oss-20b for even higher free-tier throughput at a slight
+    // quality cost, or check https://console.groq.com/docs/models for
+    // what's current.
+    chatModel: process.env.GROQ_CHAT_MODEL || 'openai/gpt-oss-120b',
+    whisperModel: process.env.GROQ_WHISPER_MODEL || 'whisper-large-v3-turbo',
+    // Voice-assistant replies stay on Gemini TTS by default: it's free,
+    // while Groq's Orpheus voices are billed per character with no
+    // confirmed free tier as of mid-2026. Set AI_TTS_PROVIDER=groq to
+    // switch to Orpheus instead — its voices are more expressive and it
+    // returns a ready-to-play WAV directly, skipping the PCM-to-WAV
+    // wrapping Gemini's raw output needs.
+    ttsProvider: (process.env.AI_TTS_PROVIDER === 'groq' ? 'groq' : 'gemini') as 'groq' | 'gemini',
+    ttsModel: process.env.GROQ_TTS_MODEL || 'canopylabs/orpheus-v1-english',
+    ttsVoice: process.env.GROQ_TTS_VOICE || 'autumn',
   },
 };
