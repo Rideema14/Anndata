@@ -118,6 +118,20 @@ enum LandVisitStatus {
   CANCELLED
 }
 
+enum AiChatRole {
+  USER
+  ASSISTANT
+}
+
+enum CropAnalysisType {
+  CROP_ADVISOR
+  DISEASE_DETECTION
+  FERTILIZER_ADVICE
+  IRRIGATION_ADVICE
+  CROP_ROTATION
+  WEATHER_ADVICE
+}
+
 // ---------------------------------------------------------------------------
 // 3.1 User Management & Authentication
 // ---------------------------------------------------------------------------
@@ -180,6 +194,9 @@ model User {
   machineryStatusChanges MachineryBookingStatusHistory[] @relation("MachineryStatusChangedBy")
   sellerLand             Land[]                          @relation("SellerLand")
   landVisitRequests      LandVisitRequest[]              @relation("LandVisitBuyer")
+  aiChatSessions         AiChatSession[]
+  cropAnalyses           CropAnalysis[]
+  soilReports            SoilReport[]
 
   @@index([email])
   @@map("users")
@@ -1246,4 +1263,84 @@ model LandVisitRequest {
   @@index([buyerId])
   @@index([status])
   @@map("land_visit_requests")
+}
+
+// ---------------------------------------------------------------------------
+// 3.9 AI Farm Advisory Suite
+//
+// The spec names three history entities (ChatHistory, CropAnalysis,
+// SoilReport). ChatHistory is modeled as a Session + Message pair (the
+// standard shape for a threaded conversation — a single flat table doesn't
+// group turns into conversations). CropAnalysis is a single table covering
+// six of the advisory types (crop advisor, disease detection, fertilizer,
+// irrigation, crop rotation, weather advice) with a `type` discriminator and
+// a flexible Json result — these all share the same shape (submit inputs,
+// get a structured recommendation back) so six near-identical tables would
+// just be duplication. SoilReport stays separate because soil data has
+// distinct structured fields worth modeling explicitly rather than burying
+// in Json (pH, N/P/K levels, etc).
+// ---------------------------------------------------------------------------
+
+model AiChatSession {
+  id        String          @id @default(uuid())
+  userId    String
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String?         // derived from the first message, or left null until one exists
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  messages  AiChatMessage[]
+
+  @@index([userId])
+  @@map("ai_chat_sessions")
+}
+
+model AiChatMessage {
+  id        String        @id @default(uuid())
+  sessionId String
+  session   AiChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role      AiChatRole
+  content   String
+  createdAt DateTime      @default(now())
+
+  @@index([sessionId])
+  @@map("ai_chat_messages")
+}
+
+model CropAnalysis {
+  id            String           @id @default(uuid())
+  userId        String
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type          CropAnalysisType
+  inputData     Json             // whatever the user submitted (crop, location, season, form fields...)
+  imageUrl      String?          // DISEASE_DETECTION only
+  imagePublicId String?
+  resultSummary String           // short human-readable line, for a history list without opening each item
+  resultData    Json             // full structured AI response
+  createdAt     DateTime         @default(now())
+
+  @@index([userId, type])
+  @@map("crop_analyses")
+}
+
+model SoilReport {
+  id                   String   @id @default(uuid())
+  userId               String
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  soilPh               Float?
+  nitrogenLevel        String?  // "Low" / "Medium" / "High", or a numeric ppm as text — kept flexible
+  phosphorusLevel      String?
+  potassiumLevel       String?
+  organicCarbonPercent Float?
+  soilType             String?  // e.g. "Loamy", "Clay", "Sandy"
+  location             String?
+  latitude             Float?
+  longitude            Float?
+  rawInput             Json?    // anything beyond the typed fields above
+  recommendationSummary String
+  recommendationData   Json
+  createdAt            DateTime @default(now())
+
+  @@index([userId])
+  @@map("soil_reports")
 }

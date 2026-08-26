@@ -25,6 +25,7 @@ import machineryAnalyticsRoutes from '../modules/machinery/machineryAnalytics.ro
 import machineryRoutes from '../modules/machinery/machinery.routes';
 import landRoutes from '../modules/land/land.routes';
 import landVisitRoutes from '../modules/land/landVisit.routes';
+import aiRoutes from '../modules/ai/ai.routes';
 
 const router = Router();
 
@@ -67,6 +68,9 @@ router.use('/machinery', machineryRoutes);
 // Land Marketplace
 router.use('/land/visit-requests', landVisitRoutes);
 router.use('/land', landRoutes);
+
+// AI Farm Advisory Suite
+router.use('/ai', aiRoutes);
 
 router.get('/health', (req, res) => res.json({ success: true, message: 'OK', timestamp: new Date().toISOString() }));
 

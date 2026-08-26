@@ -16,6 +16,7 @@ const REQUIRED_VARS = [
   'CLOUDINARY_API_SECRET',
   'RAZORPAY_KEY_ID',
   'RAZORPAY_KEY_SECRET',
+  'OPENAI_API_KEY',
 ] as const;
 
 export function validateEnv(): void {
@@ -103,5 +104,20 @@ export const env = {
     apiKey: process.env.TRACKINGMORE_API_KEY,
     simulate: process.env.TRACKING_SIMULATE === 'true',
     pollIntervalMinutes: parseInt(process.env.TRACKING_POLL_MINUTES || '10', 10),
+  },
+
+  openai: {
+    apiKey: process.env.OPENAI_API_KEY as string,
+    // Defaults below are confirmed-current as of mid-2026 (checked live rather
+    // than assumed, since the model lineup moved well past this project's
+    // training data — GPT-5-class models now exist). Each is overridable
+    // independently so you can move to whatever's best later without a code
+    // change. gpt-4o-mini is the safe, definitely-vision-capable, cost-
+    // effective floor — bump OPENAI_MODEL to a GPT-5-family model if you want
+    // stronger reasoning for the advisory features.
+    model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+    transcribeModel: process.env.OPENAI_TRANSCRIBE_MODEL || 'gpt-transcribe',
+    ttsModel: process.env.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts',
+    ttsVoice: process.env.OPENAI_TTS_VOICE || 'alloy',
   },
 };

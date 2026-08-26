@@ -18,3 +18,13 @@ export const apiLimiter = rateLimit({
   legacyHeaders: false,
   message: { success: false, message: 'Too many requests. Please slow down.' },
 });
+
+/** AI Advisory endpoints hit a metered external API with real per-call cost —
+ *  tighter than the general limiter on purpose. */
+export const aiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many AI requests. Please slow down and try again shortly.' },
+});
