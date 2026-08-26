@@ -10,6 +10,14 @@ const transporter = nodemailer.createTransport({
     user: env.smtp.user,
     pass: env.smtp.pass,
   },
+  // Without these, a blocked/unreachable SMTP host hangs on nodemailer's own
+  // multi-minute defaults — long enough to blow past the frontend's 15s
+  // request timeout even though the account row was already committed.
+  // Failing fast here keeps register/resendOtp/forgotPassword responding
+  // well inside that window no matter what the mail server is doing.
+  connectionTimeout: 8_000,
+  greetingTimeout: 8_000,
+  socketTimeout: 8_000,
 });
 
 // Verify SMTP connectivity at startup so config problems surface immediately

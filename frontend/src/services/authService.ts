@@ -106,9 +106,9 @@ export const authService = {
   },
 
   /** POST /auth/register — sends an email OTP; account isn't usable until verify-otp succeeds. */
-  async register(name: string, email: string, password: string, phone?: string): Promise<{ email: string }> {
-    const res = await api.post<{ data: { email: string } }>('/auth/register', { name, email, password, phone })
-    return res.data.data
+  async register(name: string, email: string, password: string, phone?: string): Promise<{ email: string; emailSent: boolean; message: string }> {
+    const res = await api.post<{ data: { email: string; emailSent: boolean }; message: string }>('/auth/register', { name, email, password, phone })
+    return { ...res.data.data, message: res.data.message }
   },
 
   /** POST /auth/verify-otp — completes registration and logs the user in. */

@@ -9,7 +9,7 @@ interface AuthContextValue {
   isBuyer: boolean
   isSeller: boolean
   isAdmin: boolean
-  register: (name: string, email: string, password: string, phone?: string) => Promise<{ email: string }>
+  register: (name: string, email: string, password: string, phone?: string) => Promise<{ email: string; emailSent: boolean; message: string }>
   verifyOtp: (email: string, otp: string) => Promise<void>
   resendOtp: (email: string, purpose?: 'REGISTER' | 'RESET_PASSWORD') => Promise<void>
   login: (email: string, password: string) => Promise<void>

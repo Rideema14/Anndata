@@ -6,7 +6,7 @@ import ApiError from '../../common/utils/ApiError';
 
 export const register = asyncHandler(async (req, res) => {
   const result = await authService.register(req.body);
-  ApiResponse.created(res, result, 'Verification code sent.');
+  ApiResponse.created(res, result, result.message);
 });
 
 export const verifyOtp = asyncHandler(async (req, res) => {

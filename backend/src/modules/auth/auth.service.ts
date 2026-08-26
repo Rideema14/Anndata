@@ -8,6 +8,7 @@ import { otpEmailHtml } from './otpEmail.template';
 import { signAccessToken, generateRefreshToken, hashToken, expiryDateFromNow } from '../../common/utils/jwt';
 import { generateOtp, hashOtp, otpExpiryDate } from '../../common/utils/otp';
 import { env } from '../../config/env';
+import logger from '../../common/utils/logger';
 import type { RequestMeta } from '../../common/utils/requestMeta';
 
 const SALT_ROUNDS = 10;
@@ -45,7 +46,17 @@ async function recordLogin(userId: string, meta: RequestMeta, success: boolean, 
   });
 }
 
-async function sendOtpEmail(user: User, purpose: 'REGISTER' | 'RESET_PASSWORD') {
+/**
+ * Generates and stores a fresh OTP, then attempts to email it. The DB write
+ * happens first and always sticks — if the SMTP send afterwards fails
+ * (bad credentials, provider outage, network blip), we log it and return
+ * `false` instead of throwing. Otherwise a purely transient mail problem
+ * would blow up `register`/`resendOtp`/`forgotPassword` *after* the account
+ * (and OTP hash) were already committed, which is exactly what produced the
+ * confusing "created in the database but the frontend shows an error" bug:
+ * the user really was registered, but the request still rejected.
+ */
+async function sendOtpEmail(user: User, purpose: 'REGISTER' | 'RESET_PASSWORD'): Promise<boolean> {
   const otp = generateOtp();
   await prisma.user.update({
     where: { id: user.id },
@@ -57,11 +68,17 @@ async function sendOtpEmail(user: User, purpose: 'REGISTER' | 'RESET_PASSWORD') 
     },
   });
 
-  await sendMail({
-    to: user.email,
-    subject: purpose === 'RESET_PASSWORD' ? 'Your password reset code' : 'Verify your email',
-    html: otpEmailHtml({ name: user.name, otp, purpose }),
-  });
+  try {
+    await sendMail({
+      to: user.email,
+      subject: purpose === 'RESET_PASSWORD' ? 'Your password reset code' : 'Verify your email',
+      html: otpEmailHtml({ name: user.name, otp, purpose }),
+    });
+    return true;
+  } catch (err) {
+    logger.error(`Failed to send ${purpose} OTP email to ${user.email}`, err);
+    return false;
+  }
 }
 
 interface RegisterInput {
@@ -89,9 +106,18 @@ export async function register({ name, email, phone, password }: RegisterInput) 
         data: { name, email, phone, passwordHash },
       });
 
-  await sendOtpEmail(user, 'REGISTER');
+  // The account is now safely in the database no matter what happens next —
+  // an email hiccup below must never turn into a "registration failed"
+  // error for something that already succeeded.
+  const emailSent = await sendOtpEmail(user, 'REGISTER');
 
-  return { message: 'Registration started. Check your email for a verification code.', email: user.email };
+  return {
+    message: emailSent
+      ? 'Registration started. Check your email for a verification code.'
+      : "Account created, but we couldn't send the verification email right now. Use Resend Code on the next screen.",
+    email: user.email,
+    emailSent,
+  };
 }
 
 function checkOtp(user: User, purpose: 'REGISTER' | 'RESET_PASSWORD', otp: string): string | null {
