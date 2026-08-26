@@ -1,17 +1,56 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { CheckCircle2, Minus, Plus, ShoppingCart, Sprout, Trash2 } from 'lucide-react'
+import { CheckCircle2, MapPin, Minus, Plus, ShoppingCart, Sprout, Trash2 } from 'lucide-react'
 import { Button } from '@/components/common/Button'
 import { useSeedCart } from '@/context/SeedCartContext'
 import { useAuth } from '@/context/AuthContext'
-import { getProductById } from '@/data/mock/mockProductCatalog'
+import { seedOrderService } from '@/services/seedService'
+import { paymentService } from '@/services/paymentService'
+import { getApiErrorMessage } from '@/services/api'
 import { formatINR } from '@/utils/format'
+import { cn } from '@/utils/cn'
 
 export default function SeedCartPage() {
-  const { lines, removeFromCart, setQuantity, subtotal, placeSeedOrder } = useSeedCart()
+  const { lines, removeFromCart, setQuantity, subtotal, clearCart, refreshSeedOrders } = useSeedCart()
   const { user } = useAuth()
   const navigate = useNavigate()
+  const [addressId, setAddressId] = useState(user?.addresses.find((a) => a.isDefault)?.id ?? user?.addresses[0]?.id ?? '')
+  const [placing, setPlacing] = useState(false)
+  const [error, setError] = useState('')
   const [placedId, setPlacedId] = useState<string | null>(null)
+
+  async function handlePlaceOrder() {
+    if (!addressId) return
+    setError('')
+    setPlacing(true)
+    try {
+      const { order, razorpayOrderId, amount } = await seedOrderService.checkout(addressId)
+
+      if (razorpayOrderId && amount) {
+        try {
+          await paymentService.openCheckout({
+            razorpayOrderId,
+            amountInRupees: amount,
+            name: user?.name ?? '',
+            email: user?.email,
+            phone: user?.phone,
+            description: 'Seed order payment',
+            verifyEndpoint: '/seeds/payments/verify',
+          })
+        } catch (payErr) {
+          setError(getApiErrorMessage(payErr, 'Order placed, but payment did not complete. You can retry from your seed orders.'))
+        }
+      }
+
+      await clearCart()
+      await refreshSeedOrders()
+      setPlacedId(order.id)
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Could not place the order.'))
+    } finally {
+      setPlacing(false)
+    }
+  }
 
   if (placedId) {
     return (
@@ -47,36 +86,86 @@ export default function SeedCartPage() {
     <div className="mx-auto max-w-2xl px-4 py-5 md:px-6 md:py-8">
       <h1 className="mb-5 text-xl">Seed Cart</h1>
       <div className="space-y-3">
-        {lines.map((line) => {
-          const product = getProductById(line.productId)
-          if (!product) return null
-          return (
-            <div key={line.productId} className="flex gap-3 rounded-2xl border border-ink-100 bg-surface p-3">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-surface-sunk">
+        {lines.map((line) => (
+          <div key={line.itemId} className="flex gap-3 rounded-2xl border border-ink-100 bg-surface p-3">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-surface-sunk">
+              {line.seed.imageUrl ? (
+                <img src={line.seed.imageUrl} alt={line.seed.name} className="h-full w-full object-cover" />
+              ) : (
                 <Sprout className="h-5 w-5 text-brand-400" aria-hidden="true" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="line-clamp-1 text-sm font-medium text-ink-900">{product.name}</p>
-                <p className="mt-0.5 text-sm font-bold text-ink-900">{formatINR(product.price)}</p>
-                <div className="mt-2 flex items-center gap-3">
-                  <div className="flex items-center rounded-full border border-ink-200">
-                    <button type="button" onClick={() => setQuantity(line.productId, line.quantity - 1)} className="flex h-7 w-7 items-center justify-center">
-                      <Minus className="h-3 w-3" aria-hidden="true" />
-                    </button>
-                    <span className="w-6 text-center text-xs font-semibold">{line.quantity}</span>
-                    <button type="button" onClick={() => setQuantity(line.productId, line.quantity + 1)} className="flex h-7 w-7 items-center justify-center">
-                      <Plus className="h-3 w-3" aria-hidden="true" />
-                    </button>
-                  </div>
-                  <button type="button" onClick={() => removeFromCart(line.productId)} className="flex items-center gap-1 text-xs font-medium text-danger-500">
-                    <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                    Remove
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="line-clamp-1 text-sm font-medium text-ink-900">
+                {line.seed.name}
+                {line.variantName && <span className="text-ink-400"> · {line.variantName}</span>}
+              </p>
+              <p className="mt-0.5 text-sm font-bold text-ink-900">{formatINR(line.unitPrice)}</p>
+              <div className="mt-2 flex items-center gap-3">
+                <div className="flex items-center rounded-full border border-ink-200">
+                  <button
+                    type="button"
+                    onClick={() => setQuantity(line.seedId, line.quantity - 1)}
+                    className="flex h-7 w-7 items-center justify-center"
+                  >
+                    <Minus className="h-3 w-3" aria-hidden="true" />
+                  </button>
+                  <span className="w-6 text-center text-xs font-semibold">{line.quantity}</span>
+                  <button
+                    type="button"
+                    onClick={() => setQuantity(line.seedId, line.quantity + 1)}
+                    className="flex h-7 w-7 items-center justify-center"
+                  >
+                    <Plus className="h-3 w-3" aria-hidden="true" />
                   </button>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => removeFromCart(line.seedId)}
+                  className="flex items-center gap-1 text-xs font-medium text-danger-500"
+                >
+                  <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                  Remove
+                </button>
               </div>
             </div>
-          )
-        })}
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-5">
+        <h2 className="mb-2 text-sm font-semibold text-ink-800">Deliver to</h2>
+        {user?.addresses.length === 0 ? (
+          <p className="text-xs text-ink-500">
+            No saved address.{' '}
+            <Link to="/profile" className="font-semibold text-brand-600 hover:underline">
+              Add one
+            </Link>{' '}
+            before checking out.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {user?.addresses.map((addr) => (
+              <button
+                key={addr.id}
+                type="button"
+                onClick={() => setAddressId(addr.id)}
+                className={cn(
+                  'flex w-full items-start gap-3 rounded-2xl border p-3 text-left',
+                  addressId === addr.id ? 'border-brand-500 bg-brand-50' : 'border-ink-100',
+                )}
+              >
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" aria-hidden="true" />
+                <div>
+                  <p className="text-sm font-medium text-ink-900">{addr.label}</p>
+                  <p className="text-xs text-ink-500">
+                    {addr.line1}, {addr.city}, {addr.state} – {addr.pincode}
+                  </p>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="mt-5 rounded-2xl border border-ink-100 bg-surface p-4">
@@ -84,20 +173,8 @@ export default function SeedCartPage() {
           <span>Total</span>
           <span>{formatINR(subtotal)}</span>
         </div>
-        <p className="mt-1 text-xs text-ink-400">
-          Deliver to: {user?.addresses[0] ? `${user.addresses[0].city}, ${user.addresses[0].state}` : 'your default address'}
-        </p>
-        <Button
-          fullWidth
-          className="mt-3"
-          onClick={() => {
-            const order = placeSeedOrder(
-              user?.addresses[0] ? `${user.addresses[0].line1}, ${user.addresses[0].city}, ${user.addresses[0].state} – ${user.addresses[0].pincode}` : 'Address',
-              'UPI',
-            )
-            setPlacedId(order.id)
-          }}
-        >
+        {error && <p className="mt-2 text-xs font-medium text-danger-500">{error}</p>}
+        <Button fullWidth className="mt-3" onClick={handlePlaceOrder} loading={placing} disabled={!addressId}>
           Place Seed Order — {formatINR(subtotal)}
         </Button>
       </div>

@@ -1,43 +1,49 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Send, Sparkles } from 'lucide-react'
+import { chatService, type ChatMessage } from '@/services/aiService'
+import { getApiErrorMessage } from '@/services/api'
 import { useAi } from '@/context/AiContext'
 import { cn } from '@/utils/cn'
 
 const SUGGESTIONS = ['मेरी गेहूं की फसल पीली हो रही है', 'Best time to sow soybean?', 'सिंचाई कब करें?']
 
-function mockReply(input: string): string {
-  const text = input.toLowerCase()
-  if (text.includes('पीली') || text.includes('yellow')) {
-    return 'पत्तियों का पीला पड़ना अक्सर नाइट्रोजन की कमी के कारण होता है। यूरिया का हल्का छिड़काव करें और मिट्टी की जांच करवाएं। ज़्यादा जानकारी के लिए "Soil Analysis" खोलें।'
-  }
-  if (text.includes('sow') || text.includes('बुवाई')) {
-    return 'Soybean is best sown at the start of the Kharif season (mid-June to early July), right after the first good monsoon rain.'
-  }
-  if (text.includes('सिंचाई') || text.includes('irrigat')) {
-    return 'आज बारिश की संभावना है, इसलिए सिंचाई की ज़रूरत नहीं है। कल मौसम देखने के बाद फिर से पूछें — "Irrigation Advice" में विस्तार से देखा जा सकता है।'
-  }
-  return "That's a great question — based on typical conditions in your area, I'd suggest checking Soil Analysis and Crop Advisor for a more specific answer. Could you share more detail about your crop and field?"
-}
-
 export default function AiChatPage() {
-  const { messages, addMessage } = useAi()
+  const [sessionId, setSessionId] = useState<string | null>(null)
+  const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [typing, setTyping] = useState(false)
+  const [error, setError] = useState('')
   const endRef = useRef<HTMLDivElement>(null)
+  const { refreshHistory } = useAi()
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, typing])
 
-  function send(text: string) {
+  async function ensureSession(): Promise<string> {
+    if (sessionId) return sessionId
+    const session = await chatService.createSession()
+    setSessionId(session.id)
+    return session.id
+  }
+
+  async function send(text: string) {
     if (!text.trim()) return
-    addMessage('user', text)
+    setError('')
+    const tempId = `local_${Date.now()}`
+    setMessages((prev) => [...prev, { id: tempId, role: 'user', content: text, createdAt: new Date().toISOString() }])
     setInput('')
     setTyping(true)
-    window.setTimeout(() => {
-      addMessage('assistant', mockReply(text))
+    try {
+      const id = await ensureSession()
+      const { assistantMessage } = await chatService.sendMessage(id, text)
+      setMessages((prev) => [...prev, assistantMessage])
+      refreshHistory()
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Couldn't send that message. Please try again."))
+    } finally {
       setTyping(false)
-    }, 900)
+    }
   }
 
   function handleSubmit(event: FormEvent) {
@@ -55,6 +61,13 @@ export default function AiChatPage() {
       </div>
 
       <div className="flex-1 space-y-3 overflow-y-auto pb-3">
+        {messages.length === 0 && !typing && (
+          <div className="flex justify-start">
+            <p className="max-w-[80%] rounded-2xl bg-surface-sunk px-3.5 py-2.5 text-sm leading-relaxed text-ink-800">
+              नमस्ते! मैं आपकी खेती से जुड़े सवालों में मदद कर सकता हूँ। आप क्या जानना चाहते हैं?
+            </p>
+          </div>
+        )}
         {messages.map((m) => (
           <div key={m.id} className={cn('flex', m.role === 'user' ? 'justify-end' : 'justify-start')}>
             <p
@@ -63,7 +76,7 @@ export default function AiChatPage() {
                 m.role === 'user' ? 'bg-brand-600 text-white' : 'bg-surface-sunk text-ink-800',
               )}
             >
-              {m.text}
+              {m.content}
             </p>
           </div>
         ))}
@@ -79,7 +92,9 @@ export default function AiChatPage() {
         <div ref={endRef} />
       </div>
 
-      {messages.length < 2 && (
+      {error && <p className="mb-2 text-xs font-medium text-danger-500">{error}</p>}
+
+      {messages.length === 0 && (
         <div className="mb-2 flex flex-wrap gap-2">
           {SUGGESTIONS.map((s) => (
             <button
@@ -103,7 +118,7 @@ export default function AiChatPage() {
         />
         <button
           type="submit"
-          disabled={!input.trim()}
+          disabled={!input.trim() || typing}
           aria-label="Send"
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-600 text-white disabled:bg-ink-200"
         >
