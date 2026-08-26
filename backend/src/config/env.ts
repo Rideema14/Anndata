@@ -16,7 +16,7 @@ const REQUIRED_VARS = [
   'CLOUDINARY_API_SECRET',
   'RAZORPAY_KEY_ID',
   'RAZORPAY_KEY_SECRET',
-  'OPENAI_API_KEY',
+  'GEMINI_API_KEY',
 ] as const;
 
 export function validateEnv(): void {
@@ -106,18 +106,38 @@ export const env = {
     pollIntervalMinutes: parseInt(process.env.TRACKING_POLL_MINUTES || '10', 10),
   },
 
-  openai: {
-    apiKey: process.env.OPENAI_API_KEY as string,
-    // Defaults below are confirmed-current as of mid-2026 (checked live rather
-    // than assumed, since the model lineup moved well past this project's
-    // training data — GPT-5-class models now exist). Each is overridable
-    // independently so you can move to whatever's best later without a code
-    // change. gpt-4o-mini is the safe, definitely-vision-capable, cost-
-    // effective floor — bump OPENAI_MODEL to a GPT-5-family model if you want
-    // stronger reasoning for the advisory features.
-    model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-    transcribeModel: process.env.OPENAI_TRANSCRIBE_MODEL || 'gpt-transcribe',
-    ttsModel: process.env.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts',
-    ttsVoice: process.env.OPENAI_TTS_VOICE || 'alloy',
+  gemini: {
+    apiKey: process.env.GEMINI_API_KEY as string,
+    // Runs on Google's Gemini API instead of a paid provider — Google AI
+    // Studio (https://aistudio.google.com/apikey) issues a free key with no
+    // card required, and its free tier covers text, vision, audio input, and
+    // TTS all through this one key. It IS rate-limited (roughly single-digit
+    // to low-double-digit requests/minute, capped per day) and Google may use
+    // free-tier prompts/outputs to improve its models, so this is meant to
+    // get the project running at zero cost, not to be a production SLA.
+    // Defaults below are confirmed-current as of mid-2026 (checked live
+    // rather than assumed, since Google revises the free-tier model list
+    // every few months and Pro-tier models moved to paid-only in April
+    // 2026). Each is independently overridable so you can move to a newer
+    // model ID later without a code change — check
+    // https://ai.google.dev/gemini-api/docs/models for what's current and
+    // still free. gemini-2.5-flash is the safe, vision-capable, free-tier
+    // floor for both chat and disease-detection image analysis; swap
+    // GEMINI_MODEL to gemini-2.5-flash-lite if you hit rate limits, since
+    // Flash-Lite trades a little quality for a noticeably higher daily quota.
+    model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
+    // Reuses a plain multimodal model rather than a dedicated ASR one —
+    // Gemini has no separate transcription endpoint; audio is transcribed by
+    // passing it as multimodal input to generateContent with an instruction
+    // prompt (see aiProvider.service.ts). Flash is accurate enough for this
+    // and stays on the free tier.
+    transcribeModel: process.env.GEMINI_TRANSCRIBE_MODEL || 'gemini-2.5-flash',
+    // Gemini's TTS models are a separate "-tts" family (text-only in, audio-
+    // only out) and are still Preview as of mid-2026, but Preview here just
+    // means the model ID may change — the free tier applies to them too.
+    ttsModel: process.env.GEMINI_TTS_MODEL || 'gemini-2.5-flash-preview-tts',
+    // One of Gemini TTS's ~30 prebuilt voice names (see the TTS docs for the
+    // full list) — Kore is a clear, neutral default; override freely.
+    ttsVoice: process.env.GEMINI_TTS_VOICE || 'Kore',
   },
 };
