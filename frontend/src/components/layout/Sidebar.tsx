@@ -1,15 +1,9 @@
+import { useState } from "react";
+import { NavLink, Link } from "react-router-dom";
+import { ChevronRight, Menu, ShieldCheck, X } from "lucide-react";
 
-import { useState } from 'react'
-import { NavLink, Link } from 'react-router-dom'
-import {
-  ChevronRight,
-  Menu,
-  ShieldCheck,
-  X,
-} from 'lucide-react'
-
-import { Logo } from '@/components/common/Logo'
-import { BuySellSwitch } from '@/components/layout/BuySellSwitch'
+import { Logo } from "@/components/common/Logo";
+import { BuySellSwitch } from "@/components/layout/BuySellSwitch";
 
 import {
   buyNavItems,
@@ -17,21 +11,26 @@ import {
   adminNavItems,
   sellerUtilityNavItems,
   utilityNavItems,
-} from '@/routes/navConfig'
+} from "@/routes/navConfig";
 
-import { useAppMode } from '@/context/AppModeContext'
-import { useAuth } from '@/context/AuthContext'
-import { useLanguage } from '@/context/LanguageContext'
-import { cn } from '@/utils/cn'
+import { useAppMode } from "@/context/AppModeContext";
+import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
+import { cn } from "@/utils/cn";
 
 export function Sidebar() {
-  const { mode } = useAppMode()
-  const { isSeller, isAdmin } = useAuth()
-  const { t } = useLanguage()
+  const { mode } = useAppMode();
+  const { isSeller, isAdmin } = useAuth();
+  const { t } = useLanguage();
 
-  const [showMore, setShowMore] = useState(false)
+  const [showMore, setShowMore] = useState(false);
 
-  const items = mode === 'admin' ? adminNavItems : mode === 'buy' ? buyNavItems : sellNavItems
+  const items =
+    mode === "admin"
+      ? adminNavItems
+      : mode === "buy"
+        ? buyNavItems
+        : sellNavItems;
 
   /* =========================================================
      DESKTOP
@@ -47,7 +46,7 @@ export function Sidebar() {
   const desktopMoreItems = [
     ...(isSeller ? sellerUtilityNavItems : []),
     ...utilityNavItems,
-  ]
+  ];
 
   /* =========================================================
      MOBILE
@@ -57,13 +56,13 @@ export function Sidebar() {
      Everything after those 3 goes inside mobile More.
   ========================================================= */
 
-  const mobilePrimaryItems = items.slice(0, 3)
+  const mobilePrimaryItems = items.slice(0, 3);
 
   const mobileMoreItems = [
     ...items.slice(3),
     ...(isSeller ? sellerUtilityNavItems : []),
     ...utilityNavItems,
-  ]
+  ];
 
   /* =========================================================
      REMOVE DUPLICATES BY PATH
@@ -72,12 +71,12 @@ export function Sidebar() {
   const uniqueDesktopMoreItems = desktopMoreItems.filter(
     (item, index, array) =>
       array.findIndex((x) => x.path === item.path) === index,
-  )
+  );
 
   const uniqueMobileMoreItems = mobileMoreItems.filter(
     (item, index, array) =>
       array.findIndex((x) => x.path === item.path) === index,
-  )
+  );
 
   return (
     <>
@@ -98,7 +97,6 @@ export function Sidebar() {
           md:flex
         "
       >
-
         {/* =================================================
             BRAND
         ================================================= */}
@@ -116,7 +114,6 @@ export function Sidebar() {
             <Logo />
           </Link>
         </div>
-
 
         {/* =================================================
             BUY / SELL
@@ -201,7 +198,6 @@ export function Sidebar() {
               "
             >
               <div className="min-w-0">
-
                 <p
                   className="
                     text-[10px]
@@ -223,9 +219,8 @@ export function Sidebar() {
                     text-[#F5F2E9]
                   "
                 >
-                  {t('roles.becomeSeller')}
+                  {t("roles.becomeSeller")}
                 </p>
-
               </div>
 
               <span
@@ -247,11 +242,9 @@ export function Sidebar() {
               >
                 <ChevronRight className="h-4 w-4" />
               </span>
-
             </Link>
           </div>
         )}
-
 
         {/* =================================================
             DESKTOP MAIN NAVIGATION
@@ -263,11 +256,11 @@ export function Sidebar() {
 
         <nav
           aria-label={
-            mode === 'admin'
-              ? 'Admin navigation'
-              : mode === 'buy'
-                ? 'Buyer navigation'
-                : 'Seller navigation'
+            mode === "admin"
+              ? "Admin navigation"
+              : mode === "buy"
+                ? "Buyer navigation"
+                : "Seller navigation"
           }
           className="
             sidebar-scroll
@@ -278,16 +271,12 @@ export function Sidebar() {
             px-3
           "
         >
-
           <ul className="space-y-1">
-
             {items.map(({ path, labelKey, icon: Icon }) => (
-
               <li key={path}>
-
                 <NavLink
                   to={path}
-                  end={path === '/'}
+                  end={path === "/"}
                   className={({ isActive }) =>
                     cn(
                       `
@@ -318,10 +307,8 @@ export function Sidebar() {
                     )
                   }
                 >
-
                   {({ isActive }) => (
                     <>
-
                       {isActive && (
                         <span
                           className="
@@ -361,34 +348,21 @@ export function Sidebar() {
                             `,
                         )}
                       >
-
                         <Icon
                           className="h-[17px] w-[17px]"
-                          strokeWidth={
-                            isActive ? 2.2 : 1.8
-                          }
+                          strokeWidth={isActive ? 2.2 : 1.8}
                           aria-hidden="true"
                         />
-
                       </span>
 
-                      <span className="truncate">
-                        {t(labelKey)}
-                      </span>
-
+                      <span className="truncate">{t(labelKey)}</span>
                     </>
                   )}
-
                 </NavLink>
-
               </li>
-
             ))}
-
           </ul>
-
         </nav>
-
 
         {/* =================================================
             DESKTOP MORE
@@ -400,7 +374,6 @@ export function Sidebar() {
         ================================================= */}
 
         <div className="relative px-3 pb-5 pt-3">
-
           <div className="mb-3 px-3">
             <div className="h-px bg-[#E5E1D7]" />
           </div>
@@ -426,7 +399,6 @@ export function Sidebar() {
               hover:text-[#252A20]
             "
           >
-
             <span
               className="
                 flex
@@ -441,21 +413,15 @@ export function Sidebar() {
                 group-hover:bg-[#E5E1D7]
               "
             >
-
               {showMore ? (
                 <X className="h-4 w-4" />
               ) : (
                 <Menu className="h-4 w-4" />
               )}
-
             </span>
 
-            <span className="text-[13px] font-semibold">
-              More
-            </span>
-
+            <span className="text-[13px] font-semibold">More</span>
           </button>
-
 
           {/* DESKTOP MORE POPUP */}
 
@@ -494,7 +460,6 @@ export function Sidebar() {
                 `,
             )}
           >
-
             <div
               className="
                 more-menu-scroll
@@ -502,17 +467,14 @@ export function Sidebar() {
                 overflow-y-auto
               "
             >
-
-              {uniqueDesktopMoreItems.map(
-                ({ path, labelKey, icon: Icon }) => (
-
-                  <NavLink
-                    key={path}
-                    to={path}
-                    onClick={() => setShowMore(false)}
-                    className={({ isActive }) =>
-                      cn(
-                        `
+              {uniqueDesktopMoreItems.map(({ path, labelKey, icon: Icon }) => (
+                <NavLink
+                  key={path}
+                  to={path}
+                  onClick={() => setShowMore(false)}
+                  className={({ isActive }) =>
+                    cn(
+                      `
                           group
                           flex
                           min-h-[42px]
@@ -526,50 +488,35 @@ export function Sidebar() {
                           transition-all
                           duration-200
                         `,
-                        isActive
-                          ? `
+                      isActive
+                        ? `
                             bg-[#D8B15A]
                             text-[#252A20]
                           `
-                          : `
+                        : `
                             text-[#ECE8DD]
                             hover:bg-[#505646]
                             hover:text-white
                           `,
-                      )
-                    }
-                  >
+                    )
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <Icon
+                        className="h-4 w-4 shrink-0"
+                        strokeWidth={isActive ? 2.2 : 1.8}
+                      />
 
-                    {({ isActive }) => (
-                      <>
-
-                        <Icon
-                          className="h-4 w-4 shrink-0"
-                          strokeWidth={
-                            isActive ? 2.2 : 1.8
-                          }
-                        />
-
-                        <span className="truncate">
-                          {t(labelKey)}
-                        </span>
-
-                      </>
-                    )}
-
-                  </NavLink>
-
-                ),
-              )}
-
+                      <span className="truncate">{t(labelKey)}</span>
+                    </>
+                  )}
+                </NavLink>
+              ))}
             </div>
-
           </div>
-
         </div>
-
       </aside>
-
 
       {/* =====================================================
           MOBILE BOTTOM PILL
@@ -586,7 +533,6 @@ export function Sidebar() {
           md:hidden
         "
       >
-
         <div
           className="
             relative
@@ -605,19 +551,16 @@ export function Sidebar() {
             backdrop-blur-xl
           "
         >
-
           {/* MOBILE PRIMARY */}
 
-          {mobilePrimaryItems.map(
-            ({ path, labelKey, icon: Icon }) => (
-
-              <NavLink
-                key={path}
-                to={path}
-                end={path === '/'}
-                className={({ isActive }) =>
-                  cn(
-                    `
+          {mobilePrimaryItems.map(({ path, labelKey, icon: Icon }) => (
+            <NavLink
+              key={path}
+              to={path}
+              end={path === "/"}
+              className={({ isActive }) =>
+                cn(
+                  `
                       relative
                       flex
                       h-[48px]
@@ -634,40 +577,29 @@ export function Sidebar() {
                       transition-all
                       duration-200
                     `,
-                    isActive
-                      ? `
+                  isActive
+                    ? `
                         bg-[#EEF2E8]
                         text-[#245B35]
                       `
-                      : `
+                    : `
                         text-[#7B8178]
                       `,
-                  )
-                }
-              >
+                )
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <Icon
+                    className="h-[18px] w-[18px]"
+                    strokeWidth={isActive ? 2.2 : 1.7}
+                  />
 
-                {({ isActive }) => (
-                  <>
-
-                    <Icon
-                      className="h-[18px] w-[18px]"
-                      strokeWidth={
-                        isActive ? 2.2 : 1.7
-                      }
-                    />
-
-                    <span className="max-w-full truncate">
-                      {t(labelKey)}
-                    </span>
-
-                  </>
-                )}
-
-              </NavLink>
-
-            ),
-          )}
-
+                  <span className="max-w-full truncate">{t(labelKey)}</span>
+                </>
+              )}
+            </NavLink>
+          ))}
 
           {/* MOBILE MORE BUTTON */}
 
@@ -704,23 +636,14 @@ export function Sidebar() {
                 `,
             )}
           >
-
             {showMore ? (
-              <X
-                className="h-[18px] w-[18px]"
-                strokeWidth={2}
-              />
+              <X className="h-[18px] w-[18px]" strokeWidth={2} />
             ) : (
-              <Menu
-                className="h-[19px] w-[19px]"
-                strokeWidth={2}
-              />
+              <Menu className="h-[19px] w-[19px]" strokeWidth={2} />
             )}
 
             <span>More</span>
-
           </button>
-
 
           {/* =================================================
               MOBILE MORE POPUP
@@ -762,7 +685,6 @@ export function Sidebar() {
                 `,
             )}
           >
-
             <div
               className="
                 more-menu-scroll
@@ -771,19 +693,15 @@ export function Sidebar() {
                 overscroll-contain
               "
             >
-
               <div className="grid grid-cols-2 gap-1.5">
-
-                {uniqueMobileMoreItems.map(
-                  ({ path, labelKey, icon: Icon }) => (
-
-                    <NavLink
-                      key={path}
-                      to={path}
-                      onClick={() => setShowMore(false)}
-                      className={({ isActive }) =>
-                        cn(
-                          `
+                {uniqueMobileMoreItems.map(({ path, labelKey, icon: Icon }) => (
+                  <NavLink
+                    key={path}
+                    to={path}
+                    onClick={() => setShowMore(false)}
+                    className={({ isActive }) =>
+                      cn(
+                        `
                             flex
                             min-h-[48px]
                             items-center
@@ -795,26 +713,24 @@ export function Sidebar() {
                             transition-all
                             duration-150
                           `,
-                          isActive
-                            ? `
+                        isActive
+                          ? `
                               bg-[#E3EBDD]
                               text-[#245B35]
                             `
-                            : `
+                          : `
                               bg-white
                               text-[#5F665D]
                               hover:bg-[#EEF1EA]
                             `,
-                        )
-                      }
-                    >
-
-                      {({ isActive }) => (
-                        <>
-
-                          <span
-                            className={cn(
-                              `
+                      )
+                    }
+                  >
+                    {({ isActive }) => (
+                      <>
+                        <span
+                          className={cn(
+                            `
                                 flex
                                 h-8
                                 w-8
@@ -823,42 +739,25 @@ export function Sidebar() {
                                 justify-center
                                 rounded-[10px]
                               `,
-                              isActive
-                                ? `bg-[#D5E1CF]`
-                                : `bg-[#F1F2ED]`,
-                            )}
-                          >
+                            isActive ? `bg-[#D5E1CF]` : `bg-[#F1F2ED]`,
+                          )}
+                        >
+                          <Icon
+                            className="h-[16px] w-[16px]"
+                            strokeWidth={isActive ? 2.1 : 1.7}
+                          />
+                        </span>
 
-                            <Icon
-                              className="h-[16px] w-[16px]"
-                              strokeWidth={
-                                isActive ? 2.1 : 1.7
-                              }
-                            />
-
-                          </span>
-
-                          <span className="truncate">
-                            {t(labelKey)}
-                          </span>
-
-                        </>
-                      )}
-
-                    </NavLink>
-
-                  ),
-                )}
-
+                        <span className="truncate">{t(labelKey)}</span>
+                      </>
+                    )}
+                  </NavLink>
+                ))}
               </div>
-
             </div>
-
           </div>
-
         </div>
-
       </div>
     </>
-  )
+  );
 }

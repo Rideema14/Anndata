@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { cartService } from '@/services/cartService'
 import { useAuth } from '@/context/AuthContext'
+import { useToast } from '@/context/ToastContext'
 import type { CartLine } from '@/types'
 
 interface CartContextValue {
@@ -23,6 +24,7 @@ const CartContext = createContext<CartContextValue | null>(null)
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth()
+  const { showToast } = useToast()
   const [rawLines, setRawLines] = useState<CartLine[]>([])
   // Saved-for-later has no backend equivalent — tracked locally by productId.
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
@@ -54,15 +56,21 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const addToCart = useCallback(
     async (productId: string, quantity = 1, variantId?: string) => {
       if (!isAuthenticated) return
-      const cart = await cartService.addItem(productId, quantity, variantId)
-      setRawLines(cart.lines)
-      setSavedIds((prev) => {
-        const next = new Set(prev)
-        next.delete(productId)
-        return next
-      })
+      try {
+        const cart = await cartService.addItem(productId, quantity, variantId)
+        setRawLines(cart.lines)
+        setSavedIds((prev) => {
+          const next = new Set(prev)
+          next.delete(productId)
+          return next
+        })
+        showToast('Added to your cart.', { type: 'success' })
+      } catch (err) {
+        showToast("Couldn't add that to your cart. Please try again.", { type: 'error' })
+        throw err
+      }
     },
-    [isAuthenticated],
+    [isAuthenticated, showToast],
   )
 
   const removeFromCart = useCallback(

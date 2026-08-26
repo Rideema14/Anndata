@@ -9,7 +9,7 @@ import { ProfileMenu } from '@/components/layout/ProfileMenu'
 import { BuySellSwitch } from '@/components/layout/BuySellSwitch'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
-
+import {WishlistIconButton} from '@/components/layout/WishlistIconButton'
 export function Header() {
   const { user, isSeller } = useAuth()
   const { t } = useLanguage()
@@ -247,11 +247,7 @@ export function Header() {
         {/* ===================================================
             DESKTOP SELLER SWITCH
         =================================================== */}
-        {isSeller && (
-          <div className="hidden shrink-0 lg:block">
-            <BuySellSwitch compact />
-          </div>
-        )}
+       
         {/* ===================================================
             RIGHT ACTIONS
         =================================================== */}
@@ -279,6 +275,27 @@ export function Header() {
             "
             aria-hidden="true"
           />
+          {/*wishlist*/}
+          <WishlistIconButton
+            className="
+              flex
+              h-10
+              w-10
+              shrink-0
+              items-center
+              justify-center
+              rounded-xl
+              text-[#57564F]
+              transition-all
+              duration-200
+              hover:bg-[#EEECE5]
+              hover:text-[#3F4935]
+              active:scale-90
+              md:h-10
+              md:w-10
+            "
+          />
+          
           {/* Cart */}
           <CartIconButton
             className="

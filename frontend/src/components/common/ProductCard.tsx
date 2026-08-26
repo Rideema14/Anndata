@@ -1,15 +1,13 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { Heart, Sprout, Star, ShoppingCart } from 'lucide-react'
+import { Heart, Sprout, Star } from 'lucide-react'
 
 import type { Product } from '@/types'
-import { useCart } from '@/context/CartContext'
 import { useWishlist } from '@/context/WishlistContext'
 import { useAuth } from '@/context/AuthContext'
 import { formatINR } from '@/utils/format'
 import { cn } from '@/utils/cn'
 
 export function ProductCard({ product }: { product: Product }) {
-  const { addToCart } = useCart()
   const { isWishlisted, toggleWishlist } = useWishlist()
   const { isAuthenticated } = useAuth()
   const navigate = useNavigate()
@@ -44,7 +42,7 @@ export function ProductCard({ product }: { product: Product }) {
         group
         relative
         flex
-        h-[330px]
+        h-[290px]
         w-full
         min-w-0
         flex-col
@@ -105,7 +103,7 @@ export function ProductCard({ product }: { product: Product }) {
           )}
 
           {/* ONLY render when discount exists */}
-          {discountPercent > 0 && (
+          {discountPercent > 0 && product.stock !== 0 && (
             <span
               className="
                 absolute
@@ -123,6 +121,14 @@ export function ProductCard({ product }: { product: Product }) {
             >
               {discountPercent}% OFF
             </span>
+          )}
+
+          {product.stock === 0 && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+              <span className="rounded-md bg-white/95 px-2 py-1 text-[9px] font-extrabold uppercase tracking-wide text-[#3D3D3D]">
+                Out of Stock
+              </span>
+            </div>
           )}
         </div>
       </Link>
@@ -308,54 +314,6 @@ export function ProductCard({ product }: { product: Product }) {
           </span>
         </div>
       </Link>
-
-      {/* =====================================================
-          CART BUTTON
-      ====================================================== */}
-
-      <button
-        type="button"
-        onClick={() =>
-          requireAuth(() => addToCart(product.id))
-        }
-        disabled={product.stock === 0}
-        className="
-          mt-auto
-          flex
-          h-[34px]
-          w-full
-          shrink-0
-          items-center
-          justify-center
-          gap-1.5
-          rounded-lg
-          border
-          border-[#D3DEC9]
-          bg-[#F0F5EC]
-          px-2
-          text-[10.5px]
-          font-bold
-          text-[#3D5535]
-          transition-all
-          duration-200
-          hover:border-[#B9C9B0]
-          hover:bg-[#E5EEE0]
-          disabled:border-[#E1E3DE]
-          disabled:bg-[#F2F3F0]
-          disabled:text-[#969C92]
-        "
-      >
-        <ShoppingCart
-          className="h-3.5 w-3.5 shrink-0"
-          strokeWidth={2.2}
-        />
-
-        <span className="truncate">
-          {product.stock === 0
-            ? 'Out of stock'
-            : 'Add to Cart'}
-        </span>
-      </button>
     </article>
   )
 }

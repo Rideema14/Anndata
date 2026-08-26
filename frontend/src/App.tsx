@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { LanguageProvider } from '@/context/LanguageContext'
 import { AuthProvider, useAuth } from '@/context/AuthContext'
 import { AppModeProvider } from '@/context/AppModeContext'
+import { ToastProvider } from '@/context/ToastContext'
 import { CartProvider } from '@/context/CartContext'
 import { WishlistProvider } from '@/context/WishlistContext'
 import { OrderProvider } from '@/context/OrderContext'
@@ -30,42 +31,44 @@ function AuthGate({ children }: { children: ReactNode }) {
 export default function App() {
   return (
     <LanguageProvider>
-      <AuthProvider>
-        <AuthGate>
-          <AppModeProvider>
-            <NotificationProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <AuthGate>
+            <AppModeProvider>
+              <NotificationProvider>
 
-              {/* CART MUST WRAP APP ROUTER */}
-              <CartProvider>
+                {/* CART MUST WRAP APP ROUTER */}
+                <CartProvider>
 
-                <WishlistProvider>
-                  <OrderProvider>
-                    <MandiProvider>
-                      <AiProvider>
-                        <SeedCartProvider>
-                          <LandProvider>
-                            <MachineryProvider>
-                              <AdminProvider>
-                                <SellerProvider>
+                  <WishlistProvider>
+                    <OrderProvider>
+                      <MandiProvider>
+                        <AiProvider>
+                          <SeedCartProvider>
+                            <LandProvider>
+                              <MachineryProvider>
+                                <AdminProvider>
+                                  <SellerProvider>
 
-                                  <AppRouter />
+                                    <AppRouter />
 
-                                </SellerProvider>
-                              </AdminProvider>
-                            </MachineryProvider>
-                          </LandProvider>
-                        </SeedCartProvider>
-                      </AiProvider>
-                    </MandiProvider>
-                  </OrderProvider>
-                </WishlistProvider>
+                                  </SellerProvider>
+                                </AdminProvider>
+                              </MachineryProvider>
+                            </LandProvider>
+                          </SeedCartProvider>
+                        </AiProvider>
+                      </MandiProvider>
+                    </OrderProvider>
+                  </WishlistProvider>
 
-              </CartProvider>
+                </CartProvider>
 
-            </NotificationProvider>
-          </AppModeProvider>
-        </AuthGate>
-      </AuthProvider>
+              </NotificationProvider>
+            </AppModeProvider>
+          </AuthGate>
+        </AuthProvider>
+      </ToastProvider>
     </LanguageProvider>
   )
 }
