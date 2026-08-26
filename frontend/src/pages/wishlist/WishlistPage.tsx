@@ -52,7 +52,7 @@ export default function WishlistPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    addToCart(product.id)
+                    addToCart(product)
                     removeFromWishlist(product.id)
                   }}
                   disabled={product.stock === 0}

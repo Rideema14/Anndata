@@ -77,13 +77,14 @@ export default function ProductDetailsPage() {
 
   async function handleAddToCart() {
     if (!product) return
-    setIsAdding(true)
+    // Optimistic: addToCart updates the cart instantly, so "Added" shows
+    // right away instead of waiting on the network round trip.
+    setAdded(true)
+    window.setTimeout(() => setAdded(false), 2000)
     try {
-      await addToCart(product.id, quantity, selectedVariant ?? undefined)
-      setAdded(true)
-      window.setTimeout(() => setAdded(false), 2000)
-    } finally {
-      setIsAdding(false)
+      await addToCart(product, quantity, selectedVariant ?? undefined)
+    } catch {
+      setAdded(false)
     }
   }
 
@@ -91,7 +92,7 @@ export default function ProductDetailsPage() {
     if (!product) return
     setIsAdding(true)
     try {
-      await addToCart(product.id, quantity, selectedVariant ?? undefined)
+      await addToCart(product, quantity, selectedVariant ?? undefined)
       navigate('/checkout')
     } finally {
       setIsAdding(false)
@@ -257,8 +258,7 @@ export default function ProductDetailsPage() {
         <Button
           variant="secondary"
           fullWidth
-          disabled={outOfStock || isAdding}
-          loading={isAdding && !added}
+          disabled={outOfStock}
           onClick={() => requireAuth(handleAddToCart)}
         >
           {added ? (

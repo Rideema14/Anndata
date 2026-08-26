@@ -1,19 +1,31 @@
+import { memo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Heart, Sprout, Star } from 'lucide-react'
+import { Heart, Minus, Plus, Sprout, Star } from 'lucide-react'
 
 import type { Product } from '@/types'
 import { useWishlist } from '@/context/WishlistContext'
+import { useCart } from '@/context/CartContext'
 import { useAuth } from '@/context/AuthContext'
 import { formatINR } from '@/utils/format'
 import { cn } from '@/utils/cn'
 
-export function ProductCard({ product }: { product: Product }) {
+export const ProductCard = memo(function ProductCard({ product }: { product: Product }) {
   const { isWishlisted, toggleWishlist } = useWishlist()
+  const { quantityOf, addToCart, setQuantity, removeFromCart } = useCart()
   const { isAuthenticated } = useAuth()
   const navigate = useNavigate()
 
+  // Tracks only "we just fired the very first add" so a second click before
+  // the cart line exists yet can't double-fire addToCart. Everything after
+  // that reads/writes the real cart quantity, which already updates
+  // instantly (see CartContext's optimistic updates).
+  const [justAdded, setJustAdded] = useState(false)
+
   const wishlisted = isWishlisted(product.id)
   const image = product.images?.[0]
+  const cartQuantity = quantityOf(product.id)
+  const inCart = cartQuantity > 0 || justAdded
+  const outOfStock = product.stock === 0
 
   const discountPercent =
     product.originalPrice &&
@@ -36,13 +48,39 @@ export function ProductCard({ product }: { product: Product }) {
     action()
   }
 
+  function handleAdd() {
+    requireAuth(() => {
+      // Only the very first tap calls addToCart — CartContext shows it in
+      // the cart immediately, so we flip to the stepper right away rather
+      // than waiting on the network. Every tap after that just adjusts the
+      // existing line's quantity.
+      setJustAdded(true)
+      void addToCart(product, 1)
+    })
+  }
+
+  function handleIncrement() {
+    requireAuth(() => setQuantity(product.id, cartQuantity + 1))
+  }
+
+  function handleDecrement() {
+    requireAuth(() => {
+      if (cartQuantity <= 1) {
+        setJustAdded(false)
+        void removeFromCart(product.id)
+      } else {
+        setQuantity(product.id, cartQuantity - 1)
+      }
+    })
+  }
+
   return (
     <article
       className="
         group
         relative
         flex
-        h-[290px]
+        h-[328px]
         w-full
         min-w-0
         flex-col
@@ -314,6 +352,102 @@ export function ProductCard({ product }: { product: Product }) {
           </span>
         </div>
       </Link>
+
+      {/* =====================================================
+          QUICK ADD TO CART
+      ====================================================== */}
+
+      {!outOfStock && (
+        <div className="mt-2 w-full shrink-0">
+          {inCart ? (
+            <div
+              className="
+                flex
+                h-8
+                w-full
+                items-center
+                justify-between
+                overflow-hidden
+                rounded-lg
+                border
+                border-[#C9D2BF]
+                bg-[#F3F6EF]
+              "
+            >
+              <button
+                type="button"
+                onClick={handleDecrement}
+                aria-label="Decrease quantity"
+                className="
+                  flex
+                  h-full
+                  w-8
+                  shrink-0
+                  items-center
+                  justify-center
+                  text-[#46543D]
+                  transition-colors
+                  hover:bg-[#E6EBDD]
+                "
+              >
+                <Minus className="h-3.5 w-3.5" />
+              </button>
+
+              <span className="text-[12px] font-extrabold text-[#20291C]">
+                {cartQuantity || 1}
+              </span>
+
+              <button
+                type="button"
+                onClick={handleIncrement}
+                disabled={cartQuantity >= product.stock}
+                aria-label="Increase quantity"
+                className="
+                  flex
+                  h-full
+                  w-8
+                  shrink-0
+                  items-center
+                  justify-center
+                  text-[#46543D]
+                  transition-colors
+                  hover:bg-[#E6EBDD]
+                  disabled:opacity-30
+                "
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={handleAdd}
+              className="
+                flex
+                h-8
+                w-full
+                items-center
+                justify-center
+                gap-1.5
+                rounded-lg
+                border
+                border-[#20291C]
+                bg-[#20291C]
+                text-[11px]
+                font-extrabold
+                uppercase
+                tracking-wide
+                text-white
+                transition-colors
+                hover:bg-[#324029]
+              "
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add
+            </button>
+          )}
+        </div>
+      )}
     </article>
   )
-}
+})
