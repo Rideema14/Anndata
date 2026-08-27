@@ -13,6 +13,7 @@ export default function DiseaseDetectionPage() {
   const [result, setResult] = useState<AdvisoryResult | null>(null)
   const [errorMessage, setErrorMessage] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const galleryInputRef = useRef<HTMLInputElement>(null)
   const { refreshHistory } = useAi()
 
   async function handleFile(file: File | undefined) {
@@ -34,8 +35,13 @@ export default function DiseaseDetectionPage() {
 
   function reset() {
     setStage('idle')
+    if (imagePreview) URL.revokeObjectURL(imagePreview)
     setImagePreview(null)
     setResult(null)
+    // Clear both inputs' values — otherwise re-picking the same file after
+    // "Analyze Another" wouldn't fire onChange at all (its value never changed).
+    if (fileInputRef.current) fileInputRef.current.value = ''
+    if (galleryInputRef.current) galleryInputRef.current.value = ''
   }
 
   return (
@@ -51,6 +57,16 @@ export default function DiseaseDetectionPage() {
         className="hidden"
         onChange={(e) => handleFile(e.target.files?.[0])}
       />
+      {/* Separate, capture-less input: on mobile, an input carrying
+          capture="environment" opens the camera directly, even for a
+          button meant to pick an existing photo from the gallery. */}
+      <input
+        ref={galleryInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => handleFile(e.target.files?.[0])}
+      />
 
       {stage === 'idle' && (
         <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-ink-200 py-16 text-center">
@@ -61,7 +77,7 @@ export default function DiseaseDetectionPage() {
               <Camera className="h-4 w-4" aria-hidden="true" />
               Take Photo
             </Button>
-            <Button variant="secondary" onClick={() => fileInputRef.current?.click()}>
+            <Button variant="secondary" onClick={() => galleryInputRef.current?.click()}>
               <Upload className="h-4 w-4" aria-hidden="true" />
               Upload Image
             </Button>

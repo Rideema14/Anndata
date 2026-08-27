@@ -1,4 +1,6 @@
+
 import type { ReactNode } from 'react'
+
 import { LanguageProvider } from '@/context/LanguageContext'
 import { AuthProvider, useAuth } from '@/context/AuthContext'
 import { AppModeProvider } from '@/context/AppModeContext'
@@ -14,17 +16,21 @@ import { MachineryProvider } from '@/context/MachineryContext'
 import { AdminProvider } from '@/context/AdminContext'
 import { NotificationProvider } from '@/context/NotificationContext'
 import { SellerProvider } from '@/context/SellerContext'
-import { SplashScreen } from '@/components/common/SplashScreen'
 
+import { SplashScreen } from '@/components/common/SplashScreen'
 import { AppRouter } from '@/routes/AppRouter'
 
-/** Blocks first render on the initial session check (restoring/refreshing a
- *  stored token) so nothing ever flashes a logged-out state while that's
- *  still in flight. Everything below only mounts once we know who — if
- *  anyone — is signed in. */
+/**
+ * Blocks the application from rendering until the
+ * initial authentication/session check is complete.
+ */
 function AuthGate({ children }: { children: ReactNode }) {
   const { isLoading } = useAuth()
-  if (isLoading) return <SplashScreen />
+
+  if (isLoading) {
+    return <SplashScreen />
+  }
+
   return <>{children}</>
 }
 
@@ -36,34 +42,27 @@ export default function App() {
           <AuthGate>
             <AppModeProvider>
               <NotificationProvider>
-
-                {/* CART MUST WRAP APP ROUTER */}
-                <CartProvider>
-
-                  <WishlistProvider>
-                    <OrderProvider>
-                      <MandiProvider>
-                        <AiProvider>
+                <AiProvider>
+                  <CartProvider>
+                    <WishlistProvider>
+                      <OrderProvider>
+                        <MandiProvider>
                           <SeedCartProvider>
                             <LandProvider>
                               <MachineryProvider>
-                                <AdminProvider>
+                                <AdminProvider> 
                                   <SellerProvider>
-
                                     <AppRouter />
-
                                   </SellerProvider>
                                 </AdminProvider>
                               </MachineryProvider>
                             </LandProvider>
                           </SeedCartProvider>
-                        </AiProvider>
-                      </MandiProvider>
-                    </OrderProvider>
-                  </WishlistProvider>
-
-                </CartProvider>
-
+                        </MandiProvider>
+                      </OrderProvider>
+                    </WishlistProvider>
+                  </CartProvider>
+                </AiProvider>
               </NotificationProvider>
             </AppModeProvider>
           </AuthGate>
@@ -72,3 +71,4 @@ export default function App() {
     </LanguageProvider>
   )
 }
+

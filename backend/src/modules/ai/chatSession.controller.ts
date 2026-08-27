@@ -2,6 +2,7 @@ import * as chatSessionService from './chatSession.service';
 import ApiResponse from '../../common/utils/ApiResponse';
 import ApiError from '../../common/utils/ApiError';
 import asyncHandler from '../../common/middlewares/asyncHandler';
+import type { SendChatMessageInput } from './ai.validation';
 
 export const list = asyncHandler(async (req, res) => {
   if (!req.user) throw ApiError.unauthorized('Authentication required.');
@@ -29,6 +30,7 @@ export const remove = asyncHandler(async (req, res) => {
 
 export const sendMessage = asyncHandler(async (req, res) => {
   if (!req.user) throw ApiError.unauthorized('Authentication required.');
-  const result = await chatSessionService.sendMessage(req.user.id, req.params.id, req.body.content);
+  const { content, language } = req.body as SendChatMessageInput;
+  const result = await chatSessionService.sendMessage(req.user.id, req.params.id, content, language);
   ApiResponse.created(res, result, 'Message sent.');
 });

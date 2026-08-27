@@ -2,6 +2,33 @@ import { api } from './api'
 import type { PaginationMeta } from './productService'
 
 /* =========================================================================
+ * Current UI language — attached to every AI request below so replies with
+ * no free-text field to detect language from (e.g. a crop advisor form
+ * filled entirely with dropdowns) still come back in the right language
+ * instead of silently defaulting to English. Requests that do carry free
+ * text (chat, notes fields, voice transcripts) still let that text win —
+ * this is just the fallback signal.
+ * ====================================================================== */
+
+const LANGUAGE_STORAGE_KEY = 'aandata.language' // must match LanguageContext's STORAGE_KEY
+const LANGUAGE_NAMES: Record<string, string> = {
+  en: 'English',
+  hi: 'Hindi',
+  mr: 'Marathi',
+  pa: 'Punjabi',
+  gu: 'Gujarati',
+}
+
+function getCurrentLanguageName(): string {
+  try {
+    const code = window.localStorage.getItem(LANGUAGE_STORAGE_KEY)
+    return (code && LANGUAGE_NAMES[code]) || 'English'
+  } catch {
+    return 'English'
+  }
+}
+
+/* =========================================================================
  * Shared advisory result shape
  * ====================================================================== */
 
@@ -87,7 +114,7 @@ export interface WeatherAdviceInput {
 
 export const cropAnalysisService = {
   async cropAdvisor(input: CropAdvisorInput): Promise<AdvisoryResult> {
-    const res = await api.post<{ data: BackendCropAnalysis }>('/ai/crop-advisor', input)
+    const res = await api.post<{ data: BackendCropAnalysis }>('/ai/crop-advisor', { ...input, language: getCurrentLanguageName() })
     return res.data.data.resultData
   },
 
@@ -96,27 +123,28 @@ export const cropAnalysisService = {
     form.append('image', image)
     if (extra.cropType) form.append('cropType', extra.cropType)
     if (extra.notes) form.append('notes', extra.notes)
+    form.append('language', getCurrentLanguageName())
     const res = await api.post<{ data: BackendCropAnalysis }>('/ai/disease-detection', form)
     return { ...res.data.data.resultData, imageUrl: res.data.data.imageUrl ?? undefined }
   },
 
   async fertilizerAdvice(input: FertilizerAdviceInput): Promise<AdvisoryResult> {
-    const res = await api.post<{ data: BackendCropAnalysis }>('/ai/fertilizer-advice', input)
+    const res = await api.post<{ data: BackendCropAnalysis }>('/ai/fertilizer-advice', { ...input, language: getCurrentLanguageName() })
     return res.data.data.resultData
   },
 
   async irrigationAdvice(input: IrrigationAdviceInput): Promise<AdvisoryResult> {
-    const res = await api.post<{ data: BackendCropAnalysis }>('/ai/irrigation-advice', input)
+    const res = await api.post<{ data: BackendCropAnalysis }>('/ai/irrigation-advice', { ...input, language: getCurrentLanguageName() })
     return res.data.data.resultData
   },
 
   async cropRotation(input: CropRotationInput): Promise<AdvisoryResult> {
-    const res = await api.post<{ data: BackendCropAnalysis }>('/ai/crop-rotation', input)
+    const res = await api.post<{ data: BackendCropAnalysis }>('/ai/crop-rotation', { ...input, language: getCurrentLanguageName() })
     return res.data.data.resultData
   },
 
   async weatherAdvice(input: WeatherAdviceInput): Promise<AdvisoryResult> {
-    const res = await api.post<{ data: BackendCropAnalysis }>('/ai/weather-advice', input)
+    const res = await api.post<{ data: BackendCropAnalysis }>('/ai/weather-advice', { ...input, language: getCurrentLanguageName() })
     return res.data.data.resultData
   },
 
@@ -151,7 +179,7 @@ export interface SoilAnalysisInput {
 
 export const soilService = {
   async analyze(input: SoilAnalysisInput): Promise<AdvisoryResult> {
-    const res = await api.post<{ data: BackendSoilReport }>('/ai/soil-analysis', input)
+    const res = await api.post<{ data: BackendSoilReport }>('/ai/soil-analysis', { ...input, language: getCurrentLanguageName() })
     return res.data.data.recommendationData
   },
 
@@ -228,10 +256,10 @@ export const chatService = {
     await api.delete(`/ai/chat/sessions/${id}`)
   },
 
-  async sendMessage(sessionId: string, content: string, language?: string): Promise<{ userMessage: ChatMessage; assistantMessage: ChatMessage }> {
+  async sendMessage(sessionId: string, content: string): Promise<{ userMessage: ChatMessage; assistantMessage: ChatMessage }> {
     const res = await api.post<{ data: { userMessage: BackendChatMessage; assistantMessage: BackendChatMessage } }>(
       `/ai/chat/sessions/${sessionId}/messages`,
-      { content, language },
+      { content },
     )
     return { userMessage: mapMessage(res.data.data.userMessage), assistantMessage: mapMessage(res.data.data.assistantMessage) }
   },
@@ -249,16 +277,11 @@ export interface VoiceResult {
 }
 
 export const voiceService = {
-  async query(
-    audio: Blob,
-    filename: string,
-    opts: { sessionId?: string; synthesizeReply?: boolean; language?: string } = {},
-  ): Promise<VoiceResult> {
+  async query(audio: Blob, filename: string, opts: { sessionId?: string; synthesizeReply?: boolean } = {}): Promise<VoiceResult> {
     const form = new FormData()
     form.append('audio', audio, filename)
     const params: Record<string, string> = {}
     if (opts.sessionId) params.sessionId = opts.sessionId
-    if (opts.language) params.language = opts.language
     params.synthesizeReply = opts.synthesizeReply === false ? 'false' : 'true'
     const res = await api.post<{ data: VoiceResult }>('/ai/voice', form, { params })
     return res.data.data

@@ -1,9 +1,18 @@
 import { z } from 'zod';
 
+// --- Shared language codes -------------------------------------------------
+// Kept in sync with the frontend's src/locales supported languages, so a
+// person's UI language selection can pin the AI's reply/speech language
+// deterministically instead of relying on the model to infer it.
+export const LANGUAGE_CODES = ['en', 'hi', 'mr', 'pa', 'gu'] as const;
+export type LanguageCode = (typeof LANGUAGE_CODES)[number];
+const languageCodeSchema = z.enum(LANGUAGE_CODES).optional();
+
 // --- Chat -----------------------------------------------------------------
 
 export const sendChatMessageSchema = z.object({
   content: z.string().trim().min(1).max(2000),
+  language: languageCodeSchema, // pins the reply to this language; omitted = match the user's own message
 });
 export type SendChatMessageInput = z.infer<typeof sendChatMessageSchema>;
 
@@ -103,6 +112,7 @@ export const voiceQuerySchema = z.object({
     .enum(['true', 'false'])
     .default('true')
     .transform((v) => v === 'true'),
+  language: languageCodeSchema, // pins the reply (and therefore the synthesized speech) to this language
 });
 export type VoiceQuery = z.infer<typeof voiceQuerySchema>;
 

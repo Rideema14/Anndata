@@ -3,6 +3,7 @@ import { Send, Sparkles } from 'lucide-react'
 import { chatService, type ChatMessage } from '@/services/aiService'
 import { getApiErrorMessage } from '@/services/api'
 import { useAi } from '@/context/AiContext'
+import { useLanguage } from '@/context/LanguageContext'
 import { cn } from '@/utils/cn'
 
 const SUGGESTIONS = ['मेरी गेहूं की फसल पीली हो रही है', 'Best time to sow soybean?', 'सिंचाई कब करें?']
@@ -15,6 +16,7 @@ export default function AiChatPage() {
   const [error, setError] = useState('')
   const endRef = useRef<HTMLDivElement>(null)
   const { refreshHistory } = useAi()
+  const { language } = useLanguage()
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -36,7 +38,7 @@ export default function AiChatPage() {
     setTyping(true)
     try {
       const id = await ensureSession()
-      const { assistantMessage } = await chatService.sendMessage(id, text)
+      const { assistantMessage } = await chatService.sendMessage(id, text, language)
       setMessages((prev) => [...prev, assistantMessage])
       refreshHistory()
     } catch (err) {

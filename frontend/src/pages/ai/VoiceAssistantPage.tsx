@@ -3,6 +3,7 @@ import { AlertTriangle, Mic, Volume2 } from 'lucide-react'
 import { voiceService } from '@/services/aiService'
 import { getApiErrorMessage } from '@/services/api'
 import { useAi } from '@/context/AiContext'
+import { useLanguage } from '@/context/LanguageContext'
 import { cn } from '@/utils/cn'
 
 type VoiceState = 'ready' | 'listening' | 'processing' | 'response' | 'error'
@@ -25,6 +26,8 @@ export default function VoiceAssistantPage() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
   const { refreshHistory } = useAi()
+  const { language, supportedLanguages } = useLanguage()
+  const languageLabel = supportedLanguages.find((l) => l.code === language)?.nativeLabel ?? 'your app language'
 
   async function startListening() {
     setErrorMessage('')
@@ -56,7 +59,7 @@ export default function VoiceAssistantPage() {
 
   async function submitRecording(blob: Blob) {
     try {
-      const result = await voiceService.query(blob, 'voice-query.webm', { sessionId: sessionIdRef.current })
+      const result = await voiceService.query(blob, 'voice-query.webm', { sessionId: sessionIdRef.current, language })
       sessionIdRef.current = result.sessionId
       setTranscript(result.transcript)
       setReply(result.replyText)
@@ -97,7 +100,7 @@ export default function VoiceAssistantPage() {
       </button>
 
       <p className="mt-5 text-sm font-medium text-ink-700">{STATE_LABEL[state]}</p>
-      <p className="mt-1 text-xs text-ink-400">Supports Hindi and English</p>
+      <p className="mt-1 text-xs text-ink-400">Speak in any language — I'll reply in {languageLabel}</p>
 
       {state === 'error' && errorMessage && (
         <div className="mt-4 flex items-start gap-2 rounded-2xl bg-danger-50 p-3.5 text-left text-sm text-danger-700">

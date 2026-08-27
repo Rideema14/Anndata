@@ -3,6 +3,7 @@ import ApiError from '../../common/utils/ApiError';
 import { transcribeAudio, synthesizeSpeech } from './aiProvider.service';
 import { uploadBuffer } from '../../config/cloudinary';
 import * as chatSessionService from './chatSession.service';
+import type { LanguageCode } from './ai.validation';
 
 export interface VoiceResult {
   transcript: string;
@@ -16,6 +17,11 @@ export interface VoiceResult {
  * pipeline as text chat (so voice and text share one conversation history
  * and one system prompt, not a parallel implementation), and optionally
  * synthesizes the reply back to speech.
+ *
+ * `targetLanguage`, when passed, comes from the app's language switcher and
+ * pins the reply — and therefore the synthesized voice — to that language
+ * deterministically, instead of relying on the model to infer it from the
+ * transcript alone.
  */
 export async function handleVoiceQuery(
   userId: string,
@@ -23,7 +29,8 @@ export async function handleVoiceQuery(
   filename: string,
   mimetype: string,
   sessionId: string | undefined,
-  synthesizeReply: boolean
+  synthesizeReply: boolean,
+  targetLanguage?: LanguageCode
 ): Promise<VoiceResult> {
   const transcript = await transcribeAudio(fileBuffer, filename, mimetype);
   if (!transcript.trim()) {
@@ -39,7 +46,7 @@ export async function handleVoiceQuery(
     activeSessionId = session.id;
   }
 
-  const { assistantMessage } = await chatSessionService.sendMessage(userId, activeSessionId, transcript);
+  const { assistantMessage } = await chatSessionService.sendMessage(userId, activeSessionId, transcript, targetLanguage);
 
   let replyAudioUrl: string | undefined;
   if (synthesizeReply) {

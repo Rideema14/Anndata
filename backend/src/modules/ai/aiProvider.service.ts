@@ -318,14 +318,26 @@ export async function transcribeAudio(buffer: Buffer, filename: string, mimetype
   return geminiTranscribeAudio(buffer, filename, mimetype);
 }
 
+// Devanagari (Hindi/Marathi), Gurmukhi (Punjabi), and Gujarati script
+// ranges. Groq's only TTS model (canopylabs/orpheus-v1-english) is
+// English-only by name and design — sending it text in any of these
+// scripts would produce garbled or silent audio, not a clear failure, so
+// this is checked explicitly rather than trusting the env-configured
+// provider blindly.
+const NON_LATIN_SCRIPT = /[\u0900-\u097F\u0A00-\u0A7F\u0A80-\u0AFF]/;
+
 /**
  * Synthesizes speech from text. Defaults to Gemini (free); set
  * AI_TTS_PROVIDER=groq to use Groq's Orpheus voices instead, which are more
- * expressive but billed per character. Falls back to Gemini if the Groq
- * call fails for any reason.
+ * expressive but billed per character and English-only. Falls back to
+ * Gemini if the Groq call fails for any reason, or up front if the text
+ * itself isn't in a script Orpheus can speak.
  */
 export async function synthesizeSpeech(text: string): Promise<Buffer> {
-  if (env.groq.ttsProvider === 'groq' && isGroqConfigured) {
+  const wantsGroq = env.groq.ttsProvider === 'groq' && isGroqConfigured;
+  if (wantsGroq && NON_LATIN_SCRIPT.test(text)) {
+    logger.warn('Skipping Groq TTS for non-Latin-script text (Orpheus is English-only); using Gemini instead.');
+  } else if (wantsGroq) {
     try {
       return await groqSynthesizeSpeech(text);
     } catch (err) {
