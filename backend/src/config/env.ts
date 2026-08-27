@@ -8,9 +8,9 @@ const REQUIRED_VARS = [
   'DATABASE_URL',
   'JWT_ACCESS_SECRET',
   'JWT_REFRESH_SECRET',
-  'SMTP_HOST',
-  'SMTP_USER',
-  'SMTP_PASS',
+  'EMAILJS_SERVICE_ID',
+  'EMAILJS_TEMPLATE_ID',
+  'EMAILJS_PUBLIC_KEY',
   'CLOUDINARY_CLOUD_NAME',
   'CLOUDINARY_API_KEY',
   'CLOUDINARY_API_SECRET',
@@ -38,6 +38,15 @@ export function validateEnv(): void {
     console.warn('[ENV] RAZORPAY_WEBHOOK_SECRET is not set — the payment webhook endpoint will reject all events.');
   }
 
+  if (!process.env.EMAILJS_PRIVATE_KEY) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      '[ENV] EMAILJS_PRIVATE_KEY is not set — calls to the EmailJS API from this server will be rejected ' +
+        'unless "Allow non-browser requests" is turned on for your EmailJS account (Account > Security). ' +
+        'Setting the private key is the safer option and lets you leave that toggle off.'
+    );
+  }
+
   if (!process.env.GROQ_API_KEY) {
     // eslint-disable-next-line no-console
     console.warn(
@@ -62,13 +71,22 @@ export const env = {
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d',
   },
 
-  smtp: {
-    host: process.env.SMTP_HOST as string,
-    port: parseInt(process.env.SMTP_PORT || '587', 10),
-    secure: process.env.SMTP_SECURE === 'true',
-    user: process.env.SMTP_USER as string,
-    pass: process.env.SMTP_PASS as string,
-    from: process.env.MAIL_FROM || 'Agri Marketplace <no-reply@agrimarketplace.com>',
+  // Nodemailer talked SMTP directly (ports 25/465/587), which Vercel's
+  // serverless functions block outbound — every email silently hung until
+  // the 8s timeout in production. EmailJS's API is plain HTTPS, so it isn't
+  // affected. See backend/src/config/mailer.ts for the send call, and
+  // .env.example for how to set up the EmailJS template these variables
+  // point at.
+  emailjs: {
+    serviceId: process.env.EMAILJS_SERVICE_ID as string,
+    templateId: process.env.EMAILJS_TEMPLATE_ID as string,
+    publicKey: process.env.EMAILJS_PUBLIC_KEY as string,
+    // Optional but strongly recommended — see the warning below. Required
+    // for server-side (non-browser) sends unless that account setting is
+    // relaxed.
+    privateKey: process.env.EMAILJS_PRIVATE_KEY,
+    fromName: process.env.MAIL_FROM_NAME || 'Agri Marketplace',
+    fromEmail: process.env.MAIL_FROM_EMAIL || 'no-reply@agrimarketplace.com',
   },
 
   otp: {
