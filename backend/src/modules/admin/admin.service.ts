@@ -2,7 +2,16 @@ import type { Prisma } from '@prisma/client';
 import prisma from '../../config/prisma';
 import ApiError from '../../common/utils/ApiError';
 import { parsePagination, buildPaginationMeta } from '../../common/utils/pagination';
-import type { ListUsersQuery, PlatformAnalyticsQuery, AdminReviewsQuery, AdminProductsQuery } from './admin.validation';
+import { notifyUser } from '../notification/notification.service';
+import type {
+  ListUsersQuery,
+  PlatformAnalyticsQuery,
+  AdminReviewsQuery,
+  AdminProductsQuery,
+  SellerBalancesQuery,
+  CreatePayoutInput,
+  ListPayoutsQuery,
+} from './admin.validation';
 
 // --- User management ---------------------------------------------------
 
@@ -177,4 +186,241 @@ export async function listAllProducts(query: AdminProductsQuery) {
   ]);
 
   return { items, meta: buildPaginationMeta(page, limit, totalItems) };
+}
+
+// --- Seller payouts --------------------------------------------------------
+// There's no payment-gateway payout API wired up (e.g. Razorpay Route), so
+// an admin transfers a seller's earnings manually (bank transfer/UPI) and
+// records it here as an audit trail. A seller's outstanding "balance" is
+// defined as: revenue from their DELIVERED product orders + DELIVERED seed
+// orders + COMPLETED machinery bookings, minus the sum of their PAID
+// payouts. Cancelled/pending/in-flight sales don't count yet — only revenue
+// that's actually landed.
+
+interface SellerBalance {
+  totalEarned: number;
+  totalPaidOut: number;
+  balance: number;
+}
+
+async function computeSellerBalance(sellerId: string): Promise<SellerBalance> {
+  const rows = await prisma.$queryRaw<SellerBalance[]>`
+    WITH product_revenue AS (
+      SELECT COALESCE(SUM(oi."totalPrice"), 0) AS revenue
+      FROM order_items oi
+      JOIN orders o ON o.id = oi."orderId"
+      JOIN products p ON p.id = oi."productId"
+      WHERE p."sellerId" = ${sellerId} AND o.status = 'DELIVERED'
+    ),
+    seed_revenue AS (
+      SELECT COALESCE(SUM(soi."totalPrice"), 0) AS revenue
+      FROM seed_order_items soi
+      JOIN seed_orders so ON so.id = soi."orderId"
+      JOIN seeds s ON s.id = soi."seedId"
+      WHERE s."sellerId" = ${sellerId} AND so.status = 'DELIVERED'
+    ),
+    machinery_revenue AS (
+      SELECT COALESCE(SUM(mb."totalAmount"), 0) AS revenue
+      FROM machinery_bookings mb
+      JOIN machinery m ON m.id = mb."machineryId"
+      WHERE m."sellerId" = ${sellerId} AND mb.status = 'COMPLETED'
+    ),
+    paid_out AS (
+      SELECT COALESCE(SUM(amount), 0) AS paid
+      FROM payouts
+      WHERE "sellerId" = ${sellerId} AND status = 'PAID'
+    )
+    SELECT
+      (product_revenue.revenue + seed_revenue.revenue + machinery_revenue.revenue)::float AS "totalEarned",
+      paid_out.paid::float AS "totalPaidOut",
+      (product_revenue.revenue + seed_revenue.revenue + machinery_revenue.revenue - paid_out.paid)::float AS balance
+    FROM product_revenue, seed_revenue, machinery_revenue, paid_out
+  `;
+  return rows[0] ?? { totalEarned: 0, totalPaidOut: 0, balance: 0 };
+}
+
+interface SellerBalanceRow extends SellerBalance {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  profileImage: string | null;
+  businessName: string | null;
+  verificationStatus: string | null;
+  bankAccountHolder: string | null;
+  bankAccountNumber: string | null;
+  bankIfscCode: string | null;
+  bankName: string | null;
+}
+
+/** Paginated, searchable list of every seller with their computed balance — the admin payouts page's main table. */
+export async function getSellerBalances(query: SellerBalancesQuery) {
+  const { page, limit, skip, take } = parsePagination(query);
+  const search = query.search ?? null;
+
+  const [items, countRows] = await Promise.all([
+    prisma.$queryRaw<SellerBalanceRow[]>`
+      WITH product_revenue AS (
+        SELECT p."sellerId" AS "sellerId", SUM(oi."totalPrice") AS revenue
+        FROM order_items oi
+        JOIN orders o ON o.id = oi."orderId"
+        JOIN products p ON p.id = oi."productId"
+        WHERE o.status = 'DELIVERED'
+        GROUP BY p."sellerId"
+      ),
+      seed_revenue AS (
+        SELECT s."sellerId" AS "sellerId", SUM(soi."totalPrice") AS revenue
+        FROM seed_order_items soi
+        JOIN seed_orders so ON so.id = soi."orderId"
+        JOIN seeds s ON s.id = soi."seedId"
+        WHERE so.status = 'DELIVERED'
+        GROUP BY s."sellerId"
+      ),
+      machinery_revenue AS (
+        SELECT m."sellerId" AS "sellerId", SUM(mb."totalAmount") AS revenue
+        FROM machinery_bookings mb
+        JOIN machinery m ON m.id = mb."machineryId"
+        WHERE mb.status = 'COMPLETED'
+        GROUP BY m."sellerId"
+      ),
+      paid_out AS (
+        SELECT "sellerId", SUM(amount) AS paid
+        FROM payouts
+        WHERE status = 'PAID'
+        GROUP BY "sellerId"
+      )
+      SELECT
+        u.id, u.name, u.email, u.phone, u."profileImage",
+        sp."businessName", sp."verificationStatus"::text AS "verificationStatus",
+        sp."bankAccountHolder", sp."bankAccountNumber", sp."bankIfscCode", sp."bankName",
+        (COALESCE(pr.revenue, 0) + COALESCE(sr.revenue, 0) + COALESCE(mr.revenue, 0))::float AS "totalEarned",
+        COALESCE(po.paid, 0)::float AS "totalPaidOut",
+        (COALESCE(pr.revenue, 0) + COALESCE(sr.revenue, 0) + COALESCE(mr.revenue, 0) - COALESCE(po.paid, 0))::float AS balance
+      FROM users u
+      LEFT JOIN seller_profiles sp ON sp."userId" = u.id
+      LEFT JOIN product_revenue pr ON pr."sellerId" = u.id
+      LEFT JOIN seed_revenue sr ON sr."sellerId" = u.id
+      LEFT JOIN machinery_revenue mr ON mr."sellerId" = u.id
+      LEFT JOIN paid_out po ON po."sellerId" = u.id
+      WHERE u.role = 'SELLER'
+        AND (${search}::text IS NULL OR u.name ILIKE '%' || ${search} || '%' OR u.email ILIKE '%' || ${search} || '%' OR sp."businessName" ILIKE '%' || ${search} || '%')
+      ORDER BY balance DESC NULLS LAST, u.name ASC
+      LIMIT ${take} OFFSET ${skip}
+    `,
+    prisma.$queryRaw<{ count: number }[]>`
+      SELECT COUNT(*)::int AS count
+      FROM users u
+      LEFT JOIN seller_profiles sp ON sp."userId" = u.id
+      WHERE u.role = 'SELLER'
+        AND (${search}::text IS NULL OR u.name ILIKE '%' || ${search} || '%' OR u.email ILIKE '%' || ${search} || '%' OR sp."businessName" ILIKE '%' || ${search} || '%')
+    `,
+  ]);
+
+  return { items, meta: buildPaginationMeta(page, limit, countRows[0]?.count ?? 0) };
+}
+
+/** Single seller's balance + bank details — fetched fresh right before the "Pay out" modal opens, so figures can't be stale. */
+export async function getSellerBalance(sellerId: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: sellerId },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      profileImage: true,
+      role: true,
+      sellerProfile: {
+        select: {
+          businessName: true,
+          verificationStatus: true,
+          bankAccountHolder: true,
+          bankAccountNumber: true,
+          bankIfscCode: true,
+          bankName: true,
+        },
+      },
+    },
+  });
+  if (!user || user.role !== 'SELLER') throw ApiError.notFound('Seller not found.');
+
+  const balance = await computeSellerBalance(sellerId);
+  return { ...user, ...balance };
+}
+
+/** Records a payout an admin has (manually) sent to a seller. Re-validates the balance server-side so two admins can't double-pay a seller from stale list data. */
+export async function createPayout(adminId: string, sellerId: string, input: CreatePayoutInput) {
+  const seller = await prisma.user.findUnique({ where: { id: sellerId }, select: { id: true, role: true, name: true } });
+  if (!seller || seller.role !== 'SELLER') throw ApiError.notFound('Seller not found.');
+
+  const { balance } = await computeSellerBalance(sellerId);
+  if (input.amount > balance) {
+    throw ApiError.badRequest(
+      `Payout of ₹${input.amount.toFixed(2)} exceeds this seller's outstanding balance of ₹${balance.toFixed(2)}.`
+    );
+  }
+
+  const payout = await prisma.payout.create({
+    data: {
+      sellerId,
+      amount: input.amount,
+      method: input.method,
+      reference: input.reference,
+      note: input.note,
+      paidById: adminId,
+    },
+    include: { paidBy: { select: { id: true, name: true } } },
+  });
+
+  notifyUser({
+    userId: sellerId,
+    type: 'PAYMENT',
+    title: 'Payout received',
+    message: `A payout of ₹${input.amount.toFixed(2)} has been sent to your registered bank account${
+      input.reference ? ` (ref: ${input.reference})` : ''
+    }.`,
+    relatedEntityType: 'PAYOUT',
+    relatedEntityId: payout.id,
+    email: {
+      subject: `You've received a payout of ₹${input.amount.toFixed(2)}`,
+      html: `<p>Hi ${seller.name},</p><p>A payout of <b>₹${input.amount.toFixed(2)}</b> has been sent to your registered bank account.</p>${
+        input.reference ? `<p><b>Reference:</b> ${input.reference}</p>` : ''
+      }<p>Log in to your seller dashboard to see your updated balance.</p>`,
+    },
+  }).catch(() => {});
+
+  return payout;
+}
+
+/** Platform-wide payout ledger — filterable by seller and status. */
+export async function listPayouts(query: ListPayoutsQuery) {
+  const { page, limit, skip, take } = parsePagination(query);
+
+  const where: Prisma.PayoutWhereInput = {};
+  if (query.sellerId) where.sellerId = query.sellerId;
+  if (query.status) where.status = query.status;
+
+  const [items, totalItems] = await Promise.all([
+    prisma.payout.findMany({
+      where,
+      include: {
+        seller: { select: { id: true, name: true, email: true, sellerProfile: { select: { businessName: true } } } },
+        paidBy: { select: { id: true, name: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take,
+    }),
+    prisma.payout.count({ where }),
+  ]);
+
+  return { items, meta: buildPaginationMeta(page, limit, totalItems) };
+}
+
+/** Corrects a mistaken payout entry (wrong amount/seller) without deleting the audit row. */
+export async function reversePayout(payoutId: string) {
+  const payout = await prisma.payout.findUnique({ where: { id: payoutId } });
+  if (!payout) throw ApiError.notFound('Payout not found.');
+  if (payout.status === 'REVERSED') throw ApiError.badRequest('This payout has already been reversed.');
+  return prisma.payout.update({ where: { id: payoutId }, data: { status: 'REVERSED' } });
 }

@@ -1,5 +1,5 @@
 import { api } from './api'
-import type { Carrier, Order, OrderItem, OrderStatus, OrderSummary, ShipmentEvent } from '@/types'
+import type { Carrier, Order, OrderItem, OrderStatus, OrderSummary, SellerOrderDetail, ShipmentEvent } from '@/types'
 import type { PaginationMeta } from './productService'
 
 type BackendStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'CANCELLED' | 'RETURNED'
@@ -34,8 +34,12 @@ interface BackendOrderItem {
   quantity: number
   unitPrice: number | string
   totalPrice: number | string
+  /** Only present on the detail endpoint (GET /orders/:id), which includes each item's product thumbnail. */
+  product?: { id: string; images?: { url: string }[] }
 }
 interface BackendAddress {
+  fullName: string
+  phone: string
   addressLine1: string
   addressLine2?: string | null
   city: string
@@ -47,6 +51,12 @@ interface BackendPayment {
   razorpayOrderId: string
   amount: number | string
   status: 'CREATED' | 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED'
+  method?: string | null
+}
+interface BackendStatusHistoryEntry {
+  status: BackendStatus
+  note?: string | null
+  changedAt: string
 }
 interface BackendOrder {
   id: string
@@ -64,8 +74,10 @@ interface BackendOrder {
   trackingCarrier?: string | null
   trackingNumber?: string | null
   /** The buyer who placed the order. Present on every order, but only
-   *  relevant to sellers/admins viewing the fulfillment list. */
-  user?: { id: string; name: string }
+   *  relevant to sellers/admins viewing the fulfillment list/detail page.
+   *  email/phone are only included on the detail endpoint. */
+  user?: { id: string; name: string; email?: string; phone?: string | null }
+  statusHistory?: BackendStatusHistoryEntry[]
 }
 
 function formatAddress(a: BackendAddress): string {
@@ -131,6 +143,54 @@ function mapSummary(o: BackendOrder): OrderSummary {
   }
 }
 
+function mapSellerOrderDetail(o: BackendOrder): SellerOrderDetail {
+  const trackingNumber = o.trackingNumber ?? undefined
+  const trackingCarrier = o.trackingCarrier ?? undefined
+  return {
+    id: o.orderNumber,
+    status: STATUS_MAP[o.status],
+    placedAt: o.createdAt,
+    updatedAt: o.updatedAt,
+    items: o.items.map((i) => ({
+      productId: i.productId,
+      name: i.productName,
+      quantity: i.quantity,
+      unitPrice: Number(i.unitPrice),
+      totalPrice: Number(i.totalPrice),
+      image: i.product?.images?.[0]?.url,
+    })),
+    subtotal: Number(o.subtotal),
+    shippingFee: Number(o.shippingFee),
+    tax: Number(o.tax),
+    total: Number(o.totalAmount),
+    address: {
+      fullName: o.address.fullName,
+      phone: o.address.phone,
+      line1: o.address.addressLine1,
+      line2: o.address.addressLine2 ?? undefined,
+      city: o.address.city,
+      state: o.address.state,
+      pincode: o.address.postalCode,
+    },
+    customer: {
+      id: o.user?.id ?? '',
+      name: o.user?.name ?? 'Buyer',
+      email: o.user?.email ?? '',
+      phone: o.user?.phone ?? undefined,
+    },
+    paymentStatus: o.payment?.status,
+    paymentMethod: o.payment?.method ?? undefined,
+    trackingCarrier,
+    trackingNumber,
+    trackingUrl: buildTrackingUrl(trackingCarrier, trackingNumber),
+    statusHistory: (o.statusHistory ?? []).map((h) => ({
+      status: STATUS_MAP[h.status],
+      note: h.note ?? undefined,
+      changedAt: h.changedAt,
+    })),
+  }
+}
+
 /** Internal id (uuid) lookup — the frontend routes/displays by orderNumber, but PATCH/cancel need the real id. */
 const idByOrderNumber = new Map<string, string>()
 
@@ -160,6 +220,14 @@ export const orderService = {
     const res = await api.get<{ data: BackendOrder }>(`/orders/${realId}`)
     idByOrderNumber.set(res.data.data.orderNumber, res.data.data.id)
     return mapOrder(res.data.data)
+  },
+
+  /** Seller/admin order detail page — full customer contact + delivery address + item images + status timeline. */
+  async getSellerOrderDetail(idOrNumber: string): Promise<SellerOrderDetail> {
+    const realId = idByOrderNumber.get(idOrNumber) ?? idOrNumber
+    const res = await api.get<{ data: BackendOrder }>(`/orders/${realId}`)
+    idByOrderNumber.set(res.data.data.orderNumber, res.data.data.id)
+    return mapSellerOrderDetail(res.data.data)
   },
 
   async getTracking(idOrNumber: string): Promise<ShipmentEvent[]> {

@@ -20,6 +20,7 @@ import {
 import { getApiErrorMessage } from '@/services/api'
 import { formatINR } from '@/utils/format'
 import { cn } from '@/utils/cn'
+import { LoadingOverlay } from '@/components/common/LoadingOverlay'
 
 type Tab = 'listings' | 'bookings'
 
@@ -53,6 +54,7 @@ export default function SellerMachineryPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [toggleAction, setToggleAction] = useState<'activate' | 'deactivate' | null>(null)
 
   const load = useCallback(async () => {
     if (!user) return
@@ -82,6 +84,7 @@ export default function SellerMachineryPage() {
 
   async function handleToggleActive(listing: MachineryListing) {
     setBusyId(listing.id)
+    setToggleAction(listing.available ? 'deactivate' : 'activate')
     try {
       await machineryService.setActive(listing.id, !listing.available)
       setListings((prev) => prev.map((l) => (l.id === listing.id ? { ...l, available: !l.available } : l)))
@@ -89,6 +92,7 @@ export default function SellerMachineryPage() {
       setError(getApiErrorMessage(err, 'Could not update this listing.'))
     } finally {
       setBusyId(null)
+      setToggleAction(null)
     }
   }
 
@@ -128,6 +132,11 @@ export default function SellerMachineryPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-5 md:px-6 md:py-8">
+      <LoadingOverlay
+        isLoading={toggleAction !== null}
+        title={toggleAction === 'activate' ? 'Activating listing…' : 'Deactivating listing…'}
+        message={toggleAction === 'activate' ? 'Making this machine visible to renters again.' : 'Hiding this machine from renters.'}
+      />
       <Link to="/seller" className="mb-4 flex items-center gap-1 text-xs font-semibold text-brand-600 hover:underline">
         <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
         Seller Hub

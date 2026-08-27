@@ -15,6 +15,7 @@ import { useAuth } from '@/context/AuthContext'
 import { formatINR } from '@/utils/format'
 import { cn } from '@/utils/cn'
 import type { BackendVisitStatus } from '@/services/landService'
+import { LoadingOverlay } from '@/components/common/LoadingOverlay'
 
 type Tab = 'listings' | 'visits'
 
@@ -40,6 +41,8 @@ export default function SellerLandPage() {
   const [responseNote, setResponseNote] = useState('')
   const [updatingVisit, setUpdatingVisit] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [togglingId, setTogglingId] = useState<string | null>(null)
+  const [toggleAction, setToggleAction] = useState<'activate' | 'deactivate' | null>(null)
 
   useEffect(() => {
     if (user) {
@@ -51,10 +54,15 @@ export default function SellerLandPage() {
   const pendingVisitsCount = sellerVisitRequests.filter((v) => v.status === 'PENDING').length
 
   const handleToggleActive = async (id: string, currentActive: boolean) => {
+    setTogglingId(id)
+    setToggleAction(currentActive ? 'deactivate' : 'activate')
     try {
       await updateLand(id, { isActive: !currentActive })
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Failed to update listing status')
+    } finally {
+      setTogglingId(null)
+      setToggleAction(null)
     }
   }
 
@@ -87,6 +95,11 @@ export default function SellerLandPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-5 md:px-6 md:py-8">
+      <LoadingOverlay
+        isLoading={toggleAction !== null}
+        title={toggleAction === 'activate' ? 'Activating listing…' : 'Deactivating listing…'}
+        message={toggleAction === 'activate' ? 'Making this land listing visible to buyers again.' : 'Hiding this land listing from buyers.'}
+      />
       {/* Header */}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -218,8 +231,9 @@ export default function SellerLandPage() {
                       <button
                         type="button"
                         onClick={() => handleToggleActive(land.id, land.isActive)}
+                        disabled={togglingId === land.id}
                         className={cn(
-                          'rounded-xl border px-3 py-1.5 text-xs font-semibold transition',
+                          'rounded-xl border px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50',
                           land.isActive
                             ? 'border-ink-200 text-ink-700 hover:bg-ink-50'
                             : 'border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100',

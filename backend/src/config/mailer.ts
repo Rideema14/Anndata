@@ -1,33 +1,30 @@
-import nodemailer from 'nodemailer';
+import emailjs from '@emailjs/nodejs';
 import { env } from './env';
 import logger from '../common/utils/logger';
 
-const transporter = nodemailer.createTransport({
-  host: env.smtp.host,
-  port: env.smtp.port,
-  secure: env.smtp.secure, // true for 465, false for other ports (STARTTLS)
-  auth: {
-    user: env.smtp.user,
-    pass: env.smtp.pass,
-  },
-  // Without these, a blocked/unreachable SMTP host hangs on nodemailer's own
-  // multi-minute defaults — long enough to blow past the frontend's 15s
-  // request timeout even though the account row was already committed.
-  // Failing fast here keeps register/resendOtp/forgotPassword responding
-  // well inside that window no matter what the mail server is doing.
-  connectionTimeout: 8_000,
-  greetingTimeout: 8_000,
-  socketTimeout: 8_000,
+// Nodemailer previously sent mail over raw SMTP, which works fine locally
+// but hangs (then times out) on Vercel — its serverless functions block
+// outbound connections on SMTP ports (25/465/587). EmailJS's Send API is a
+// plain HTTPS POST to api.emailjs.com, so it goes through Vercel's network
+// exactly like any other fetch() call.
+//
+// EmailJS templates are authored in the dashboard (Email Templates > your
+// template), not in code. Every mail this app sends — OTPs, order emails,
+// notifications — reuses ONE generic template, so it only needs to be set
+// up once. Create a template with these variables and reference them in
+// its subject/body:
+//   {{to_email}}    - recipient address (set this as the template's "To" field)
+//   {{subject}}      - email subject
+//   {{html_body}}     - full HTML body; insert as {{{html_body}}} (triple braces)
+//                        in the template's HTML source so EmailJS doesn't
+//                        HTML-escape the markup this app already generated
+//   {{text_body}}     - plain-text fallback, in case you also want a text part
+//   {{from_name}}     - display name for the From header
+// See backend/.env.example for the account keys this needs.
+emailjs.init({
+  publicKey: env.emailjs.publicKey,
+  privateKey: env.emailjs.privateKey,
 });
-
-// Verify SMTP connectivity at startup so config problems surface immediately
-// instead of the first time a user tries to register.
-if (env.nodeEnv !== 'test') {
-  transporter
-    .verify()
-    .then(() => logger.info('SMTP transporter ready'))
-    .catch((err: Error) => logger.warn(`SMTP transporter verification failed: ${err.message}`));
-}
 
 export interface MailMessage {
   to: string;
@@ -36,12 +33,30 @@ export interface MailMessage {
   text?: string;
 }
 
-export async function sendMail({ to, subject, html, text }: MailMessage) {
-  return transporter.sendMail({
-    from: env.smtp.from,
-    to,
+// EmailJS's SDK wraps fetch() with no timeout of its own. Nodemailer's
+// direct-SMTP path had explicit 8s timeouts so a blocked/unreachable mail
+// server couldn't stall register/resendOtp/forgotPassword past the
+// frontend's 15s request timeout — mirror that here with the same budget.
+const SEND_TIMEOUT_MS = 8_000;
+
+export async function sendMail({ to, subject, html, text }: MailMessage): Promise<void> {
+  const send = emailjs.send(env.emailjs.serviceId, env.emailjs.templateId, {
+    to_email: to,
     subject,
-    html,
-    text: text || html.replace(/<[^>]+>/g, ''),
+    html_body: html,
+    text_body: text || html.replace(/<[^>]+>/g, ''),
+    from_name: env.emailjs.fromName,
   });
+
+  const timeout = new Promise<never>((_, reject) => {
+    setTimeout(() => reject(new Error(`EmailJS send to ${to} timed out after ${SEND_TIMEOUT_MS}ms`)), SEND_TIMEOUT_MS);
+  });
+
+  try {
+    await Promise.race([send, timeout]);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error(`Failed to send email to ${to} via EmailJS: ${message}`);
+    throw err;
+  }
 }
