@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { mandiService, type MandiAlertPayload } from '@/services/mandiService'
 import { useAuth } from './AuthContext'
+import { useToast } from './ToastContext'
 
 export interface MandiFavorite {
   id: string
@@ -27,6 +28,10 @@ interface MandiContextValue {
   favorites: MandiFavorite[]
   isFavorite: (mandiId: string) => boolean
   toggleFavorite: (mandiId: string) => Promise<void>
+  /** Re-fetches favorites with their full populated mandi details — call
+   *  this from the favorites list page itself; the star/heart toggle
+   *  elsewhere doesn't need it and stays instant without it. */
+  refreshFavorites: () => Promise<void>
   alerts: MandiAlert[]
   addAlert: (data: MandiAlertPayload) => Promise<void>
   updateAlert: (id: string, data: Partial<MandiAlertPayload & { active: boolean }>) => Promise<void>
@@ -38,9 +43,23 @@ const MandiContext = createContext<MandiContextValue | null>(null)
 
 export function MandiProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth()
+  const { showToast } = useToast()
   const [favorites, setFavorites] = useState<MandiFavorite[]>([])
   const [alerts, setAlerts] = useState<MandiAlert[]>([])
   const [isLoading, setIsLoading] = useState(false)
+
+  const refreshFavorites = useCallback(async () => {
+    if (!isAuthenticated) {
+      setFavorites([])
+      return
+    }
+    try {
+      const favsRes = await mandiService.getFavorites()
+      setFavorites(favsRes.data || favsRes || [])
+    } catch (err) {
+      console.error('Failed to fetch mandi favorites', err)
+    }
+  }, [isAuthenticated])
 
   const fetchData = useCallback(async () => {
     if (!isAuthenticated) {
@@ -74,20 +93,43 @@ export function MandiProvider({ children }: { children: ReactNode }) {
 
   const toggleFavorite = useCallback(async (mandiId: string) => {
     if (!isAuthenticated) return
-    const exists = favorites.find((f) => f.mandiId === mandiId)
+    const existing = favorites.find((f) => f.mandiId === mandiId)
+
+    // Optimistic: update the star instantly, sync with the server in the
+    // background, and only roll back if that call actually fails. Adding a
+    // favorite no longer waits on a second full refetch just to reflect
+    // "this is now favorited" — that data (with populated mandi details)
+    // only gets pulled in when refreshFavorites() is called, i.e. when the
+    // favorites list page itself is opened.
+    if (existing) {
+      setFavorites((prev) => prev.filter((f) => f.mandiId !== mandiId))
+    } else {
+      setFavorites((prev) => [
+        ...prev,
+        { id: `temp-${mandiId}`, userId: '', mandiId, createdAt: new Date().toISOString() },
+      ])
+    }
+    showToast(existing ? 'Removed from favorites.' : 'Added to favorites.', {
+      type: existing ? 'info' : 'success',
+    })
+
     try {
-      if (exists) {
+      if (existing) {
         await mandiService.removeFavorite(mandiId)
-        setFavorites((prev) => prev.filter((f) => f.mandiId !== mandiId))
       } else {
         await mandiService.addFavorite(mandiId)
-        // refresh to get populated mandi object if needed, or just append
-        fetchData()
       }
     } catch (err) {
       console.error('Failed to toggle favorite', err)
+      // Roll back — the UI shouldn't claim it saved when it didn't.
+      if (existing) {
+        setFavorites((prev) => [...prev, existing])
+      } else {
+        setFavorites((prev) => prev.filter((f) => f.mandiId !== mandiId))
+      }
+      showToast("Couldn't update your favorites. Please try again.", { type: 'error' })
     }
-  }, [isAuthenticated, favorites, fetchData])
+  }, [isAuthenticated, favorites, showToast])
 
   const addAlert = useCallback(async (data: MandiAlertPayload) => {
     if (!isAuthenticated) return
@@ -122,8 +164,8 @@ export function MandiProvider({ children }: { children: ReactNode }) {
   }, [isAuthenticated])
 
   const value = useMemo(
-    () => ({ favorites, isFavorite, toggleFavorite, alerts, addAlert, updateAlert, removeAlert, isLoading }),
-    [favorites, isFavorite, toggleFavorite, alerts, addAlert, updateAlert, removeAlert, isLoading],
+    () => ({ favorites, isFavorite, toggleFavorite, refreshFavorites, alerts, addAlert, updateAlert, removeAlert, isLoading }),
+    [favorites, isFavorite, toggleFavorite, refreshFavorites, alerts, addAlert, updateAlert, removeAlert, isLoading],
   )
 
   return <MandiContext.Provider value={value}>{children}</MandiContext.Provider>

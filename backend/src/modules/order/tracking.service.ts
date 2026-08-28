@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { Prisma } from '@prisma/client';
 import prisma from '../../config/prisma';
 import { env } from '../../config/env';
 import { emitOrderUpdate } from '../../config/socket';
@@ -173,14 +174,23 @@ async function fetchTrackingMoreEvents(trackingNumber: string, carrierCode: stri
 // Core sync function — called by the cron job
 // ---------------------------------------------------------------------------
 
+// trackingNumber, trackingCarrier, and the shipmentEvents relation are all
+// already declared directly on the Order model in schema.prisma, so no
+// manual type patching is needed here — that's what Prisma.OrderGetPayload
+// is for. (If this include still errors for you at runtime with something
+// like "Unknown field `shipmentEvents`", your local Prisma Client hasn't
+// been regenerated since that relation was added to the schema — run
+// `npx prisma generate` in backend/, and `npx prisma migrate dev` too if
+// the shipment_events table itself doesn't exist in your database yet.)
+const SYNC_ORDER_INCLUDE = {
+  shipmentEvents: true,
+  items: { include: { product: { select: { sellerId: true } } } },
+} satisfies Prisma.OrderInclude;
+
 export async function syncTracking(orderId: string): Promise<void> {
-  const order = (await prisma.order.findUnique({
+  const order = await prisma.order.findUnique({
     where: { id: orderId },
-    include: { shipmentEvents: true, items: { include: { product: { select: { sellerId: true } } } } },
-  })) as unknown as (Awaited<ReturnType<typeof prisma.order.findUnique>> & {
-    trackingNumber: string | null;
-    trackingCarrier: string | null;
-    shipmentEvents: Array<{ eventTime: Date; description: string }>;
+    include: SYNC_ORDER_INCLUDE,
   });
 
   if (!order || !order.trackingNumber || !order.trackingCarrier) return;
@@ -214,7 +224,7 @@ export async function syncTracking(orderId: string): Promise<void> {
 
   if (newEvents.length === 0) {
     // Just update sync timestamp
-    await prisma.order.update({ where: { id: orderId }, data: {} });
+    await prisma.order.update({ where: { id: orderId }, data: { lastTrackingSync: new Date() } });
     return;
   }
 
@@ -243,10 +253,11 @@ export async function syncTracking(orderId: string): Promise<void> {
       const updated = await prisma.order.update({
         where: { id: orderId },
         data: {
-          status: targetOrderStatus as any,
+          status: targetOrderStatus as Prisma.OrderUpdateInput['status'],
+          lastTrackingSync: new Date(),
           statusHistory: {
             create: {
-              status: targetOrderStatus as any,
+              status: targetOrderStatus as Prisma.OrderStatusHistoryCreateWithoutOrderInput['status'],
               note: `Auto-updated from tracking: ${latestEvent.description}`,
             },
           },
@@ -266,10 +277,10 @@ export async function syncTracking(orderId: string): Promise<void> {
         relatedEntityId: orderId,
       }).catch(() => {});
     } else {
-      await prisma.order.update({ where: { id: orderId }, data: {} });
+      await prisma.order.update({ where: { id: orderId }, data: { lastTrackingSync: new Date() } });
     }
   } else {
-    await prisma.order.update({ where: { id: orderId }, data: {} });
+    await prisma.order.update({ where: { id: orderId }, data: { lastTrackingSync: new Date() } });
   }
 }
 

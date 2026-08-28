@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { AlertTriangle, Camera, CheckCircle2, RotateCcw, ScanEye, Upload } from 'lucide-react'
 import { Button } from '@/components/common/Button'
 import { useAi } from '@/context/AiContext'
+import { useLanguage } from '@/context/LanguageContext'
 import { cropAnalysisService, type AdvisoryResult } from '@/services/aiService'
 import { getApiErrorMessage } from '@/services/api'
 
@@ -15,6 +16,7 @@ export default function DiseaseDetectionPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const galleryInputRef = useRef<HTMLInputElement>(null)
   const { refreshHistory } = useAi()
+  const { language } = useLanguage()
 
   async function handleFile(file: File | undefined) {
     if (!file) return
@@ -23,7 +25,7 @@ export default function DiseaseDetectionPage() {
     setStage('analyzing')
 
     try {
-      const res = await cropAnalysisService.diseaseDetection(file)
+      const res = await cropAnalysisService.diseaseDetection(file, { language })
       setResult(res)
       setStage('success')
       refreshHistory()

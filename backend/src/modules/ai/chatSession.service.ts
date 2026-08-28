@@ -4,7 +4,7 @@ import { parsePagination, buildPaginationMeta } from '../../common/utils/paginat
 import { chatComplete } from './aiProvider.service';
 import type { AiMessage } from './aiProvider.service';
 import type { PaginationQuery } from '../../common/utils/pagination';
-import type { LanguageCode } from './ai.validation';
+import { LANGUAGE_NAMES, type LanguageCode } from './language';
 
 const SYSTEM_PROMPT =
   'You are an agricultural advisory assistant helping farmers with questions about crops, soil, weather, ' +
@@ -21,13 +21,6 @@ const SYSTEM_PROMPT =
 // language, used to pin the reply language explicitly when the caller (the
 // app's language switcher) tells us which one the person is using — rather
 // than leaving it to the model to infer from the message/transcript alone.
-const LANGUAGE_NAMES: Record<LanguageCode, string> = {
-  en: 'English',
-  hi: 'Hindi (हिन्दी, Devanagari script)',
-  mr: 'Marathi (मराठी, Devanagari script)',
-  pa: 'Punjabi (ਪੰਜਾਬੀ, Gurmukhi script)',
-  gu: 'Gujarati (ગુજરાતી, Gujarati script)',
-};
 
 export async function listSessions(userId: string, query: PaginationQuery) {
   const { page, limit, skip, take } = parsePagination(query);

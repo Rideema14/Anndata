@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle2, RotateCcw, Sprout } from 'lucide-react'
 import { Button } from '@/components/common/Button'
 import { SelectField } from '@/components/common/FormField'
 import { useAi } from '@/context/AiContext'
+import { useLanguage } from '@/context/LanguageContext'
 import { cropAnalysisService, type AdvisoryResult } from '@/services/aiService'
 import { getApiErrorMessage } from '@/services/api'
 
@@ -19,6 +20,7 @@ export default function CropAdvisorPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const { refreshHistory } = useAi()
+  const { language } = useLanguage()
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -30,6 +32,7 @@ export default function CropAdvisorPage() {
         season,
         soilType: soil,
         notes: `Water availability: ${water}`,
+        language,
       })
       setResult(advice)
       refreshHistory()

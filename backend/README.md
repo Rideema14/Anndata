@@ -157,8 +157,7 @@ npm install
 cp .env.example .env
 ```
 Fill in real values — at minimum: `DATABASE_URL`, `JWT_ACCESS_SECRET`,
-`JWT_REFRESH_SECRET`, EmailJS credentials (for OTP emails — see `.env.example` for
-one-time template setup), Cloudinary credentials, and
+`JWT_REFRESH_SECRET`, SMTP credentials (for OTP emails), Cloudinary credentials, and
 Razorpay test keys (`RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` from the
 [Razorpay dashboard](https://dashboard.razorpay.com/) test mode). `GOOGLE_CLIENT_ID`
 is only required if you want Google sign-in to work.

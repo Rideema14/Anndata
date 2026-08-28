@@ -41,29 +41,6 @@ export const adminReviewsQuerySchema = z.object({
 });
 export type AdminReviewsQuery = z.infer<typeof adminReviewsQuerySchema>;
 
-export const sellerBalancesQuerySchema = z.object({
-  page: z.string().optional(),
-  limit: z.string().optional(),
-  search: z.string().trim().min(1).optional(), // matches seller name, email, or business name
-});
-export type SellerBalancesQuery = z.infer<typeof sellerBalancesQuerySchema>;
-
-export const createPayoutSchema = z.object({
-  amount: z.coerce.number().positive('Amount must be greater than 0.'),
-  method: z.enum(['BANK_TRANSFER', 'UPI', 'OTHER']).default('BANK_TRANSFER'),
-  reference: z.string().trim().max(120).optional(),
-  note: z.string().trim().max(500).optional(),
-});
-export type CreatePayoutInput = z.infer<typeof createPayoutSchema>;
-
-export const listPayoutsQuerySchema = z.object({
-  page: z.string().optional(),
-  limit: z.string().optional(),
-  sellerId: z.string().uuid().optional(),
-  status: z.enum(['PAID', 'REVERSED']).optional(),
-});
-export type ListPayoutsQuery = z.infer<typeof listPayoutsQuerySchema>;
-
 export const adminProductsQuerySchema = z.object({
   page: z.string().optional(),
   limit: z.string().optional(),

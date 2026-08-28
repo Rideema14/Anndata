@@ -6,6 +6,7 @@ import { env } from '../../config/env';
 import ApiError from '../../common/utils/ApiError';
 import logger from '../../common/utils/logger';
 import { pcmToWav } from '../../common/utils/wav';
+import { type LanguageCode } from './language';
 
 export type AiContentBlock = { type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } };
 
@@ -125,16 +126,40 @@ async function geminiGenerateContent(messages: AiMessage[], jsonMode: boolean): 
   }
 }
 
+export interface TranscriptionResult {
+  text: string;
+  detectedLanguage?: LanguageCode;
+}
+
+// Whisper (and the prompt asked of Gemini below) report the detected
+// language as its English name (e.g. "Hindi"), not an ISO code — this maps
+// that back to our internal codes. Anything outside these five (Bengali,
+// Tamil, Urdu, etc.) is left undetected rather than mismapped; the model's
+// own "reply in whatever language you were spoken to in" instruction still
+// covers it, just without a deterministic pin.
+const LANGUAGE_NAME_TO_CODE: Record<string, LanguageCode> = {
+  english: 'en',
+  hindi: 'hi',
+  marathi: 'mr',
+  punjabi: 'pa',
+  gujarati: 'gu',
+};
+function mapDetectedLanguage(name?: string): LanguageCode | undefined {
+  return name ? LANGUAGE_NAME_TO_CODE[name.trim().toLowerCase()] : undefined;
+}
+
 /**
- * Transcribes an uploaded audio file to text via Gemini. This is the
- * fallback path (used when Groq is unset or a Groq transcription call
- * fails) — Gemini has no dedicated transcription endpoint, so audio is
- * transcribed by passing it as multimodal input to generateContent with an
- * instruction to transcribe verbatim. The mimetype from a browser recording
- * often carries a codec suffix (e.g. 'audio/webm;codecs=opus'), which
- * Gemini doesn't expect, so it's stripped down to the bare type.
+ * Transcribes an uploaded audio file to text via Gemini, also asking it to
+ * name the language it heard so the reply can be pinned to match — see
+ * TranscriptionResult. This is the fallback path (used when Groq is unset
+ * or a Groq transcription call fails) — Gemini has no dedicated
+ * transcription endpoint, so audio is transcribed by passing it as
+ * multimodal input to generateContent with an instruction to transcribe
+ * verbatim. The mimetype from a browser recording often carries a codec
+ * suffix (e.g. 'audio/webm;codecs=opus'), which Gemini doesn't expect, so
+ * it's stripped down to the bare type.
  */
-async function geminiTranscribeAudio(buffer: Buffer, filename: string, mimetype: string): Promise<string> {
+async function geminiTranscribeAudio(buffer: Buffer, filename: string, mimetype: string): Promise<TranscriptionResult> {
   try {
     const bareMimeType = mimetype.split(';')[0].trim() || 'audio/webm';
 
@@ -146,9 +171,10 @@ async function geminiTranscribeAudio(buffer: Buffer, filename: string, mimetype:
           parts: [
             {
               text:
-                'Transcribe this audio verbatim. Reply with ONLY the spoken words as plain text — no preamble, ' +
-                'no commentary, no quotation marks. If the audio contains no discernible speech, reply with ' +
-                'nothing at all.',
+                'Transcribe this audio verbatim and identify the language being spoken. Respond in EXACTLY this ' +
+                'two-line format and nothing else:\nLANGUAGE: <the English name of the spoken language, e.g. Hindi>\n' +
+                'TRANSCRIPT: <the verbatim transcription, in its own script — do not translate or transliterate>\n' +
+                'If the audio contains no discernible speech, respond with exactly:\nLANGUAGE: none\nTRANSCRIPT:',
             },
             { inlineData: { mimeType: bareMimeType, data: buffer.toString('base64') } },
           ],
@@ -156,7 +182,10 @@ async function geminiTranscribeAudio(buffer: Buffer, filename: string, mimetype:
       ],
     });
 
-    return (response.text || '').trim();
+    const raw = (response.text || '').trim();
+    const detectedLanguage = mapDetectedLanguage(raw.match(/^LANGUAGE:\s*(.*)$/im)?.[1]);
+    const text = (raw.match(/TRANSCRIPT:\s*([\s\S]*)$/i)?.[1] || '').trim();
+    return { text, detectedLanguage };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     logger.error(`Gemini transcription failed (file: ${filename}): ${message}`);
@@ -165,7 +194,22 @@ async function geminiTranscribeAudio(buffer: Buffer, filename: string, mimetype:
 }
 
 /** Synthesizes speech from text via Gemini, returning a playable WAV file. */
+// Gemini's free-tier TTS quota is small (10 requests/day at the time of
+// writing) and, once exhausted, every call fails the same way until the
+// daily reset — so the same backoff idea applies here as for Groq below:
+// after a rate-limit/quota error, stop attempting Gemini TTS for a while
+// instead of paying for a doomed network round trip on every voice reply.
+let geminiTtsRetryAt = 0;
+const GEMINI_TTS_BACKOFF_MS = 5 * 60 * 1000;
+
+function looksRateLimited(message: string): boolean {
+  return message.includes('RESOURCE_EXHAUSTED') || message.includes('429');
+}
+
 async function geminiSynthesizeSpeech(text: string): Promise<Buffer> {
+  if (Date.now() < geminiTtsRetryAt) {
+    throw ApiError.internal('Speech synthesis is temporarily rate-limited. Please try again shortly.');
+  }
   try {
     const response = await genai.models.generateContent({
       model: env.gemini.ttsModel,
@@ -187,6 +231,10 @@ async function geminiSynthesizeSpeech(text: string): Promise<Buffer> {
   } catch (err) {
     if (err instanceof ApiError) throw err;
     const message = err instanceof Error ? err.message : String(err);
+    if (looksRateLimited(message)) {
+      geminiTtsRetryAt = Date.now() + GEMINI_TTS_BACKOFF_MS;
+      logger.warn(`Gemini TTS is rate-limited — pausing further attempts for ${GEMINI_TTS_BACKOFF_MS / 60000} minutes.`);
+    }
     logger.error(`Gemini speech synthesis failed: ${message}`);
     throw ApiError.internal('Could not generate speech audio. Please try again.');
   }
@@ -229,22 +277,24 @@ async function groqGenerateContent(messages: AiMessage[], jsonMode: boolean): Pr
 }
 
 /** Transcribes audio via Groq's dedicated Whisper Large v3 Turbo endpoint. */
-async function groqTranscribeAudio(buffer: Buffer, filename: string, mimetype: string): Promise<string> {
+async function groqTranscribeAudio(buffer: Buffer, filename: string, mimetype: string): Promise<TranscriptionResult> {
   const bareMimeType = mimetype.split(';')[0].trim() || 'audio/webm';
   const file = await toFile(buffer, filename || 'audio.webm', { type: bareMimeType });
 
+  // verbose_json (rather than plain 'text') also reports which language
+  // Whisper actually heard, which is what lets the reply be pinned to
+  // match the person's own speech instead of a hardcoded default. No
+  // `language` hint is passed in — forcing one only helps when it's
+  // correct, and biases transcription toward the wrong language when it's
+  // not (e.g. someone speaking Marathi while the app's UI is in English).
   const transcription = await groq.audio.transcriptions.create({
     model: env.groq.whisperModel,
     file,
-    response_format: 'text',
+    response_format: 'verbose_json',
   });
 
-  // The SDK's TS types claim this always returns { text: string }, but with
-  // response_format: 'text' the API actually responds with a raw text/plain
-  // body and the client hands that back as a bare string — a known quirk
-  // inherited from the OpenAI-compatible SDK generator. Handling both shapes
-  // means this keeps working whichever one shows up.
-  return (typeof transcription === 'string' ? transcription : transcription.text || '').trim();
+  const result = transcription as unknown as { text?: string; language?: string };
+  return { text: (result.text || '').trim(), detectedLanguage: mapDetectedLanguage(result.language) };
 }
 
 /** Synthesizes speech via Groq's Orpheus TTS. Returns a ready-to-play WAV — no PCM wrapping needed, unlike Gemini. */
@@ -305,11 +355,11 @@ export async function chatCompleteJson<T>(messages: AiMessage[]): Promise<T> {
  * any failure so a Groq outage or rate limit never breaks the voice
  * assistant outright.
  */
-export async function transcribeAudio(buffer: Buffer, filename: string, mimetype: string): Promise<string> {
+export async function transcribeAudio(buffer: Buffer, filename: string, mimetype: string): Promise<TranscriptionResult> {
   if (isGroqConfigured) {
     try {
-      const transcript = await groqTranscribeAudio(buffer, filename, mimetype);
-      if (transcript) return transcript;
+      const result = await groqTranscribeAudio(buffer, filename, mimetype);
+      if (result.text) return result;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       logger.warn(`Groq transcription failed (file: ${filename}), falling back to Gemini: ${message}`);
@@ -326,6 +376,21 @@ export async function transcribeAudio(buffer: Buffer, filename: string, mimetype
 // provider blindly.
 const NON_LATIN_SCRIPT = /[\u0900-\u097F\u0A00-\u0A7F\u0A80-\u0AFF]/;
 
+// If Groq TTS fails with what looks like a persistent config problem (e.g.
+// the account hasn't accepted a model's terms yet on console.groq.com — a
+// 400, not a transient blip), retrying it on every subsequent voice reply
+// just adds a wasted network round trip to each one while waiting on a
+// response that will keep failing the same way. Back off for a while
+// instead; this clears itself automatically once the account issue is
+// fixed, without needing a server restart.
+let groqTtsRetryAt = 0;
+const GROQ_TTS_BACKOFF_MS = 10 * 60 * 1000;
+
+function looksPersistent(err: unknown): boolean {
+  const status = (err as { status?: number } | undefined)?.status;
+  return typeof status === 'number' && status >= 400 && status < 500;
+}
+
 /**
  * Synthesizes speech from text. Defaults to Gemini (free); set
  * AI_TTS_PROVIDER=groq to use Groq's Orpheus voices instead, which are more
@@ -334,7 +399,7 @@ const NON_LATIN_SCRIPT = /[\u0900-\u097F\u0A00-\u0A7F\u0A80-\u0AFF]/;
  * itself isn't in a script Orpheus can speak.
  */
 export async function synthesizeSpeech(text: string): Promise<Buffer> {
-  const wantsGroq = env.groq.ttsProvider === 'groq' && isGroqConfigured;
+  const wantsGroq = env.groq.ttsProvider === 'groq' && isGroqConfigured && Date.now() >= groqTtsRetryAt;
   if (wantsGroq && NON_LATIN_SCRIPT.test(text)) {
     logger.warn('Skipping Groq TTS for non-Latin-script text (Orpheus is English-only); using Gemini instead.');
   } else if (wantsGroq) {
@@ -343,6 +408,14 @@ export async function synthesizeSpeech(text: string): Promise<Buffer> {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       logger.warn(`Groq speech synthesis failed, falling back to Gemini: ${message}`);
+      if (looksPersistent(err)) {
+        groqTtsRetryAt = Date.now() + GROQ_TTS_BACKOFF_MS;
+        logger.warn(
+          `Groq TTS looks misconfigured (likely unaccepted model terms — see console.groq.com) — ` +
+            `pausing further attempts for ${GROQ_TTS_BACKOFF_MS / 60000} minutes so future voice replies don't ` +
+            `each pay for a call that's going to fail the same way.`
+        );
+      }
     }
   }
   return geminiSynthesizeSpeech(text);

@@ -11,9 +11,6 @@ import {
   platformAnalyticsQuerySchema,
   adminReviewsQuerySchema,
   adminProductsQuerySchema,
-  sellerBalancesQuerySchema,
-  createPayoutSchema,
-  listPayoutsQuerySchema,
 } from './admin.validation';
 
 const router = Router();
@@ -66,42 +63,5 @@ router.get('/reviews', validate({ query: adminReviewsQuerySchema }), controller.
  *     summary: Every product platform-wide, including inactive listings (unlike the public /products endpoint)
  */
 router.get('/products', validate({ query: adminProductsQuerySchema }), controller.listAllProducts);
-
-/**
- * @openapi
- * /admin/sellers/balances:
- *   get:
- *     tags: [Admin]
- *     summary: Every seller with their computed payout balance (earned − paid out), searchable by name/email/business name
- */
-router.get('/sellers/balances', validate({ query: sellerBalancesQuerySchema }), controller.getSellerBalances);
-
-/** GET /admin/sellers/:id/balance — fresh balance + bank details for one seller, fetched right before opening the payout form */
-router.get('/sellers/:id/balance', validate({ params: idParamSchema }), controller.getSellerBalance);
-
-/**
- * @openapi
- * /admin/sellers/{id}/payouts:
- *   post:
- *     tags: [Admin]
- *     summary: Record a payout sent to a seller (server re-validates the amount against their current balance)
- */
-router.post(
-  '/sellers/:id/payouts',
-  validate({ params: idParamSchema, body: createPayoutSchema }),
-  controller.createPayout
-);
-
-/**
- * @openapi
- * /admin/payouts:
- *   get:
- *     tags: [Admin]
- *     summary: Platform-wide payout ledger, filterable by seller and status
- */
-router.get('/payouts', validate({ query: listPayoutsQuerySchema }), controller.listPayouts);
-
-/** PATCH /admin/payouts/:id/reverse — correct a mistaken payout entry without deleting the audit row */
-router.patch('/payouts/:id/reverse', validate({ params: idParamSchema }), controller.reversePayout);
 
 export default router;

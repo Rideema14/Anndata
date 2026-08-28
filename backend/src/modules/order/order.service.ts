@@ -10,16 +10,8 @@ import { syncTracking, getTrackingUrl } from './tracking.service';
 import type { CheckoutInput, ListOrdersQuery, UpdateStatusInput, CancelOrderInput } from './order.validation';
 
 const ORDER_INCLUDE_DETAIL = {
-  items: {
-    include: {
-      product: { select: { id: true, name: true, slug: true, sellerId: true, images: { orderBy: { sortOrder: 'asc' as const }, take: 1 } } },
-      variant: true,
-    },
-  },
+  items: { include: { product: { select: { id: true, name: true, slug: true, sellerId: true } }, variant: true } },
   address: true,
-  // Buyer contact info — sellers need this on the order detail page to
-  // coordinate delivery (name/phone alongside the shipping address).
-  user: { select: { id: true, name: true, email: true, phone: true } },
   statusHistory: { orderBy: { changedAt: 'asc' as const } },
   payment: true,
 } satisfies Prisma.OrderInclude;

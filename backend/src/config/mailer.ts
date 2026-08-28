@@ -1,4 +1,3 @@
-import emailjs from '@emailjs/nodejs';
 import { env } from './env';
 import logger from '../common/utils/logger';
 
@@ -21,11 +20,6 @@ import logger from '../common/utils/logger';
 //   {{text_body}}     - plain-text fallback, in case you also want a text part
 //   {{from_name}}     - display name for the From header
 // See backend/.env.example for the account keys this needs.
-emailjs.init({
-  publicKey: env.emailjs.publicKey,
-  privateKey: env.emailjs.privateKey,
-});
-
 export interface MailMessage {
   to: string;
   subject: string;
@@ -40,20 +34,41 @@ export interface MailMessage {
 const SEND_TIMEOUT_MS = 8_000;
 
 export async function sendMail({ to, subject, html, text }: MailMessage): Promise<void> {
-  const send = emailjs.send(env.emailjs.serviceId, env.emailjs.templateId, {
-    to_email: to,
-    subject,
-    html_body: html,
-    text_body: text || html.replace(/<[^>]+>/g, ''),
-    from_name: env.emailjs.fromName,
-  });
-
-  const timeout = new Promise<never>((_, reject) => {
-    setTimeout(() => reject(new Error(`EmailJS send to ${to} timed out after ${SEND_TIMEOUT_MS}ms`)), SEND_TIMEOUT_MS);
-  });
-
   try {
-    await Promise.race([send, timeout]);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), SEND_TIMEOUT_MS);
+
+    try {
+      const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+        body: JSON.stringify({
+          service_id: env.emailjs.serviceId,
+          template_id: env.emailjs.templateId,
+          user_id: env.emailjs.publicKey,
+          accessToken: env.emailjs.privateKey,
+          template_params: {
+            to_email: to,
+            subject,
+            html_body: html,
+            text_body: text || html.replace(/<[^>]+>/g, ''),
+            from_name: env.emailjs.fromName,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`EmailJS returned ${response.status}: ${await response.text()}`);
+      }
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        throw new Error(`EmailJS send to ${to} timed out after ${SEND_TIMEOUT_MS}ms`);
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeout);
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     logger.error(`Failed to send email to ${to} via EmailJS: ${message}`);

@@ -3,6 +3,7 @@ import { AlertTriangle, Leaf, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/common/Button'
 import { SelectField } from '@/components/common/FormField'
 import { useAi } from '@/context/AiContext'
+import { useLanguage } from '@/context/LanguageContext'
 import { cropAnalysisService, type AdvisoryResult } from '@/services/aiService'
 import { getApiErrorMessage } from '@/services/api'
 import { mandiCrops } from '@/data/mock/mockMandiData'
@@ -17,13 +18,14 @@ export default function FertilizerAdvicePage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const { refreshHistory } = useAi()
+  const { language } = useLanguage()
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     setError('')
     setIsLoading(true)
     try {
-      const advice = await cropAnalysisService.fertilizerAdvice({ cropType: crop, soilType: soil, growthStage: stage })
+      const advice = await cropAnalysisService.fertilizerAdvice({ cropType: crop, soilType: soil, growthStage: stage, language })
       setResult(advice)
       refreshHistory()
     } catch (err) {

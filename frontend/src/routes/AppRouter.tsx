@@ -131,9 +131,6 @@ const SellerListingsPage = lazy(
 );
 const AddProductPage = lazy(() => import("@/pages/seller/AddProductPage"));
 const SellerOrdersPage = lazy(() => import("@/pages/seller/SellerOrdersPage"));
-const SellerOrderDetailPage = lazy(
-  () => import("@/pages/seller/SellerOrderDetailPage"),
-);
 const SellerAnalyticsPage = lazy(
   () => import("@/pages/seller/SellerAnalyticsPage"),
 );
@@ -164,9 +161,6 @@ const AdminReviewsPage = lazy(() => import("@/pages/admin/AdminReviewsPage"));
 const AdminSeedsPage = lazy(() => import("@/pages/admin/AdminSeedsPage"));
 const AdminAnalyticsPage = lazy(
   () => import("@/pages/admin/AdminAnalyticsPage"),
-);
-const AdminPayoutsPage = lazy(
-  () => import("@/pages/admin/AdminPayoutsPage"),
 );
 
 // =====================================================
@@ -445,10 +439,6 @@ const router = createBrowserRouter([
         element: <SellerOrdersPage />,
       },
       {
-        path: "/seller/orders/:id",
-        element: <SellerOrderDetailPage />,
-      },
-      {
         path: "/seller/analytics",
         element: <SellerAnalyticsPage />,
       },
@@ -505,10 +495,6 @@ const router = createBrowserRouter([
       {
         path: "/admin/analytics",
         element: <AdminAnalyticsPage />,
-      },
-      {
-        path: "/admin/payouts",
-        element: <AdminPayoutsPage />,
       },
       // Application fallback
       {

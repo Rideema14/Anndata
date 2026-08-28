@@ -53,20 +53,6 @@ enum SellerVerificationStatus {
   REJECTED
 }
 
-enum PayoutStatus {
-  PAID
-  // For correcting a mistaken entry (wrong amount/seller) without deleting
-  // the row — a deleted payout would silently inflate the seller's balance
-  // back up with no audit trail of what happened.
-  REVERSED
-}
-
-enum PayoutMethod {
-  BANK_TRANSFER
-  UPI
-  OTHER
-}
-
 enum NotificationType {
   ORDER_STATUS
   PAYMENT
@@ -211,8 +197,6 @@ model User {
   aiChatSessions         AiChatSession[]
   cropAnalyses           CropAnalysis[]
   soilReports            SoilReport[]
-  payoutsReceived        Payout[]                        @relation("SellerPayouts")
-  payoutsIssued          Payout[]                        @relation("PayoutsIssuedBy")
 
   @@index([email])
   @@map("users")
@@ -597,36 +581,6 @@ model SellerProfile {
 
   @@index([verificationStatus])
   @@map("seller_profiles")
-}
-
-// A payout is a record of money the platform has (manually) sent a seller —
-// there's no payment-gateway payout API wired up (e.g. Razorpay Route), so
-// an admin transfers the money themselves (bank/UPI) and logs it here. A
-// seller's outstanding balance is then: revenue from their DELIVERED/
-// COMPLETED sales across products, seeds & machinery bookings, minus the
-// sum of their PAID payouts. See admin.service.ts getSellerBalances().
-model Payout {
-  id       String @id @default(uuid())
-  sellerId String
-  seller   User   @relation("SellerPayouts", fields: [sellerId], references: [id], onDelete: Cascade)
-
-  amount   Decimal       @db.Decimal(12, 2)
-  method   PayoutMethod  @default(BANK_TRANSFER)
-  status   PayoutStatus  @default(PAID)
-  // Bank UTR / UPI transaction ID / cheque number — whatever proves the
-  // transfer happened, for the seller and admin to both reconcile against.
-  reference String?
-  note      String?
-
-  paidById String
-  paidBy   User   @relation("PayoutsIssuedBy", fields: [paidById], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([sellerId])
-  @@index([status])
-  @@map("payouts")
 }
 
 // ---------------------------------------------------------------------------

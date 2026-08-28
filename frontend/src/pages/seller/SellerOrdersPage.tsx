@@ -1,6 +1,5 @@
-import { PackageCheck, User, X, ChevronRight } from 'lucide-react'
+import { PackageCheck, User, X } from 'lucide-react'
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import { Button } from '@/components/common/Button'
 import { TextField } from '@/components/common/FormField'
 import { useSeller } from '@/context/SellerContext'
@@ -85,28 +84,22 @@ export default function SellerOrdersPage() {
           const isConfirmed = order.status !== 'placed'
           return (
             <div key={order.id} className="rounded-2xl border border-ink-100 bg-surface p-4">
-              <Link to={`/seller/orders/${order.id}`} className="block">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold text-ink-900">#{order.id}</p>
-                  <span className={cn('rounded-full px-2.5 py-0.5 text-[11px] font-semibold capitalize', STATUS_STYLES[order.status])}>
-                    {order.status.replace(/_/g, ' ')}
-                  </span>
-                </div>
-                <p className="mt-1 flex items-center gap-1.5 text-xs text-ink-500">
-                  <User className="h-3.5 w-3.5" aria-hidden="true" />
-                  {order.buyerName}
-                </p>
-                <p className="mt-1 text-xs text-ink-500">{order.itemsLabel}</p>
-                <div className="mt-3 grid grid-cols-[1fr,auto] gap-x-4 gap-y-1">
-                  <span className="text-[11px] text-ink-400">Placed: {formatDateTimeLabel(order.placedAt)}</span>
-                  <span className="row-span-2 place-self-center text-sm font-bold text-ink-900">{formatINR(order.total)}</span>
-                  <span className="text-[11px] text-ink-400">Updated: {formatDateTimeLabel(order.updatedAt)}</span>
-                </div>
-                <span className="mt-2 flex items-center gap-0.5 text-[11px] font-semibold text-brand-600">
-                  View order & customer details
-                  <ChevronRight className="h-3 w-3" aria-hidden="true" />
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-ink-900">#{order.id}</p>
+                <span className={cn('rounded-full px-2.5 py-0.5 text-[11px] font-semibold capitalize', STATUS_STYLES[order.status])}>
+                  {order.status.replace(/_/g, ' ')}
                 </span>
-              </Link>
+              </div>
+              <p className="mt-1 flex items-center gap-1.5 text-xs text-ink-500">
+                <User className="h-3.5 w-3.5" aria-hidden="true" />
+                {order.buyerName}
+              </p>
+              <p className="mt-1 text-xs text-ink-500">{order.itemsLabel}</p>
+              <div className="mt-3 grid grid-cols-[1fr,auto] gap-x-4 gap-y-1">
+                <span className="text-[11px] text-ink-400">Placed: {formatDateTimeLabel(order.placedAt)}</span>
+                <span className="row-span-2 place-self-center text-sm font-bold text-ink-900">{formatINR(order.total)}</span>
+                <span className="text-[11px] text-ink-400">Updated: {formatDateTimeLabel(order.updatedAt)}</span>
+              </div>
 
               {order.status === 'placed' && confirmingOrderId === order.id ? (
                 <form

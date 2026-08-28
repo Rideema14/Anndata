@@ -8,9 +8,9 @@ const REQUIRED_VARS = [
   'DATABASE_URL',
   'JWT_ACCESS_SECRET',
   'JWT_REFRESH_SECRET',
-  'EMAILJS_SERVICE_ID',
-  'EMAILJS_TEMPLATE_ID',
-  'EMAILJS_PUBLIC_KEY',
+  'SMTP_HOST',
+  'SMTP_USER',
+  'SMTP_PASS',
   'CLOUDINARY_CLOUD_NAME',
   'CLOUDINARY_API_KEY',
   'CLOUDINARY_API_SECRET',
@@ -38,15 +38,6 @@ export function validateEnv(): void {
     console.warn('[ENV] RAZORPAY_WEBHOOK_SECRET is not set — the payment webhook endpoint will reject all events.');
   }
 
-  if (!process.env.EMAILJS_PRIVATE_KEY) {
-    // eslint-disable-next-line no-console
-    console.warn(
-      '[ENV] EMAILJS_PRIVATE_KEY is not set — calls to the EmailJS API from this server will be rejected ' +
-        'unless "Allow non-browser requests" is turned on for your EmailJS account (Account > Security). ' +
-        'Setting the private key is the safer option and lets you leave that toggle off.'
-    );
-  }
-
   if (!process.env.GROQ_API_KEY) {
     // eslint-disable-next-line no-console
     console.warn(
@@ -71,13 +62,7 @@ export const env = {
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d',
   },
 
-  // Nodemailer talked SMTP directly (ports 25/465/587), which Vercel's
-  // serverless functions block outbound — every email silently hung until
-  // the 8s timeout in production. EmailJS's API is plain HTTPS, so it isn't
-  // affected. See backend/src/config/mailer.ts for the send call, and
-  // .env.example for how to set up the EmailJS template these variables
-  // point at.
-  emailjs: {
+    emailjs: {
     serviceId: process.env.EMAILJS_SERVICE_ID as string,
     templateId: process.env.EMAILJS_TEMPLATE_ID as string,
     publicKey: process.env.EMAILJS_PUBLIC_KEY as string,
@@ -187,13 +172,15 @@ export const env = {
     // what's current.
     chatModel: process.env.GROQ_CHAT_MODEL || 'openai/gpt-oss-120b',
     whisperModel: process.env.GROQ_WHISPER_MODEL || 'whisper-large-v3-turbo',
-    // Voice-assistant replies stay on Gemini TTS by default: it's free,
-    // while Groq's Orpheus voices are billed per character with no
-    // confirmed free tier as of mid-2026. Set AI_TTS_PROVIDER=groq to
-    // switch to Orpheus instead — its voices are more expressive and it
-    // returns a ready-to-play WAV directly, skipping the PCM-to-WAV
-    // wrapping Gemini's raw output needs.
-    ttsProvider: (process.env.AI_TTS_PROVIDER === 'groq' ? 'groq' : 'gemini') as 'groq' | 'gemini',
+    // Voice-assistant replies default to Groq's Orpheus TTS: it's several
+    // times faster than Gemini's, and synthesis was otherwise the slowest
+    // leg of a voice round trip. Orpheus is English-only and billed per
+    // character (no confirmed free tier as of mid-2026), and any
+    // non-Latin-script reply (Hindi/Marathi/Punjabi/Gujarati) always still
+    // goes to Gemini regardless of this setting — see aiProvider.service.ts.
+    // Set AI_TTS_PROVIDER=gemini to opt out and use Gemini's free TTS for
+    // every language instead, at the cost of slower voice replies.
+    ttsProvider: (process.env.AI_TTS_PROVIDER === 'gemini' ? 'gemini' : 'groq') as 'groq' | 'gemini',
     ttsModel: process.env.GROQ_TTS_MODEL || 'canopylabs/orpheus-v1-english',
     ttsVoice: process.env.GROQ_TTS_VOICE || 'autumn',
   },
