@@ -17,11 +17,15 @@ interface MandiApiRecord {
   Commodity?: string;
   Variety?: string;
   Arrival_Date?: string;
+  // data.gov.in uses these PascalCase field names in the current resource.
+  Min_Price?: string | number;
+  Max_Price?: string | number;
+  Modal_Price?: string | number;
+
+  // Compatibility aliases for older/alternate API responses.
   Min_x0020_Price?: string | number;
   Max_x0020_Price?: string | number;
   Modal_x0020_Price?: string | number;
-
-  // Some responses can expose the fields with simpler names.
   min_price?: string | number;
   max_price?: string | number;
   modal_price?: string | number;
@@ -38,20 +42,28 @@ function sleep(ms: number) {
  * Arrival_Date field: DD/MM/YYYY.
  */
 function getYesterday(): string {
-  const date = new Date();
+  // Always calculate the date in IST, regardless of the server/container timezone.
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
 
-  date.setDate(date.getDate() - 1);
+  const year = Number(parts.find((p) => p.type === 'year')?.value);
+  const month = Number(parts.find((p) => p.type === 'month')?.value);
+  const day = Number(parts.find((p) => p.type === 'day')?.value);
 
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const year = date.getFullYear();
+  const yesterday = new Date(Date.UTC(year, month - 1, day - 1));
 
-  return `${day}/${month}/${year}`;
+  return `${String(yesterday.getUTCDate()).padStart(2, '0')}/${String(
+    yesterday.getUTCMonth() + 1,
+  ).padStart(2, '0')}/${yesterday.getUTCFullYear()}`;
 }
 
-function parsePrice(value: string | number | undefined): number {
-  if (value === undefined || value === null || value === '') {
-    return 0;
+function parsePrice(value: string | number | undefined): number | null {
+  if (value === undefined || value === null || String(value).trim() === '') {
+    return null;
   }
 
   const number =
@@ -59,7 +71,7 @@ function parsePrice(value: string | number | undefined): number {
       ? value
       : Number(String(value).replace(/,/g, '').trim());
 
-  return Number.isFinite(number) ? number : 0;
+  return Number.isFinite(number) && number >= 0 ? number : null;
 }
 
 function parseDate(value?: string): Date | null {
@@ -92,10 +104,16 @@ function parseDate(value?: string): Date | null {
 
 function getField(
   record: MandiApiRecord,
-  primary: keyof MandiApiRecord,
-  fallback: keyof MandiApiRecord,
+  ...fields: (keyof MandiApiRecord)[]
 ) {
-  return record[primary] ?? record[fallback];
+  for (const field of fields) {
+    const value = record[field];
+    if (value !== undefined && value !== null && String(value).trim() !== '') {
+      return value;
+    }
+  }
+
+  return undefined;
 }
 
 async function processChunk(records: MandiApiRecord[]) {
@@ -189,13 +207,33 @@ async function processChunk(records: MandiApiRecord[]) {
       mandiCache.set(mandiKey, mandi.id);
     }
 
-    const minRaw = getField(record, 'Min_x0020_Price', 'min_price');
-    const maxRaw = getField(record, 'Max_x0020_Price', 'max_price');
-    const modalRaw = getField(record, 'Modal_x0020_Price', 'modal_price');
+    // Current data.gov.in resource fields are Min_Price / Max_Price / Modal_Price.
+    // Keep the x0020/lowercase aliases only as fallbacks for alternate responses.
+    const minRaw = getField(record, 'Min_Price', 'Min_x0020_Price', 'min_price');
+    const maxRaw = getField(record, 'Max_Price', 'Max_x0020_Price', 'max_price');
+    const modalRaw = getField(
+      record,
+      'Modal_Price',
+      'Modal_x0020_Price',
+      'modal_price',
+    );
 
     const minPrice = parsePrice(minRaw);
     const maxPrice = parsePrice(maxRaw);
     const modalPrice = parsePrice(modalRaw);
+
+    // Never silently convert a missing/invalid API price into 0.
+    // A zero-price mandi record is not useful market data and previously hid
+    // the field-name mismatch by successfully inserting fake zeroes.
+    if (
+      minPrice === null ||
+      maxPrice === null ||
+      modalPrice === null ||
+      (minPrice === 0 && maxPrice === 0 && modalPrice === 0)
+    ) {
+      skipped++;
+      continue;
+    }
 
     /*
      * Prisma's compound unique constraint contains nullable `variety`.
