@@ -29,6 +29,13 @@ export const getOne = asyncHandler(async (req, res) => {
   ApiResponse.ok(res, order);
 });
 
+/** Seller (or admin) fulfillment view — items filtered to just this seller's own products. */
+export const getSellerOrderDetail = asyncHandler(async (req, res) => {
+  if (!req.user) throw ApiError.unauthorized('Authentication required.');
+  const order = await orderService.getSellerOrderDetail(req.params.id, req.user);
+  ApiResponse.ok(res, order);
+});
+
 export const updateStatus = asyncHandler(async (req, res) => {
   if (!req.user) throw ApiError.unauthorized('Authentication required.');
   const order = await orderService.updateStatus(req.params.id, req.user, req.body);

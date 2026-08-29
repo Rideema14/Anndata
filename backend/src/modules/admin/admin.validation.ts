@@ -52,3 +52,24 @@ export const adminProductsQuerySchema = z.object({
   search: z.string().trim().optional(),
 });
 export type AdminProductsQuery = z.infer<typeof adminProductsQuerySchema>;
+
+export const sellerBalancesQuerySchema = z.object({
+  page: z.string().optional(),
+  limit: z.string().optional(),
+  search: z.string().trim().min(1).optional(),
+});
+export type SellerBalancesQuery = z.infer<typeof sellerBalancesQuerySchema>;
+
+export const listPayoutsQuerySchema = z.object({
+  page: z.string().optional(),
+  limit: z.string().optional(),
+});
+export type ListPayoutsQuery = z.infer<typeof listPayoutsQuerySchema>;
+
+export const createPayoutSchema = z.object({
+  amount: z.coerce.number().positive(),
+  method: z.enum(['BANK_TRANSFER', 'UPI', 'OTHER']).default('BANK_TRANSFER'),
+  reference: z.string().trim().max(100).optional(),
+  note: z.string().trim().max(500).optional(),
+});
+export type CreatePayoutInput = z.infer<typeof createPayoutSchema>;

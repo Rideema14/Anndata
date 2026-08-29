@@ -43,6 +43,31 @@ export interface AdminProduct {
   isActive: boolean
 }
 
+export interface SellerBalance {
+  id: string
+  name: string
+  email: string
+  businessName?: string | null
+  bankAccountHolder?: string | null
+  bankAccountNumber?: string | null
+  bankIfscCode?: string | null
+  bankName?: string | null
+  totalEarned: number
+  totalPaidOut: number
+  balance: number
+}
+
+export interface Payout {
+  id: string
+  amount: number | string
+  method: 'BANK_TRANSFER' | 'UPI' | 'OTHER'
+  status: 'PAID' | 'REVERSED'
+  reference?: string | null
+  note?: string | null
+  createdAt: string
+  seller?: { id: string; name: string; email: string; sellerProfile?: { businessName?: string | null } | null }
+}
+
 export const adminService = {
   async getAnalytics(months = 6): Promise<PlatformAnalytics> {
     const res = await api.get<{ data: PlatformAnalytics }>('/admin/analytics', { params: { months } })
@@ -67,5 +92,34 @@ export const adminService = {
   /** Reviews are nested under their product in the write API — moderation reads them flat via /admin/reviews above. */
   async removeReview(productId: string, reviewId: string): Promise<void> {
     await api.delete(`/products/${productId}/reviews/${reviewId}`)
+  },
+
+  async getSellerBalances(params: { limit?: number; search?: string } = {}): Promise<{ items: SellerBalance[]; totalItems: number }> {
+    const res = await api.get<{ data: SellerBalance[]; meta: { pagination: { totalItems: number } } }>('/admin/payouts/balances', { params })
+    return { items: res.data.data, totalItems: res.data.meta.pagination.totalItems }
+  },
+
+  /** Fresh, single-seller balance — used to refresh the pay-out modal's figures right before recording a payout. */
+  async getSellerBalance(sellerId: string): Promise<SellerBalance> {
+    const res = await api.get<{ data: SellerBalance }>(`/admin/payouts/balances/${sellerId}`)
+    return res.data.data
+  },
+
+  async listPayouts(params: { limit?: number } = {}): Promise<{ items: Payout[]; totalItems: number }> {
+    const res = await api.get<{ data: Payout[]; meta: { pagination: { totalItems: number } } }>('/admin/payouts', { params })
+    return { items: res.data.data, totalItems: res.data.meta.pagination.totalItems }
+  },
+
+  async createPayout(
+    sellerId: string,
+    body: { amount: number; method: 'BANK_TRANSFER' | 'UPI' | 'OTHER'; reference?: string; note?: string },
+  ): Promise<Payout> {
+    const res = await api.post<{ data: Payout }>(`/admin/payouts/${sellerId}`, body)
+    return res.data.data
+  },
+
+  async reversePayout(payoutId: string): Promise<Payout> {
+    const res = await api.post<{ data: Payout }>(`/admin/payouts/${payoutId}/reverse`)
+    return res.data.data
   },
 }

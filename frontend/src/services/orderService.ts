@@ -1,5 +1,5 @@
 import { api } from './api'
-import type { Carrier, Order, OrderItem, OrderStatus, OrderSummary, ShipmentEvent } from '@/types'
+import type { Carrier, Order, OrderItem, OrderStatus, OrderSummary, SellerOrderDetail, ShipmentEvent } from '@/types'
 import type { PaginationMeta } from './productService'
 
 type BackendStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'CANCELLED' | 'RETURNED'
@@ -35,7 +35,13 @@ interface BackendOrderItem {
   unitPrice: number | string
   totalPrice: number | string
 }
+/** Only present on the seller-detail response (GET /orders/:id/seller-detail), which includes each product's primary photo. */
+interface BackendSellerOrderItem extends BackendOrderItem {
+  product?: { images?: { url: string }[] }
+}
 interface BackendAddress {
+  fullName: string
+  phone: string
   addressLine1: string
   addressLine2?: string | null
   city: string
@@ -66,6 +72,13 @@ interface BackendOrder {
   /** The buyer who placed the order. Present on every order, but only
    *  relevant to sellers/admins viewing the fulfillment list. */
   user?: { id: string; name: string }
+}
+/** Shape returned by GET /orders/:id/seller-detail — same base order fields, plus buyer email and product photos. */
+interface BackendSellerOrderDetail extends Omit<BackendOrder, 'items' | 'user'> {
+  items: BackendSellerOrderItem[]
+  address: BackendAddress
+  user?: { id: string; name: string; email?: string }
+  statusHistory: { status: BackendStatus; changedAt: string; note?: string | null }[]
 }
 
 function formatAddress(a: BackendAddress): string {
@@ -131,6 +144,45 @@ function mapSummary(o: BackendOrder): OrderSummary {
   }
 }
 
+function mapSellerOrderDetail(o: BackendSellerOrderDetail): SellerOrderDetail {
+  const trackingNumber = o.trackingNumber ?? undefined
+  const trackingCarrier = o.trackingCarrier ?? undefined
+  return {
+    id: o.orderNumber,
+    status: STATUS_MAP[o.status],
+    placedAt: o.createdAt,
+    updatedAt: o.updatedAt,
+    address: {
+      fullName: o.address.fullName,
+      phone: o.address.phone,
+      line1: o.address.addressLine1,
+      line2: o.address.addressLine2 ?? undefined,
+      city: o.address.city,
+      state: o.address.state,
+      pincode: o.address.postalCode,
+    },
+    customer: { name: o.user?.name ?? 'Buyer', email: o.user?.email },
+    items: o.items.map((i) => ({
+      productId: i.productId,
+      name: i.productName,
+      image: i.product?.images?.[0]?.url,
+      quantity: i.quantity,
+      unitPrice: Number(i.unitPrice),
+      totalPrice: Number(i.totalPrice),
+    })),
+    subtotal: Number(o.subtotal),
+    shippingFee: Number(o.shippingFee),
+    tax: Number(o.tax),
+    total: Number(o.totalAmount),
+    paymentStatus: o.payment?.status,
+    paymentMethod: o.payment ? 'Razorpay' : undefined,
+    trackingCarrier,
+    trackingNumber,
+    trackingUrl: buildTrackingUrl(trackingCarrier, trackingNumber),
+    statusHistory: o.statusHistory.map((h) => ({ status: STATUS_MAP[h.status], changedAt: h.changedAt, note: h.note ?? undefined })),
+  }
+}
+
 /** Internal id (uuid) lookup — the frontend routes/displays by orderNumber, but PATCH/cancel need the real id. */
 const idByOrderNumber = new Map<string, string>()
 
@@ -160,6 +212,14 @@ export const orderService = {
     const res = await api.get<{ data: BackendOrder }>(`/orders/${realId}`)
     idByOrderNumber.set(res.data.data.orderNumber, res.data.data.id)
     return mapOrder(res.data.data)
+  },
+
+  /** Seller/admin fulfillment view — items filtered server-side to just the requesting seller's own products. */
+  async getSellerOrderDetail(idOrNumber: string): Promise<SellerOrderDetail> {
+    const realId = idByOrderNumber.get(idOrNumber) ?? idOrNumber
+    const res = await api.get<{ data: BackendSellerOrderDetail }>(`/orders/${realId}/seller-detail`)
+    idByOrderNumber.set(res.data.data.orderNumber, res.data.data.id)
+    return mapSellerOrderDetail(res.data.data)
   },
 
   async getTracking(idOrNumber: string): Promise<ShipmentEvent[]> {

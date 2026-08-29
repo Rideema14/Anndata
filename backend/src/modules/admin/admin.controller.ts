@@ -34,3 +34,29 @@ export const listAllProducts = asyncHandler(async (req, res) => {
   const { items, meta } = await adminService.listAllProducts(req.query as any);
   ApiResponse.paginated(res, items, meta);
 });
+
+export const getSellerBalances = asyncHandler(async (req, res) => {
+  const { items, meta } = await adminService.getSellerBalances(req.query as any);
+  ApiResponse.paginated(res, items, meta);
+});
+
+export const getSellerBalance = asyncHandler(async (req, res) => {
+  const balance = await adminService.getSellerBalance(req.params.id);
+  ApiResponse.ok(res, balance);
+});
+
+export const listPayouts = asyncHandler(async (req, res) => {
+  const { items, meta } = await adminService.listPayouts(req.query as any);
+  ApiResponse.paginated(res, items, meta);
+});
+
+export const createPayout = asyncHandler(async (req, res) => {
+  if (!req.user) throw ApiError.unauthorized('Authentication required.');
+  const payout = await adminService.createPayout(req.user.id, req.params.id, req.body);
+  ApiResponse.created(res, payout, 'Payout recorded.');
+});
+
+export const reversePayout = asyncHandler(async (req, res) => {
+  const payout = await adminService.reversePayout(req.params.id);
+  ApiResponse.ok(res, payout, 'Payout reversed.');
+});

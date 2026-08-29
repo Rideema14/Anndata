@@ -146,7 +146,146 @@ export async function listAllReviews(query: AdminReviewsQuery) {
   return { items, meta: buildPaginationMeta(page, limit, totalItems) };
 }
 
-// --- Product oversight (sees inactive listings too, unlike the public endpoint) ---
+// --- Seller payouts ------------------------------------------------------
+// Balance = revenue from that seller's items across DELIVERED orders, minus
+// their non-reversed payouts. Computed on the fly (not stored) so it's
+// never stale, batched across all fetched sellers to avoid N+1 queries.
+
+interface SellerEarnedRow {
+  sellerId: string;
+  earned: number;
+}
+
+async function earnedAndPaidOutBySeller(sellerIds: string[]): Promise<Map<string, { earned: number; paidOut: number }>> {
+  const result = new Map<string, { earned: number; paidOut: number }>();
+  if (sellerIds.length === 0) return result;
+
+  const [earnedRows, paidOutRows] = await Promise.all([
+    prisma.$queryRaw<SellerEarnedRow[]>`
+      SELECT p."sellerId" AS "sellerId", COALESCE(SUM(oi."totalPrice"), 0)::float AS earned
+      FROM order_items oi
+      JOIN products p ON p.id = oi."productId"
+      JOIN orders o ON o.id = oi."orderId"
+      WHERE o.status = 'DELIVERED' AND p."sellerId" = ANY(${sellerIds})
+      GROUP BY p."sellerId"
+    `,
+    prisma.payout.groupBy({ by: ['sellerId'], where: { sellerId: { in: sellerIds }, status: 'PAID' }, _sum: { amount: true } }),
+  ]);
+
+  for (const id of sellerIds) result.set(id, { earned: 0, paidOut: 0 });
+  for (const row of earnedRows) result.set(row.sellerId, { ...(result.get(row.sellerId) ?? { earned: 0, paidOut: 0 }), earned: row.earned });
+  for (const row of paidOutRows) {
+    const current = result.get(row.sellerId) ?? { earned: 0, paidOut: 0 };
+    result.set(row.sellerId, { ...current, paidOut: Number(row._sum.amount ?? 0) });
+  }
+  return result;
+}
+
+const SELLER_BALANCE_SELECT = {
+  id: true,
+  name: true,
+  email: true,
+  sellerProfile: {
+    select: { businessName: true, bankAccountHolder: true, bankAccountNumber: true, bankIfscCode: true, bankName: true },
+  },
+} satisfies Prisma.UserSelect;
+
+function shapeSellerBalance(
+  user: Prisma.UserGetPayload<{ select: typeof SELLER_BALANCE_SELECT }>,
+  totals: { earned: number; paidOut: number }
+) {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    businessName: user.sellerProfile?.businessName ?? null,
+    bankAccountHolder: user.sellerProfile?.bankAccountHolder ?? null,
+    bankAccountNumber: user.sellerProfile?.bankAccountNumber ?? null,
+    bankIfscCode: user.sellerProfile?.bankIfscCode ?? null,
+    bankName: user.sellerProfile?.bankName ?? null,
+    totalEarned: totals.earned,
+    totalPaidOut: totals.paidOut,
+    balance: totals.earned - totals.paidOut,
+  };
+}
+
+export async function getSellerBalances(query: { page?: string; limit?: string; search?: string }) {
+  const { page, limit, skip, take } = parsePagination(query);
+
+  const where: Prisma.UserWhereInput = { role: 'SELLER' };
+  if (query.search) {
+    where.OR = [
+      { name: { contains: query.search, mode: 'insensitive' } },
+      { email: { contains: query.search, mode: 'insensitive' } },
+      { sellerProfile: { businessName: { contains: query.search, mode: 'insensitive' } } },
+    ];
+  }
+
+  const [users, totalItems] = await Promise.all([
+    prisma.user.findMany({ where, select: SELLER_BALANCE_SELECT, orderBy: { name: 'asc' }, skip, take }),
+    prisma.user.count({ where }),
+  ]);
+
+  const totals = await earnedAndPaidOutBySeller(users.map((u) => u.id));
+  const items = users.map((u) => shapeSellerBalance(u, totals.get(u.id) ?? { earned: 0, paidOut: 0 }));
+
+  return { items, meta: buildPaginationMeta(page, limit, totalItems) };
+}
+
+export async function getSellerBalance(sellerId: string) {
+  const user = await prisma.user.findFirst({ where: { id: sellerId, role: 'SELLER' }, select: SELLER_BALANCE_SELECT });
+  if (!user) throw ApiError.notFound('Seller not found.');
+  const totals = await earnedAndPaidOutBySeller([sellerId]);
+  return shapeSellerBalance(user, totals.get(sellerId) ?? { earned: 0, paidOut: 0 });
+}
+
+export async function listPayouts(query: { page?: string; limit?: string }) {
+  const { page, limit, skip, take } = parsePagination(query);
+
+  const [items, totalItems] = await Promise.all([
+    prisma.payout.findMany({
+      include: { seller: { select: { id: true, name: true, email: true, sellerProfile: { select: { businessName: true } } } } },
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take,
+    }),
+    prisma.payout.count(),
+  ]);
+
+  return { items, meta: buildPaginationMeta(page, limit, totalItems) };
+}
+
+export async function createPayout(
+  adminId: string,
+  sellerId: string,
+  { amount, method, reference, note }: { amount: number; method: 'BANK_TRANSFER' | 'UPI' | 'OTHER'; reference?: string; note?: string }
+) {
+  const seller = await prisma.user.findFirst({ where: { id: sellerId, role: 'SELLER' } });
+  if (!seller) throw ApiError.notFound('Seller not found.');
+  if (amount <= 0) throw ApiError.badRequest('Amount must be greater than 0.');
+
+  const balance = await getSellerBalance(sellerId);
+  if (amount > balance.balance) {
+    throw ApiError.badRequest(`Amount exceeds this seller's outstanding balance of ${balance.balance}.`);
+  }
+
+  return prisma.payout.create({
+    data: { sellerId, amount, method, reference, note, paidById: adminId },
+    include: { seller: { select: { id: true, name: true, email: true, sellerProfile: { select: { businessName: true } } } } },
+  });
+}
+
+export async function reversePayout(payoutId: string) {
+  const payout = await prisma.payout.findUnique({ where: { id: payoutId } });
+  if (!payout) throw ApiError.notFound('Payout not found.');
+  if (payout.status === 'REVERSED') throw ApiError.badRequest('This payout has already been reversed.');
+
+  return prisma.payout.update({
+    where: { id: payoutId },
+    data: { status: 'REVERSED' },
+    include: { seller: { select: { id: true, name: true, email: true, sellerProfile: { select: { businessName: true } } } } },
+  });
+}
 
 export async function listAllProducts(query: AdminProductsQuery) {
   const { page, limit, skip, take } = parsePagination(query);

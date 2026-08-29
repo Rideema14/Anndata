@@ -211,6 +211,45 @@ export async function getOrderById(idOrNumber: string, user: User) {
   return order;
 }
 
+// Extra fields beyond ORDER_INCLUDE_DETAIL that only the seller order-detail
+// view needs (product photo, buyer contact) — kept out of the
+// general-purpose include above so the plain GET /orders/:id response (used
+// by buyers and the admin list) doesn't balloon with data most callers
+// don't render.
+const SELLER_ORDER_DETAIL_INCLUDE = {
+  items: {
+    include: {
+      product: { select: { id: true, name: true, slug: true, sellerId: true, images: { take: 1, orderBy: { sortOrder: 'asc' as const } } } },
+      variant: true,
+    },
+  },
+  address: true,
+  statusHistory: { orderBy: { changedAt: 'asc' as const } },
+  payment: true,
+  user: { select: { id: true, name: true, email: true } },
+} satisfies Prisma.OrderInclude;
+
+/**
+ * Order detail for a seller's fulfillment view. Unlike getOrderById (used by
+ * buyers/admins, who should see every line), this filters `items` down to
+ * only the requesting seller's own products — a multi-seller order must not
+ * expose another seller's items, prices, or quantities to sellers who
+ * weren't part of that line.
+ */
+export async function getSellerOrderDetail(idOrNumber: string, user: User) {
+  const order = await prisma.order.findFirst({
+    where: { OR: [{ id: idOrNumber }, { orderNumber: idOrNumber }] },
+    include: SELLER_ORDER_DETAIL_INCLUDE,
+  });
+  if (!order) throw ApiError.notFound('Order not found.');
+
+  const isAdmin = user.role === 'ADMIN';
+  const items = isAdmin ? order.items : order.items.filter((item) => item.product?.sellerId === user.id);
+  if (!isAdmin && items.length === 0) throw ApiError.forbidden('You do not have permission to view this order.');
+
+  return { ...order, items };
+}
+
 export async function updateStatus(idOrNumber: string, user: User, { status, note, trackingCarrier, trackingNumber }: UpdateStatusInput) {
   const order = await prisma.order.findFirst({
     where: { OR: [{ id: idOrNumber }, { orderNumber: idOrNumber }] },

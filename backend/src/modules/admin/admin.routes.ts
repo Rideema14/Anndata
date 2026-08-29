@@ -11,6 +11,9 @@ import {
   platformAnalyticsQuerySchema,
   adminReviewsQuerySchema,
   adminProductsQuerySchema,
+  sellerBalancesQuerySchema,
+  listPayoutsQuerySchema,
+  createPayoutSchema,
 } from './admin.validation';
 
 const router = Router();
@@ -63,5 +66,32 @@ router.get('/reviews', validate({ query: adminReviewsQuerySchema }), controller.
  *     summary: Every product platform-wide, including inactive listings (unlike the public /products endpoint)
  */
 router.get('/products', validate({ query: adminProductsQuerySchema }), controller.listAllProducts);
+
+/**
+ * @openapi
+ * /admin/payouts/balances:
+ *   get:
+ *     tags: [Admin]
+ *     summary: Every seller's balance — delivered-order revenue minus payouts already recorded
+ */
+router.get('/payouts/balances', validate({ query: sellerBalancesQuerySchema }), controller.getSellerBalances);
+
+/** GET /admin/payouts/balances/:id — one seller's balance, with bank details for the pay-out form */
+router.get('/payouts/balances/:id', validate({ params: idParamSchema }), controller.getSellerBalance);
+
+/**
+ * @openapi
+ * /admin/payouts:
+ *   get:
+ *     tags: [Admin]
+ *     summary: The full payout ledger, newest first
+ */
+router.get('/payouts', validate({ query: listPayoutsQuerySchema }), controller.listPayouts);
+
+/** POST /admin/payouts/:id — record a payout to seller :id (manual bank transfer/UPI done outside the app) */
+router.post('/payouts/:id', validate({ params: idParamSchema, body: createPayoutSchema }), controller.createPayout);
+
+/** POST /admin/payouts/:id/reverse — mark a recorded payout as reversed (:id here is the payout's own id, not a seller id) */
+router.post('/payouts/:id/reverse', validate({ params: idParamSchema }), controller.reversePayout);
 
 export default router;

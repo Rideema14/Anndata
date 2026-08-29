@@ -235,3 +235,50 @@ export interface OrderSummary {
   /** Sum of just the caller's own line items — differs from `total` (the whole order's total) when other sellers' products share the same order. */
   itemsSubtotal?: number
 }
+
+export interface SellerOrderDetailItem {
+  productId: string
+  name: string
+  image?: string
+  quantity: number
+  unitPrice: number
+  totalPrice: number
+}
+
+export interface SellerOrderDetailStatusEvent {
+  status: OrderStatus
+  changedAt: string
+  note?: string
+}
+
+/** Full order detail for the seller fulfillment page — `items` is filtered to just this seller's own products. */
+export interface SellerOrderDetail {
+  id: string
+  status: OrderStatus
+  placedAt: string
+  updatedAt: string
+  address: {
+    fullName: string
+    phone: string
+    line1: string
+    line2?: string
+    city: string
+    state: string
+    pincode: string
+  }
+  customer: {
+    name: string
+    email?: string
+  }
+  items: SellerOrderDetailItem[]
+  subtotal: number
+  shippingFee: number
+  tax: number
+  total: number
+  paymentStatus?: string
+  paymentMethod?: string
+  trackingCarrier?: string
+  trackingNumber?: string
+  trackingUrl?: string
+  statusHistory: SellerOrderDetailStatusEvent[]
+}

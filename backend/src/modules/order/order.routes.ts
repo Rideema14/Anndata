@@ -41,6 +41,9 @@ router.get('/', validate({ query: listOrdersQuerySchema }), controller.list);
 /** GET /orders/:id/tracking — shipment event timeline */
 router.get('/:id/tracking', validate({ params: idParamSchema }), controller.getTracking);
 
+/** GET /orders/:id/seller-detail — seller/admin fulfillment view, items filtered to the requesting seller's own products */
+router.get('/:id/seller-detail', authorize('SELLER', 'ADMIN'), validate({ params: idParamSchema }), controller.getSellerOrderDetail);
+
 router.get('/:id', validate({ params: idParamSchema }), controller.getOne);
 
 /**
