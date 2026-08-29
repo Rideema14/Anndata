@@ -67,6 +67,17 @@ enum DisputeStatus {
   REJECTED
 }
 
+enum PayoutStatus {
+  PAID
+  REVERSED
+}
+
+enum PayoutMethod {
+  BANK_TRANSFER
+  UPI
+  OTHER
+}
+
 enum PaymentStatus {
   CREATED
   PENDING
@@ -711,6 +722,29 @@ model Payment {
   @@index([userId])
   @@index([razorpayOrderId])
   @@map("payments")
+}
+
+// ---------------------------------------------------------------------------
+// Seller Payout Ledger
+// ---------------------------------------------------------------------------
+
+model Payout {
+  id        String       @id @default(uuid())
+  sellerId  String
+  seller    User         @relation("SellerPayouts", fields: [sellerId], references: [id], onDelete: Restrict)
+  amount    Decimal      @db.Decimal(12, 2)
+  method    PayoutMethod @default(BANK_TRANSFER)
+  status    PayoutStatus @default(PAID)
+  reference String?
+  note      String?
+  paidById  String
+  paidBy    User         @relation("PayoutsIssuedBy", fields: [paidById], references: [id], onDelete: Restrict)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@index([sellerId])
+  @@index([status])
+  @@map("payouts")
 }
 
 // ---------------------------------------------------------------------------

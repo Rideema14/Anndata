@@ -1,11 +1,6 @@
-<<<<<<< HEAD
 import { PackageCheck, User, X, ChevronRight, AlertTriangle, Clock } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-=======
-import { PackageCheck, User, X } from 'lucide-react'
-import { useState } from 'react'
->>>>>>> 25ce183b221bd97773e0f963d9f210c693a82c0a
 import { Button } from '@/components/common/Button'
 import { TextField } from '@/components/common/FormField'
 import { useSeller } from '@/context/SellerContext'
