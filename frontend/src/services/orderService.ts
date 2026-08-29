@@ -1,9 +1,5 @@
 import { api } from './api'
-<<<<<<< HEAD
-import type { Carrier, Order, OrderItem, OrderStatus, OrderSummary, SellerOrderDetail, ShipmentEvent } from '@/types'
-=======
 import type { Carrier, Dispute, Order, OrderItem, OrderStatus, OrderSummary, SellerOrderDetail, Shipment, ShipmentEvent } from '@/types'
->>>>>>> 441adbb369c21ed2d2f22dd3759d4188bd49908d
 import type { PaginationMeta } from './productService'
 
 type BackendStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'CANCELLED' | 'RETURNED' | 'DISPUTED'
@@ -90,6 +86,11 @@ interface BackendDispute {
   status: BackendDisputeStatus
   adminNote?: string | null
   createdAt: string
+}
+interface BackendStatusHistoryEntry {
+  status: BackendStatus
+  changedAt: string
+  note?: string | null
 }
 interface BackendOrder {
   id: string
@@ -214,56 +215,6 @@ function mapSummary(o: BackendOrder): OrderSummary {
   }
 }
 
-function mapSellerOrderDetail(o: BackendOrder): SellerOrderDetail {
-  const trackingNumber = o.trackingNumber ?? undefined
-  const trackingCarrier = o.trackingCarrier ?? undefined
-  return {
-    id: o.orderNumber,
-    status: STATUS_MAP[o.status],
-    placedAt: o.createdAt,
-    updatedAt: o.updatedAt,
-    items: o.items.map((i) => ({
-      productId: i.productId,
-      name: i.productName,
-      quantity: i.quantity,
-      unitPrice: Number(i.unitPrice),
-      totalPrice: Number(i.totalPrice),
-      image: i.product?.images?.[0]?.url,
-    })),
-    subtotal: Number(o.subtotal),
-    shippingFee: Number(o.shippingFee),
-    tax: Number(o.tax),
-    total: Number(o.totalAmount),
-    address: {
-      fullName: o.address.fullName,
-      phone: o.address.phone,
-      line1: o.address.addressLine1,
-      line2: o.address.addressLine2 ?? undefined,
-      city: o.address.city,
-      state: o.address.state,
-      pincode: o.address.postalCode,
-    },
-    customer: {
-      id: o.user?.id ?? '',
-      name: o.user?.name ?? 'Buyer',
-      email: o.user?.email ?? '',
-      phone: o.user?.phone ?? undefined,
-    },
-    paymentStatus: o.payment?.status,
-    paymentMethod: o.payment?.method ?? undefined,
-    trackingCarrier,
-    trackingNumber,
-    trackingUrl: buildTrackingUrl(trackingCarrier, trackingNumber),
-    shipment: o.shipment ? mapShipment(o.shipment) : undefined,
-    disputes: o.disputes?.map(mapDispute),
-    statusHistory: (o.statusHistory ?? []).map((h) => ({
-      status: STATUS_MAP[h.status],
-      note: h.note ?? undefined,
-      changedAt: h.changedAt,
-    })),
-  }
-}
-
 function mapSellerOrderDetail(o: BackendSellerOrderDetail): SellerOrderDetail {
   const trackingNumber = o.trackingNumber ?? undefined
   const trackingCarrier = o.trackingCarrier ?? undefined
@@ -281,7 +232,10 @@ function mapSellerOrderDetail(o: BackendSellerOrderDetail): SellerOrderDetail {
       state: o.address.state,
       pincode: o.address.postalCode,
     },
-    customer: { name: o.user?.name ?? 'Buyer', email: o.user?.email },
+    customer: {
+      name: o.user?.name ?? 'Buyer', email: o.user?.email ?? '',
+      id: ''
+    },
     items: o.items.map((i) => ({
       productId: i.productId,
       name: i.productName,

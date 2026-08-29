@@ -304,43 +304,6 @@ export interface OrderStatusEvent {
   changedAt: string
 }
 
-export interface SellerOrderDetail {
-  id: string
-  status: OrderStatus
-  placedAt: string
-  updatedAt: string
-  items: OrderDetailItem[]
-  subtotal: number
-  shippingFee: number
-  tax: number
-  total: number
-  /** Delivery contact + address, as entered on this specific order — may differ from the buyer's account phone. */
-  address: {
-    fullName: string
-    phone: string
-    line1: string
-    line2?: string
-    city: string
-    state: string
-    pincode: string
-  }
-  /** The buyer's account — for any follow-up beyond the delivery contact above. */
-  customer: {
-    id: string
-    name: string
-    email: string
-    phone?: string
-  }
-  paymentStatus?: string
-  paymentMethod?: string
-  trackingCarrier?: string
-  trackingNumber?: string
-  trackingUrl?: string
-  shipment?: Shipment
-  disputes?: Dispute[]
-  statusHistory: OrderStatusEvent[]
-}
-
 export interface SellerOrderDetailItem {
   productId: string
   name: string
@@ -371,9 +334,12 @@ export interface SellerOrderDetail {
     state: string
     pincode: string
   }
+  /** The buyer's account — for any follow-up beyond the delivery contact above. */
   customer: {
+    id: string
     name: string
-    email?: string
+    email: string
+    phone?: string
   }
   items: SellerOrderDetailItem[]
   subtotal: number
@@ -385,5 +351,7 @@ export interface SellerOrderDetail {
   trackingCarrier?: string
   trackingNumber?: string
   trackingUrl?: string
+  shipment?: Shipment
+  disputes?: Dispute[]
   statusHistory: SellerOrderDetailStatusEvent[]
 }

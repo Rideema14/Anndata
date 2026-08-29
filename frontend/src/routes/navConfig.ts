@@ -21,6 +21,7 @@ import {
   Truck,
   Users,
   Wheat,
+  Wallet,
 } from 'lucide-react'
 import type { TranslationKey } from '@/context/LanguageContext'
 

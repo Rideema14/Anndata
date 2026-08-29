@@ -47,14 +47,10 @@ export interface SellerBalance {
   id: string
   name: string
   email: string
-<<<<<<< HEAD
-  businessName?: string | null
-=======
   phone?: string | null
   profileImage?: string | null
   businessName?: string | null
   verificationStatus?: string | null
->>>>>>> 441adbb369c21ed2d2f22dd3759d4188bd49908d
   bankAccountHolder?: string | null
   bankAccountNumber?: string | null
   bankIfscCode?: string | null
@@ -66,19 +62,13 @@ export interface SellerBalance {
 
 export interface Payout {
   id: string
-<<<<<<< HEAD
-=======
   sellerId: string
->>>>>>> 441adbb369c21ed2d2f22dd3759d4188bd49908d
   amount: number | string
   method: 'BANK_TRANSFER' | 'UPI' | 'OTHER'
   status: 'PAID' | 'REVERSED'
   reference?: string | null
   note?: string | null
   createdAt: string
-<<<<<<< HEAD
-  seller?: { id: string; name: string; email: string; sellerProfile?: { businessName?: string | null } | null }
-=======
   seller?: { id: string; name: string; email: string; sellerProfile?: { businessName: string | null } | null }
   paidBy?: { id: string; name: string }
 }
@@ -153,7 +143,6 @@ export interface AdminRiskSignal {
   createdAt: string
   metadata?: { reason?: string; count?: number; windowDays?: number } | null
   actor?: { id: string; name: string; email: string } | null
->>>>>>> 441adbb369c21ed2d2f22dd3759d4188bd49908d
 }
 
 export const adminService = {
@@ -182,34 +171,6 @@ export const adminService = {
     await api.delete(`/products/${productId}/reviews/${reviewId}`)
   },
 
-<<<<<<< HEAD
-  async getSellerBalances(params: { limit?: number; search?: string } = {}): Promise<{ items: SellerBalance[]; totalItems: number }> {
-    const res = await api.get<{ data: SellerBalance[]; meta: { pagination: { totalItems: number } } }>('/admin/payouts/balances', { params })
-    return { items: res.data.data, totalItems: res.data.meta.pagination.totalItems }
-  },
-
-  /** Fresh, single-seller balance — used to refresh the pay-out modal's figures right before recording a payout. */
-  async getSellerBalance(sellerId: string): Promise<SellerBalance> {
-    const res = await api.get<{ data: SellerBalance }>(`/admin/payouts/balances/${sellerId}`)
-    return res.data.data
-  },
-
-  async listPayouts(params: { limit?: number } = {}): Promise<{ items: Payout[]; totalItems: number }> {
-    const res = await api.get<{ data: Payout[]; meta: { pagination: { totalItems: number } } }>('/admin/payouts', { params })
-    return { items: res.data.data, totalItems: res.data.meta.pagination.totalItems }
-  },
-
-  async createPayout(
-    sellerId: string,
-    body: { amount: number; method: 'BANK_TRANSFER' | 'UPI' | 'OTHER'; reference?: string; note?: string },
-  ): Promise<Payout> {
-    const res = await api.post<{ data: Payout }>(`/admin/payouts/${sellerId}`, body)
-    return res.data.data
-  },
-
-  async reversePayout(payoutId: string): Promise<Payout> {
-    const res = await api.post<{ data: Payout }>(`/admin/payouts/${payoutId}/reverse`)
-=======
   async getSellerBalances(params: { page?: number; limit?: number; search?: string } = {}): Promise<{ items: SellerBalance[]; totalItems: number }> {
     const res = await api.get<{ data: SellerBalance[]; meta: { pagination: { totalItems: number } } }>('/admin/sellers/balances', { params })
     return { items: res.data.data, totalItems: res.data.meta.pagination.totalItems }
@@ -276,7 +237,6 @@ export const adminService = {
 
   async reviewDispute(disputeId: string, status: 'UNDER_REVIEW' | 'RESOLVED' | 'REJECTED', adminNote?: string): Promise<AdminDispute> {
     const res = await api.patch<{ data: AdminDispute }>(`/admin/disputes/${disputeId}/review`, { status, adminNote })
->>>>>>> 441adbb369c21ed2d2f22dd3759d4188bd49908d
     return res.data.data
   },
 }
