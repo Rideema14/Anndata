@@ -33,7 +33,6 @@ export const getOne = asyncHandler(async (req, res) => {
   ApiResponse.ok(res, order);
 });
 
-<<<<<<< HEAD
 /** Seller (or admin) fulfillment view — items filtered to just this seller's own products. */
 export const getSellerOrderDetail = asyncHandler(async (req, res) => {
   if (!req.user) throw ApiError.unauthorized('Authentication required.');
@@ -41,9 +40,7 @@ export const getSellerOrderDetail = asyncHandler(async (req, res) => {
   ApiResponse.ok(res, order);
 });
 
-=======
 /** Admin-only manual status override — see order.service.ts's updateStatus for the transition rules. */
->>>>>>> 441adbb369c21ed2d2f22dd3759d4188bd49908d
 export const updateStatus = asyncHandler(async (req, res) => {
   if (!req.user) throw ApiError.unauthorized('Authentication required.');
   const order = await orderService.updateStatus(req.params.id, req.user, req.body);

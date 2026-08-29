@@ -80,28 +80,6 @@ export const adminProductsQuerySchema = z.object({
 });
 export type AdminProductsQuery = z.infer<typeof adminProductsQuerySchema>;
 
-<<<<<<< HEAD
-export const sellerBalancesQuerySchema = z.object({
-  page: z.string().optional(),
-  limit: z.string().optional(),
-  search: z.string().trim().min(1).optional(),
-});
-export type SellerBalancesQuery = z.infer<typeof sellerBalancesQuerySchema>;
-
-export const listPayoutsQuerySchema = z.object({
-  page: z.string().optional(),
-  limit: z.string().optional(),
-});
-export type ListPayoutsQuery = z.infer<typeof listPayoutsQuerySchema>;
-
-export const createPayoutSchema = z.object({
-  amount: z.coerce.number().positive(),
-  method: z.enum(['BANK_TRANSFER', 'UPI', 'OTHER']).default('BANK_TRANSFER'),
-  reference: z.string().trim().max(100).optional(),
-  note: z.string().trim().max(500).optional(),
-});
-export type CreatePayoutInput = z.infer<typeof createPayoutSchema>;
-=======
 // ---------------------------------------------------------------------------
 // Shipment management (requirement #10) & disputes (requirement #9)
 // ---------------------------------------------------------------------------
@@ -159,4 +137,3 @@ export const reviewDisputeSchema = z.object({
   adminNote: z.string().trim().max(1000).optional(),
 });
 export type ReviewDisputeInput = z.infer<typeof reviewDisputeSchema>;
->>>>>>> 441adbb369c21ed2d2f22dd3759d4188bd49908d

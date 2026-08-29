@@ -65,10 +65,9 @@ router.get('/', validate({ query: listOrdersQuerySchema }), controller.list);
 /** GET /orders/:id/tracking — shipment event timeline */
 router.get('/:id/tracking', validate({ params: idParamSchema }), controller.getTracking);
 
-<<<<<<< HEAD
 /** GET /orders/:id/seller-detail — seller/admin fulfillment view, items filtered to the requesting seller's own products */
 router.get('/:id/seller-detail', authorize('SELLER', 'ADMIN'), validate({ params: idParamSchema }), controller.getSellerOrderDetail);
-=======
+
 /** GET /orders/:id/shipment — full shipment detail (status, verification, courier timeline) */
 router.get('/:id/shipment', validate({ params: idParamSchema }), controller.getShipment);
 
@@ -87,7 +86,6 @@ router.post(
 
 /** POST /orders/:id/dispute — buyer reports a delivery problem (requirement #9) */
 router.post('/:id/dispute', validate({ params: idParamSchema, body: createDisputeSchema }), controller.createDispute);
->>>>>>> 441adbb369c21ed2d2f22dd3759d4188bd49908d
 
 router.get('/:id', validate({ params: idParamSchema }), controller.getOne);
 

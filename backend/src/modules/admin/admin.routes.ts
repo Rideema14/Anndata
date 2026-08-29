@@ -12,17 +12,12 @@ import {
   adminReviewsQuerySchema,
   adminProductsQuerySchema,
   sellerBalancesQuerySchema,
-<<<<<<< HEAD
-  listPayoutsQuerySchema,
-  createPayoutSchema,
-=======
   createPayoutSchema,
   listPayoutsQuerySchema,
   listShipmentsQuerySchema,
   flagShipmentSchema,
   listDisputesQuerySchema,
   reviewDisputeSchema,
->>>>>>> 441adbb369c21ed2d2f22dd3759d4188bd49908d
 } from './admin.validation';
 
 const router = Router();
@@ -83,17 +78,6 @@ router.get('/products', validate({ query: adminProductsQuerySchema }), controlle
 
 /**
  * @openapi
-<<<<<<< HEAD
- * /admin/payouts/balances:
- *   get:
- *     tags: [Admin]
- *     summary: Every seller's balance — delivered-order revenue minus payouts already recorded
- */
-router.get('/payouts/balances', validate({ query: sellerBalancesQuerySchema }), controller.getSellerBalances);
-
-/** GET /admin/payouts/balances/:id — one seller's balance, with bank details for the pay-out form */
-router.get('/payouts/balances/:id', validate({ params: idParamSchema }), controller.getSellerBalance);
-=======
  * /admin/sellers/balances:
  *   get:
  *     tags: [Admin]
@@ -116,24 +100,12 @@ router.post(
   validate({ params: idParamSchema, body: createPayoutSchema }),
   controller.createPayout
 );
->>>>>>> 441adbb369c21ed2d2f22dd3759d4188bd49908d
 
 /**
  * @openapi
  * /admin/payouts:
  *   get:
  *     tags: [Admin]
-<<<<<<< HEAD
- *     summary: The full payout ledger, newest first
- */
-router.get('/payouts', validate({ query: listPayoutsQuerySchema }), controller.listPayouts);
-
-/** POST /admin/payouts/:id — record a payout to seller :id (manual bank transfer/UPI done outside the app) */
-router.post('/payouts/:id', validate({ params: idParamSchema, body: createPayoutSchema }), controller.createPayout);
-
-/** POST /admin/payouts/:id/reverse — mark a recorded payout as reversed (:id here is the payout's own id, not a seller id) */
-router.post('/payouts/:id/reverse', validate({ params: idParamSchema }), controller.reversePayout);
-=======
  *     summary: Platform-wide payout ledger, filterable by seller and status
  */
 router.get('/payouts', validate({ query: listPayoutsQuerySchema }), controller.listPayouts);
@@ -187,6 +159,5 @@ router.get('/disputes', validate({ query: listDisputesQuerySchema }), controller
  *     summary: Move a dispute to UNDER_REVIEW, or close it as RESOLVED/REJECTED (both take the order out of DISPUTED)
  */
 router.patch('/disputes/:id/review', validate({ params: idParamSchema, body: reviewDisputeSchema }), controller.reviewDispute);
->>>>>>> 441adbb369c21ed2d2f22dd3759d4188bd49908d
 
 export default router;

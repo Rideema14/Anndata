@@ -304,27 +304,17 @@ export interface OrderStatusEvent {
   changedAt: string
 }
 
-export interface SellerOrderDetailItem {
-  productId: string
-  name: string
-  image?: string
-  quantity: number
-  unitPrice: number
-  totalPrice: number
-}
-
-export interface SellerOrderDetailStatusEvent {
-  status: OrderStatus
-  changedAt: string
-  note?: string
-}
-
-/** Full order detail for the seller fulfillment page — `items` is filtered to just this seller's own products. */
 export interface SellerOrderDetail {
   id: string
   status: OrderStatus
   placedAt: string
   updatedAt: string
+  items: OrderDetailItem[]
+  subtotal: number
+  shippingFee: number
+  tax: number
+  total: number
+  /** Delivery contact + address, as entered on this specific order — may differ from the buyer's account phone. */
   address: {
     fullName: string
     phone: string
@@ -341,11 +331,6 @@ export interface SellerOrderDetail {
     email: string
     phone?: string
   }
-  items: SellerOrderDetailItem[]
-  subtotal: number
-  shippingFee: number
-  tax: number
-  total: number
   paymentStatus?: string
   paymentMethod?: string
   trackingCarrier?: string
@@ -353,5 +338,6 @@ export interface SellerOrderDetail {
   trackingUrl?: string
   shipment?: Shipment
   disputes?: Dispute[]
-  statusHistory: SellerOrderDetailStatusEvent[]
+  statusHistory: OrderStatusEvent[]
 }
+

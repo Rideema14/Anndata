@@ -20,8 +20,8 @@ import {
   Tractor,
   Truck,
   Users,
-  Wheat,
   Wallet,
+  Wheat,
 } from 'lucide-react'
 import type { TranslationKey } from '@/context/LanguageContext'
 

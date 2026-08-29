@@ -67,17 +67,6 @@ enum DisputeStatus {
   REJECTED
 }
 
-enum PayoutStatus {
-  PAID
-  REVERSED
-}
-
-enum PayoutMethod {
-  BANK_TRANSFER
-  UPI
-  OTHER
-}
-
 enum PaymentStatus {
   CREATED
   PENDING
@@ -237,15 +226,10 @@ model User {
   aiChatSessions         AiChatSession[]
   cropAnalyses           CropAnalysis[]
   soilReports            SoilReport[]
-<<<<<<< HEAD
   payoutsReceived        Payout[]                        @relation("PayoutSeller")
-  payoutsRecorded        Payout[]                         @relation("PayoutRecordedBy")
-=======
-  payoutsReceived        Payout[]                        @relation("SellerPayouts")
-  payoutsIssued          Payout[]                        @relation("PayoutsIssuedBy")
+  payoutsRecorded        Payout[]                        @relation("PayoutRecordedBy")
   shipmentsAsSeller      Shipment[]                      @relation("ShipmentSeller")
   disputesRaised         Dispute[]                       @relation("DisputeRaisedBy")
->>>>>>> 441adbb369c21ed2d2f22dd3759d4188bd49908d
 
   @@index([email])
   @@map("users")
@@ -727,29 +711,6 @@ model Payment {
   @@index([userId])
   @@index([razorpayOrderId])
   @@map("payments")
-}
-
-// ---------------------------------------------------------------------------
-// Seller Payout Ledger
-// ---------------------------------------------------------------------------
-
-model Payout {
-  id        String       @id @default(uuid())
-  sellerId  String
-  seller    User         @relation("SellerPayouts", fields: [sellerId], references: [id], onDelete: Restrict)
-  amount    Decimal      @db.Decimal(12, 2)
-  method    PayoutMethod @default(BANK_TRANSFER)
-  status    PayoutStatus @default(PAID)
-  reference String?
-  note      String?
-  paidById  String
-  paidBy    User         @relation("PayoutsIssuedBy", fields: [paidById], references: [id], onDelete: Restrict)
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
-
-  @@index([sellerId])
-  @@index([status])
-  @@map("payouts")
 }
 
 // ---------------------------------------------------------------------------

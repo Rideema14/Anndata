@@ -111,7 +111,13 @@ export function GoogleSignInButton({
           type: 'standard',
           theme: 'outline',
           size: 'large',
-          width: 320,
+          // Google's button width is a hard pixel number, not a CSS unit, so
+          // it can't be set responsively via className. Read the container's
+          // actual rendered width (which itself IS responsive — see the
+          // wrapper's `w-full max-w-[320px]` below) instead of hardcoding
+          // 320, so the button doesn't overflow narrow phones (e.g. 320px
+          // viewports where 320px of button plus page padding overflows).
+          width: Math.min(320, containerRef.current.offsetWidth || 320),
           text: 'continue_with',
           shape: 'pill',
         },
@@ -133,13 +139,13 @@ export function GoogleSignInButton({
     <>
       {/* Google Button */}
       <div className="flex flex-col items-center">
-        <div className="relative w-[320px]">
+        <div className="relative w-full max-w-[320px]">
           <div
             ref={containerRef}
             className={
               ready
                 ? ''
-                : 'h-11 w-[320px] animate-pulse rounded-full bg-surface-sunk'
+                : 'h-11 w-full animate-pulse rounded-full bg-surface-sunk'
             }
             aria-hidden={isSigningIn}
           />

@@ -3,6 +3,7 @@ import { AlertTriangle, ChevronDown, ChevronUp, Mic, PhoneOff, Volume2 } from 'l
 import { voiceService } from '@/services/aiService'
 import { getApiErrorMessage } from '@/services/api'
 import { useAi } from '@/context/AiContext'
+import { useLanguage } from '@/context/LanguageContext'
 import { cn } from '@/utils/cn'
 
 type VoiceState = 'idle' | 'listening' | 'processing' | 'speaking' | 'error'
@@ -54,6 +55,11 @@ export default function VoiceAssistantPage() {
   const shouldSubmitRef = useRef(true) // whether the recording in flight should be sent when it stops
 
   const { refreshHistory } = useAi()
+  // The app's language switcher — passed as a fallback so a reply still
+  // comes back in the person's chosen language even if the audio itself is
+  // too short/ambiguous for the backend to auto-detect the spoken language
+  // (see voice.service.ts: detected language always wins when available).
+  const { language } = useLanguage()
 
   useEffect(() => {
     return () => {
@@ -187,7 +193,7 @@ export default function VoiceAssistantPage() {
 
   async function submitRecording(blob: Blob) {
     try {
-      const result = await voiceService.query(blob, 'voice-query.webm', { sessionId: sessionIdRef.current })
+      const result = await voiceService.query(blob, 'voice-query.webm', { sessionId: sessionIdRef.current, language })
       sessionIdRef.current = result.sessionId
       setTranscript(result.transcript)
       setReply(result.replyText)

@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { Prisma } from '@prisma/client';
 import type { User } from '@prisma/client';
 import prisma from '../../config/prisma';
+import { env } from '../../config/env';
 import ApiError from '../../common/utils/ApiError';
 import { parsePagination, buildPaginationMeta } from '../../common/utils/pagination';
 import { emitOrderUpdate } from '../../config/socket';
@@ -18,7 +19,7 @@ const BOOKING_INCLUDE_DETAIL = {
 
 type BookingWithDetail = Prisma.MachineryBookingGetPayload<{ include: typeof BOOKING_INCLUDE_DETAIL }>;
 
-const TAX_RATE = 0.05; // same placeholder tax used elsewhere — adjust to your actual policy
+const TAX_RATE = env.pricing.taxRate; // now sourced from .env — see config/env.ts
 const MAX_SERIALIZATION_RETRIES = 3;
 
 async function generateUniqueBookingNumber(): Promise<string> {

@@ -45,34 +45,21 @@ export const getSellerBalance = asyncHandler(async (req, res) => {
   ApiResponse.ok(res, balance);
 });
 
-<<<<<<< HEAD
-export const listPayouts = asyncHandler(async (req, res) => {
-  const { items, meta } = await adminService.listPayouts(req.query as any);
-  ApiResponse.paginated(res, items, meta);
-});
-
-=======
->>>>>>> 441adbb369c21ed2d2f22dd3759d4188bd49908d
 export const createPayout = asyncHandler(async (req, res) => {
   if (!req.user) throw ApiError.unauthorized('Authentication required.');
   const payout = await adminService.createPayout(req.user.id, req.params.id, req.body);
   ApiResponse.created(res, payout, 'Payout recorded.');
 });
 
-<<<<<<< HEAD
-=======
 export const listPayouts = asyncHandler(async (req, res) => {
   const { items, meta } = await adminService.listPayouts(req.query as any);
   ApiResponse.paginated(res, items, meta);
 });
 
->>>>>>> 441adbb369c21ed2d2f22dd3759d4188bd49908d
 export const reversePayout = asyncHandler(async (req, res) => {
   const payout = await adminService.reversePayout(req.params.id);
   ApiResponse.ok(res, payout, 'Payout reversed.');
 });
-<<<<<<< HEAD
-=======
 
 // --- Shipment management (requirement #10) ------------------------------
 
@@ -109,4 +96,3 @@ export const reviewDispute = asyncHandler(async (req, res) => {
   const dispute = await adminService.reviewDispute(req.params.id, req.user, req.body);
   ApiResponse.ok(res, dispute, 'Dispute updated.');
 });
->>>>>>> 441adbb369c21ed2d2f22dd3759d4188bd49908d

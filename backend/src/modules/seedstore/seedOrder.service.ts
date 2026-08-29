@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { Prisma } from '@prisma/client';
 import type { User } from '@prisma/client';
 import prisma from '../../config/prisma';
+import { env } from '../../config/env';
 import ApiError from '../../common/utils/ApiError';
 import { parsePagination, buildPaginationMeta } from '../../common/utils/pagination';
 import { emitOrderUpdate } from '../../config/socket';
@@ -17,11 +18,11 @@ const SEED_ORDER_INCLUDE_DETAIL = {
 
 type SeedOrderWithDetail = Prisma.SeedOrderGetPayload<{ include: typeof SEED_ORDER_INCLUDE_DETAIL }>;
 
-// Same placeholder business rules as the main store's order.service.ts —
-// adjust to your actual pricing policy, and keep both in sync if you do.
-const FREE_SHIPPING_THRESHOLD = 999;
-const FLAT_SHIPPING_FEE = 49;
-const TAX_RATE = 0.05;
+// Same business rules as the main store's order.service.ts — now sourced
+// from .env (see config/env.ts) so both stay in sync automatically.
+const FREE_SHIPPING_THRESHOLD = env.pricing.freeShippingThreshold;
+const FLAT_SHIPPING_FEE = env.pricing.platformFee;
+const TAX_RATE = env.pricing.taxRate;
 
 async function generateUniqueSeedOrderNumber(): Promise<string> {
   for (let attempt = 0; attempt < 5; attempt += 1) {

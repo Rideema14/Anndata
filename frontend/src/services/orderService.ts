@@ -36,9 +36,7 @@ interface BackendOrderItem {
   quantity: number
   unitPrice: number | string
   totalPrice: number | string
-}
-/** Only present on the seller-detail response (GET /orders/:id/seller-detail), which includes each product's primary photo. */
-interface BackendSellerOrderItem extends BackendOrderItem {
+  /** Only populated on the seller-detail endpoint (GET /orders/:id/seller-detail), which includes each product's primary photo. */
   product?: { images?: { url: string }[] }
 }
 interface BackendAddress {
@@ -55,6 +53,7 @@ interface BackendPayment {
   razorpayOrderId: string
   amount: number | string
   status: 'CREATED' | 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED'
+  method?: string | null
 }
 interface BackendShipmentEvent {
   id: string
@@ -114,13 +113,6 @@ interface BackendOrder {
   statusHistory?: BackendStatusHistoryEntry[]
   shipment?: BackendShipment | null
   disputes?: BackendDispute[]
-}
-/** Shape returned by GET /orders/:id/seller-detail — same base order fields, plus buyer email and product photos. */
-interface BackendSellerOrderDetail extends Omit<BackendOrder, 'items' | 'user'> {
-  items: BackendSellerOrderItem[]
-  address: BackendAddress
-  user?: { id: string; name: string; email?: string }
-  statusHistory: { status: BackendStatus; changedAt: string; note?: string | null }[]
 }
 
 function formatAddress(a: BackendAddress): string {
@@ -215,7 +207,7 @@ function mapSummary(o: BackendOrder): OrderSummary {
   }
 }
 
-function mapSellerOrderDetail(o: BackendSellerOrderDetail): SellerOrderDetail {
+function mapSellerOrderDetail(o: BackendOrder): SellerOrderDetail {
   const trackingNumber = o.trackingNumber ?? undefined
   const trackingCarrier = o.trackingCarrier ?? undefined
   return {
@@ -223,6 +215,18 @@ function mapSellerOrderDetail(o: BackendSellerOrderDetail): SellerOrderDetail {
     status: STATUS_MAP[o.status],
     placedAt: o.createdAt,
     updatedAt: o.updatedAt,
+    items: o.items.map((i) => ({
+      productId: i.productId,
+      name: i.productName,
+      quantity: i.quantity,
+      unitPrice: Number(i.unitPrice),
+      totalPrice: Number(i.totalPrice),
+      image: i.product?.images?.[0]?.url,
+    })),
+    subtotal: Number(o.subtotal),
+    shippingFee: Number(o.shippingFee),
+    tax: Number(o.tax),
+    total: Number(o.totalAmount),
     address: {
       fullName: o.address.fullName,
       phone: o.address.phone,
@@ -233,27 +237,23 @@ function mapSellerOrderDetail(o: BackendSellerOrderDetail): SellerOrderDetail {
       pincode: o.address.postalCode,
     },
     customer: {
-      name: o.user?.name ?? 'Buyer', email: o.user?.email ?? '',
-      id: ''
+      id: o.user?.id ?? '',
+      name: o.user?.name ?? 'Buyer',
+      email: o.user?.email ?? '',
+      phone: o.user?.phone ?? undefined,
     },
-    items: o.items.map((i) => ({
-      productId: i.productId,
-      name: i.productName,
-      image: i.product?.images?.[0]?.url,
-      quantity: i.quantity,
-      unitPrice: Number(i.unitPrice),
-      totalPrice: Number(i.totalPrice),
-    })),
-    subtotal: Number(o.subtotal),
-    shippingFee: Number(o.shippingFee),
-    tax: Number(o.tax),
-    total: Number(o.totalAmount),
     paymentStatus: o.payment?.status,
-    paymentMethod: o.payment ? 'Razorpay' : undefined,
+    paymentMethod: o.payment?.method ?? undefined,
     trackingCarrier,
     trackingNumber,
     trackingUrl: buildTrackingUrl(trackingCarrier, trackingNumber),
-    statusHistory: o.statusHistory.map((h) => ({ status: STATUS_MAP[h.status], changedAt: h.changedAt, note: h.note ?? undefined })),
+    shipment: o.shipment ? mapShipment(o.shipment) : undefined,
+    disputes: o.disputes?.map(mapDispute),
+    statusHistory: (o.statusHistory ?? []).map((h) => ({
+      status: STATUS_MAP[h.status],
+      note: h.note ?? undefined,
+      changedAt: h.changedAt,
+    })),
   }
 }
 
@@ -291,7 +291,7 @@ export const orderService = {
   /** Seller/admin fulfillment view — items filtered server-side to just the requesting seller's own products. */
   async getSellerOrderDetail(idOrNumber: string): Promise<SellerOrderDetail> {
     const realId = idByOrderNumber.get(idOrNumber) ?? idOrNumber
-    const res = await api.get<{ data: BackendSellerOrderDetail }>(`/orders/${realId}/seller-detail`)
+    const res = await api.get<{ data: BackendOrder }>(`/orders/${realId}/seller-detail`)
     idByOrderNumber.set(res.data.data.orderNumber, res.data.data.id)
     return mapSellerOrderDetail(res.data.data)
   },

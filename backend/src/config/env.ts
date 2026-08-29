@@ -95,6 +95,20 @@ export const env = {
     webhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET,
   },
 
+  // Platform/checkout pricing — previously hardcoded as constants inside
+  // order.service.ts, machineryBooking.service.ts and seedOrder.service.ts.
+  // Centralized here so the fee can be changed via .env without a code
+  // change/redeploy, and so all three modules stay in sync.
+  pricing: {
+    // Flat fee (in rupees) added to an order when the subtotal is below
+    // freeShippingThreshold.
+    platformFee: parseFloat(process.env.PLATFORM_FEE || '49'),
+    // Subtotal (in rupees) at/above which platformFee is waived (0).
+    freeShippingThreshold: parseFloat(process.env.FREE_SHIPPING_THRESHOLD || '999'),
+    // Flat tax rate applied to the subtotal, e.g. 0.05 = 5%.
+    taxRate: parseFloat(process.env.TAX_RATE || '0.05'),
+  },
+
   rateLimit: {
     authWindowMin: parseInt(process.env.AUTH_RATE_LIMIT_WINDOW_MIN || '15', 10),
     authMax: parseInt(process.env.AUTH_RATE_LIMIT_MAX || '2000', 10),

@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { Prisma } from '@prisma/client';
 import type { User } from '@prisma/client';
 import prisma from '../../config/prisma';
+import { env } from '../../config/env';
 import ApiError from '../../common/utils/ApiError';
 import { parsePagination, buildPaginationMeta } from '../../common/utils/pagination';
 import { emitOrderUpdate } from '../../config/socket';
@@ -25,9 +26,11 @@ const ORDER_INCLUDE_DETAIL = {
 type OrderWithDetail = Prisma.OrderGetPayload<{ include: typeof ORDER_INCLUDE_DETAIL }>;
 
 // Placeholder business rules — adjust to your actual pricing policy.
-const FREE_SHIPPING_THRESHOLD = 999;
-const FLAT_SHIPPING_FEE = 49;
-const TAX_RATE = 0.05; // 5% flat placeholder tax
+// Business rules — now sourced from .env (see config/env.ts) instead of
+// being hardcoded, so the platform fee/tax can change without a code edit.
+const FREE_SHIPPING_THRESHOLD = env.pricing.freeShippingThreshold;
+const FLAT_SHIPPING_FEE = env.pricing.platformFee;
+const TAX_RATE = env.pricing.taxRate;
 
 async function generateUniqueOrderNumber(): Promise<string> {
   for (let attempt = 0; attempt < 5; attempt += 1) {
@@ -209,7 +212,6 @@ export async function getOrderById(idOrNumber: string, user: User) {
   return order;
 }
 
-<<<<<<< HEAD
 // Extra fields beyond ORDER_INCLUDE_DETAIL that only the seller order-detail
 // view needs (product photo, buyer contact) — kept out of the
 // general-purpose include above so the plain GET /orders/:id response (used
@@ -225,7 +227,9 @@ const SELLER_ORDER_DETAIL_INCLUDE = {
   address: true,
   statusHistory: { orderBy: { changedAt: 'asc' as const } },
   payment: true,
-  user: { select: { id: true, name: true, email: true } },
+  user: { select: { id: true, name: true, email: true, phone: true } },
+  shipment: { include: { events: { orderBy: { eventTime: 'asc' as const } } } },
+  disputes: { orderBy: { createdAt: 'desc' as const } },
 } satisfies Prisma.OrderInclude;
 
 /**
@@ -249,8 +253,6 @@ export async function getSellerOrderDetail(idOrNumber: string, user: User) {
   return { ...order, items };
 }
 
-export async function updateStatus(idOrNumber: string, user: User, { status, note, trackingCarrier, trackingNumber }: UpdateStatusInput) {
-=======
 /**
  * Admin-only manual status override (see order.routes.ts — sellers have no
  * access to this endpoint at all; their entire shipment surface is
@@ -275,7 +277,6 @@ export async function updateStatus(idOrNumber: string, user: User, { status, not
     throw ApiError.forbidden('Only admins can directly change order status.');
   }
 
->>>>>>> 441adbb369c21ed2d2f22dd3759d4188bd49908d
   const order = await prisma.order.findFirst({
     where: { OR: [{ id: idOrNumber }, { orderNumber: idOrNumber }] },
     include: ORDER_INCLUDE_DETAIL,
