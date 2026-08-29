@@ -4,8 +4,6 @@ import { productService } from '@/services/productService'
 import { useAuth } from '@/context/AuthContext'
 import type { Product, SellerOrder } from '@/types'
 
-const STATUS_SEQUENCE: SellerOrder['status'][] = ['placed', 'confirmed', 'packed', 'shipped', 'delivered']
-
 interface SellerContextValue {
   listings: Product[]
   isLoadingListings: boolean
@@ -15,7 +13,8 @@ interface SellerContextValue {
   sellerOrders: SellerOrder[]
   isLoadingOrders: boolean
   isUpdatingOrder: boolean
-  advanceSellerOrderStatus: (id: string, trackingInfo?: { carrier: string; number: string }) => Promise<void>
+  /** The seller's ENTIRE shipment-management action: submit the AWB for verification. Every status change after this comes from the courier. */
+  submitShipmentForOrder: (id: string, shipment: { carrierCode: string; awb: string; carrierName?: string }) => Promise<void>
   refreshSellerOrders: () => Promise<void>
 }
 
@@ -66,6 +65,7 @@ export function SellerProvider({ children }: { children: ReactNode }) {
           status: o.status,
           placedAt: o.placedAt,
           updatedAt: o.updatedAt,
+          shipment: o.shipment,
         })),
       )
     } finally {
@@ -90,24 +90,31 @@ export function SellerProvider({ children }: { children: ReactNode }) {
     setListings((prev) => prev.filter((l) => l.id !== id))
   }, [])
 
-  const advanceSellerOrderStatus = useCallback(async (id: string, trackingInfo?: { carrier: string; number: string }) => {
-    const current = sellerOrders.find((o) => o.id === id)
-    if (!current) return
-    const idx = STATUS_SEQUENCE.indexOf(current.status)
-    const nextStatus = STATUS_SEQUENCE[Math.min(idx + 1, STATUS_SEQUENCE.length - 1)]
+  // This is the seller's ONLY write action on an order's shipment — no
+  // status field, nothing courier-derived. The backend verifies the AWB
+  // against the carrier before accepting it; pickup/transit/delivery are
+  // then reported exclusively by the courier from here on.
+  const submitShipmentForOrder = useCallback(async (id: string, shipment: { carrierCode: string; awb: string; carrierName?: string }) => {
     setIsUpdatingOrder(true)
     try {
-      const updated = await orderService.updateStatus(
-        id,
-        nextStatus,
-        undefined,
-        nextStatus === 'confirmed' && trackingInfo ? { carrier: trackingInfo.carrier, number: trackingInfo.number } : undefined,
+      const updated = await orderService.submitShipment(id, shipment)
+      setSellerOrders((prev) =>
+        prev.map((o) =>
+          o.id === id
+            ? {
+                ...o,
+                status: updated.status,
+                shipment: updated.shipment
+                  ? { carrierCode: updated.shipment.carrierCode, awb: updated.shipment.awb, status: updated.shipment.status, verified: updated.shipment.verified, flaggedForReview: updated.shipment.flaggedForReview }
+                  : o.shipment,
+              }
+            : o,
+        ),
       )
-      setSellerOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status: updated.status } : o)))
     } finally {
       setIsUpdatingOrder(false)
     }
-  }, [sellerOrders])
+  }, [])
 
   const value = useMemo(
     () => ({
@@ -119,7 +126,7 @@ export function SellerProvider({ children }: { children: ReactNode }) {
       sellerOrders,
       isLoadingOrders,
       isUpdatingOrder,
-      advanceSellerOrderStatus,
+      submitShipmentForOrder,
       refreshSellerOrders,
     }),
     [
@@ -131,7 +138,7 @@ export function SellerProvider({ children }: { children: ReactNode }) {
       sellerOrders,
       isLoadingOrders,
       isUpdatingOrder,
-      advanceSellerOrderStatus,
+      submitShipmentForOrder,
       refreshSellerOrders,
     ],
   )

@@ -31,6 +31,8 @@
     "adminReviews": "સમીક્ષાઓ",
     "adminSeeds": "બીજ સંચાલન",
     "adminAnalytics": "વિશ્લેષણ",
+    "adminPayouts": "ચુકવણી",
+    "adminShipments": "શિપમેન્ટ અને વિવાદો",
     "admin": "એડમિન",
     "settings": "સેટિંગ્સ",
     "logout": "લોગ આઉટ"
@@ -200,7 +202,8 @@
     "statusOutForDelivery": "ડિલિવરી માટે નીકળ્યો",
     "statusDelivered": "ડિલિવર થયો",
     "statusCancelled": "રદ કર્યો",
-    "statusReturned": "પરત કર્યો"
+    "statusReturned": "પરત કર્યો",
+    "statusDisputed": "સમીક્ષા હેઠળ"
   },
   "product": {
     "notFound": "ઉત્પાદન મળ્યું નથી",

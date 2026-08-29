@@ -18,6 +18,7 @@ import {
   Store,
   Tags,
   Tractor,
+  Truck,
   Users,
   Wheat,
 } from 'lucide-react'
@@ -69,6 +70,8 @@ export const adminNavItems: NavItem[] = [
   { path: '/admin/reviews', labelKey: 'nav.adminReviews', icon: Star },
   { path: '/admin/seeds', labelKey: 'nav.adminSeeds', icon: Wheat },
   { path: '/admin/analytics', labelKey: 'nav.adminAnalytics', icon: BarChart3 },
+  { path: '/admin/payouts', labelKey: 'nav.adminPayouts', icon: Wallet },
+  { path: '/admin/shipments', labelKey: 'nav.adminShipments', icon: Truck },
 ]
 
 /** Always visible at the foot of the sidebar, regardless of mode. */

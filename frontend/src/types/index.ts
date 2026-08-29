@@ -164,6 +164,7 @@ export type OrderStatus =
   | 'delivered'
   | 'cancelled'
   | 'returned'
+  | 'disputed'
 export type SellerOrderStatus = OrderStatus
 
 export interface SellerOrder {
@@ -176,6 +177,8 @@ export interface SellerOrder {
   updatedAt: string
   trackingCarrier?: string
   trackingNumber?: string
+  /** Courier-verified shipment status — undefined until the seller has submitted an AWB. */
+  shipment?: Pick<Shipment, 'carrierCode' | 'awb' | 'status' | 'verified' | 'flaggedForReview'>
 }
 
 export type AiHistoryType = 'crop_advisor' | 'disease' | 'soil' | 'fertilizer' | 'chat'
@@ -204,6 +207,47 @@ export interface ShipmentEvent {
   source: string
 }
 
+export type ShipmentStatus =
+  | 'AWB_SUBMITTED'
+  | 'AWB_VERIFIED'
+  | 'PICKUP_CONFIRMED'
+  | 'IN_TRANSIT'
+  | 'OUT_FOR_DELIVERY'
+  | 'DELIVERED'
+  | 'DELIVERY_FAILED'
+  | 'RETURNED'
+  | 'EXCEPTION'
+
+export type DisputeStatus = 'OPEN' | 'UNDER_REVIEW' | 'RESOLVED' | 'REJECTED'
+
+export interface Dispute {
+  id: string
+  reason: string
+  details?: string
+  status: DisputeStatus
+  adminNote?: string
+  createdAt: string
+}
+
+/**
+ * The courier-verified shipment record for an order. Everything from
+ * `status` down is written exclusively by the backend from courier data —
+ * never by the seller, and never editable from the seller UI.
+ */
+export interface Shipment {
+  carrierCode: string
+  carrierName?: string
+  awb: string
+  status: ShipmentStatus
+  verified: boolean
+  lastVerificationError?: string
+  pickupConfirmedAt?: string
+  deliveredAt?: string
+  lastSyncedAt?: string
+  flaggedForReview: boolean
+  events: ShipmentEvent[]
+}
+
 export interface Carrier {
   code: string
   name: string
@@ -221,6 +265,8 @@ export interface Order {
   trackingCarrier?: string
   trackingNumber?: string
   trackingUrl?: string
+  shipment?: Shipment
+  disputes?: Dispute[]
 }
 
 export interface OrderSummary {
@@ -234,6 +280,65 @@ export interface OrderSummary {
   buyerName?: string
   /** Sum of just the caller's own line items — differs from `total` (the whole order's total) when other sellers' products share the same order. */
   itemsSubtotal?: number
+  /** Lightweight shipment status for the fulfillment list (courier-verified — see Shipment for the full detail-page shape). */
+  shipment?: Pick<Shipment, 'carrierCode' | 'awb' | 'status' | 'verified' | 'flaggedForReview'>
+}
+
+// --- Seller-facing order detail page ---------------------------------------
+// Richer than `Order`/`OrderSummary` above (which are buyer-facing): includes
+// structured delivery contact + account contact + status timeline, since a
+// seller fulfilling an order needs all of that, not just a formatted address string.
+
+export interface OrderDetailItem {
+  productId: string
+  name: string
+  quantity: number
+  unitPrice: number
+  totalPrice: number
+  image?: string
+}
+
+export interface OrderStatusEvent {
+  status: OrderStatus
+  note?: string
+  changedAt: string
+}
+
+export interface SellerOrderDetail {
+  id: string
+  status: OrderStatus
+  placedAt: string
+  updatedAt: string
+  items: OrderDetailItem[]
+  subtotal: number
+  shippingFee: number
+  tax: number
+  total: number
+  /** Delivery contact + address, as entered on this specific order — may differ from the buyer's account phone. */
+  address: {
+    fullName: string
+    phone: string
+    line1: string
+    line2?: string
+    city: string
+    state: string
+    pincode: string
+  }
+  /** The buyer's account — for any follow-up beyond the delivery contact above. */
+  customer: {
+    id: string
+    name: string
+    email: string
+    phone?: string
+  }
+  paymentStatus?: string
+  paymentMethod?: string
+  trackingCarrier?: string
+  trackingNumber?: string
+  trackingUrl?: string
+  shipment?: Shipment
+  disputes?: Dispute[]
+  statusHistory: OrderStatusEvent[]
 }
 
 export interface SellerOrderDetailItem {

@@ -32,6 +32,8 @@
     "adminReviews": "Reviews",
     "adminSeeds": "Seed Management",
     "adminAnalytics": "Analytics",
+    "adminPayouts": "Payouts",
+    "adminShipments": "Shipments & Disputes",
     "settings": "Settings",
     "logout": "Log Out"
   },
@@ -200,7 +202,8 @@
     "statusOutForDelivery": "Out for Delivery",
     "statusDelivered": "Delivered",
     "statusCancelled": "Cancelled",
-    "statusReturned": "Returned"
+    "statusReturned": "Returned",
+    "statusDisputed": "Under Review"
   },
   "product": {
     "notFound": "Product not found",

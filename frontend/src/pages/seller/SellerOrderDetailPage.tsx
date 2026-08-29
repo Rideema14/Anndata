@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
+  AlertTriangle,
+  CheckCircle2,
   ChevronLeft,
+  Clock,
   Mail,
   MapPin,
   Package,
@@ -12,12 +15,11 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/common/Button'
 import { TextField } from '@/components/common/FormField'
-import { useSeller } from '@/context/SellerContext'
 import { orderService } from '@/services/orderService'
 import { getApiErrorMessage } from '@/services/api'
 import { formatDateTimeLabel, formatINR } from '@/utils/format'
 import { cn } from '@/utils/cn'
-import type { SellerOrderDetail } from '@/types'
+import type { Carrier, SellerOrderDetail } from '@/types'
 
 const STATUS_STYLES: Record<string, string> = {
   placed: 'bg-ink-100 text-ink-600',
@@ -26,41 +28,26 @@ const STATUS_STYLES: Record<string, string> = {
   shipped: 'bg-brand-50 text-brand-700',
   out_for_delivery: 'bg-amber-100 text-amber-800',
   delivered: 'bg-brand-100 text-brand-800',
+  disputed: 'bg-amber-100 text-amber-800',
   cancelled: 'bg-danger-50 text-danger-500',
   returned: 'bg-danger-50 text-danger-500',
 }
 
-const CARRIER_OPTIONS = [
-  { value: 'Delhivery', label: 'Delhivery' },
-  { value: 'BlueDart', label: 'BlueDart' },
-  { value: 'DTDC', label: 'DTDC' },
-  { value: 'India Post', label: 'India Post' },
-  { value: 'Ekart Logistics', label: 'Ekart Logistics' },
-  { value: 'XpressBees', label: 'XpressBees' },
-  { value: 'Shadowfax', label: 'Shadowfax' },
-  { value: 'Ecom Express', label: 'Ecom Express' },
-  { value: 'Porter', label: 'Porter' },
-  { value: 'Dunzo', label: 'Dunzo' },
-  { value: 'SafeExpress', label: 'SafeExpress' },
-  { value: 'VRL Logistics', label: 'VRL Logistics' },
-  { value: 'Local Transport', label: 'Local Transport / Agent' },
-  { value: 'CUSTOM', label: '+ Enter Custom Carrier...' },
-]
-
 export default function SellerOrderDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { advanceSellerOrderStatus, isUpdatingOrder } = useSeller()
 
   const [order, setOrder] = useState<SellerOrderDetail | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
 
+  const [carriers, setCarriers] = useState<Carrier[]>([])
   const [showAwbForm, setShowAwbForm] = useState(false)
-  const [selectedCarrier, setSelectedCarrier] = useState('Delhivery')
+  const [selectedCarrierCode, setSelectedCarrierCode] = useState('')
   const [customCarrierName, setCustomCarrierName] = useState('')
   const [trackingNumber, setTrackingNumber] = useState('')
   const [formError, setFormError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
   const load = useCallback(async () => {
     if (!id) return
@@ -80,22 +67,49 @@ export default function SellerOrderDetailPage() {
     load()
   }, [load])
 
-  async function confirmOrder() {
-    if (!order) return
+  useEffect(() => {
+    orderService
+      .getCarriers()
+      .then((list) => {
+        setCarriers(list)
+        setSelectedCarrierCode((prev) => prev || list[0]?.code || '')
+      })
+      .catch(() => {})
+  }, [])
+
+  // The seller's ENTIRE action on this order: submit the AWB. The backend
+  // verifies it against the carrier before accepting it — everything after
+  // this (pickup, transit, delivery) is reported exclusively by the courier.
+  async function submitAwb() {
+    if (!order || !id) return
     setFormError('')
-    const finalCarrier = selectedCarrier === 'CUSTOM' ? customCarrierName.trim() : selectedCarrier
-    if (!finalCarrier) {
-      setFormError('Please enter the delivery service or agent name.')
+    if (!selectedCarrierCode) {
+      setFormError('Please select a delivery carrier.')
       return
     }
+    if (selectedCarrierCode === 'OTHER' && !customCarrierName.trim()) {
+      setFormError('Please name the courier or local agent.')
+      return
+    }
+    if (!trackingNumber.trim()) {
+      setFormError('Please enter the AWB / tracking number.')
+      return
+    }
+    setSubmitting(true)
     try {
-      await advanceSellerOrderStatus(order.id, { carrier: finalCarrier, number: trackingNumber })
+      await orderService.submitShipment(id, {
+        carrierCode: selectedCarrierCode,
+        awb: trackingNumber.trim(),
+        carrierName: selectedCarrierCode === 'OTHER' ? customCarrierName.trim() : undefined,
+      })
       setShowAwbForm(false)
       setTrackingNumber('')
       setCustomCarrierName('')
-      await load() // pull the fresh status + tracking info + status history
+      await load() // pull the fresh status + verification result + status history
     } catch (err) {
-      setFormError(getApiErrorMessage(err, 'Could not confirm this order.'))
+      setFormError(getApiErrorMessage(err, 'Could not submit this AWB. Double-check the carrier and number.'))
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -118,6 +132,8 @@ export default function SellerOrderDetailPage() {
     )
   }
 
+  const openDispute = order.disputes?.find((d) => d.status === 'OPEN' || d.status === 'UNDER_REVIEW')
+
   return (
     <div className="mx-auto max-w-2xl px-4 py-5 md:px-6 md:py-8">
       <Link to="/seller/orders" className="mb-4 flex items-center gap-1 text-xs font-semibold text-brand-600 hover:underline">
@@ -134,6 +150,16 @@ export default function SellerOrderDetailPage() {
           {order.status.replace(/_/g, ' ')}
         </span>
       </div>
+
+      {openDispute && (
+        <div className="mb-4 flex items-start gap-3 rounded-2xl border-2 border-amber-200 bg-amber-50 p-4">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" aria-hidden="true" />
+          <div className="min-w-0 flex-1 text-sm">
+            <p className="font-semibold text-amber-900">Buyer reported a delivery problem</p>
+            <p className="mt-0.5 text-amber-800">"{openDispute.reason}" — our team is reviewing it. No action needed from you right now.</p>
+          </div>
+        </div>
+      )}
 
       {/* Customer & delivery details */}
       <section className="mb-4 rounded-2xl border border-ink-100 bg-surface p-4">
@@ -230,23 +256,44 @@ export default function SellerOrderDetailPage() {
         </section>
       )}
 
-      {/* Shipping / AWB */}
+      {/* Shipping / AWB — the seller's ONLY action here is submitting the AWB once. Everything after that is courier-reported. */}
       <section className="mb-4 rounded-2xl border border-ink-100 bg-surface p-4">
         <h2 className="mb-3 flex items-center gap-1.5 text-sm font-bold text-ink-900">
           <Truck className="h-4 w-4 text-brand-600" aria-hidden="true" />
           Shipping
         </h2>
 
-        {order.trackingNumber ? (
+        {order.shipment ? (
           <div className="text-sm text-ink-800">
             <p>
               <span className="text-ink-500">Carrier: </span>
-              <span className="font-semibold">{order.trackingCarrier}</span>
+              <span className="font-semibold">{order.shipment.carrierName || order.shipment.carrierCode}</span>
             </p>
             <p className="mt-1">
               <span className="text-ink-500">AWB / Tracking No.: </span>
-              <span className="font-semibold">{order.trackingNumber}</span>
+              <span className="font-semibold">{order.shipment.awb}</span>
             </p>
+
+            <div className="mt-2 flex items-center gap-1.5 text-xs">
+              {order.shipment.verified ? (
+                <>
+                  <CheckCircle2 className="h-3.5 w-3.5 text-brand-600" aria-hidden="true" />
+                  <span className="font-medium text-brand-700">Verified with carrier</span>
+                </>
+              ) : (
+                <>
+                  <Clock className="h-3.5 w-3.5 text-amber-600" aria-hidden="true" />
+                  <span className="font-medium text-amber-700">Verifying with carrier…</span>
+                </>
+              )}
+            </div>
+            {order.shipment.flaggedForReview && (
+              <p className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-danger-500">
+                <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
+                This shipment has been flagged for admin review.
+              </p>
+            )}
+
             {order.trackingUrl && (
               <a href={order.trackingUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs font-semibold text-brand-600 hover:underline">
                 Track shipment →
@@ -261,11 +308,11 @@ export default function SellerOrderDetailPage() {
             className="rounded-xl border border-brand-200 bg-brand-50/60 p-4"
             onSubmit={(event) => {
               event.preventDefault()
-              void confirmOrder()
+              void submitAwb()
             }}
           >
             <div className="mb-3 flex items-start justify-between gap-3">
-              <p className="text-xs text-ink-600">Select any delivery platform, courier, or local transport agent and enter the tracking/AWB number.</p>
+              <p className="text-xs text-ink-600">Select the delivery carrier and enter the AWB / tracking number. We'll verify it with the carrier before confirming the order.</p>
               <button type="button" aria-label="Close" onClick={() => setShowAwbForm(false)} className="text-ink-500 hover:text-ink-900">
                 <X className="h-4 w-4" aria-hidden="true" />
               </button>
@@ -273,30 +320,30 @@ export default function SellerOrderDetailPage() {
 
             <div className="mb-3">
               <label htmlFor="carrier" className="mb-1 block text-xs font-semibold text-ink-700">
-                Delivery Platform / Agent / Service
+                Delivery Carrier
               </label>
               <select
                 id="carrier"
-                value={selectedCarrier}
-                onChange={(e) => setSelectedCarrier(e.target.value)}
+                value={selectedCarrierCode}
+                onChange={(e) => setSelectedCarrierCode(e.target.value)}
                 className="w-full rounded-xl border border-ink-200 bg-white px-3 py-2 text-xs text-ink-900 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
               >
-                {CARRIER_OPTIONS.map((c) => (
-                  <option key={c.value} value={c.value}>
-                    {c.label}
+                {carriers.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.name}
                   </option>
                 ))}
               </select>
             </div>
 
-            {selectedCarrier === 'CUSTOM' && (
+            {selectedCarrierCode === 'OTHER' && (
               <div className="mb-3">
                 <TextField
                   id="custom-carrier"
-                  label="Custom Courier / Transport Name"
+                  label="Courier / Local Agent Name"
                   value={customCarrierName}
                   onChange={(event) => setCustomCarrierName(event.target.value)}
-                  placeholder="e.g. Speed Post, VRL Logistics, Local Tempo"
+                  placeholder="e.g. Local Tempo, Regional Agent"
                   required
                 />
               </div>
@@ -304,40 +351,29 @@ export default function SellerOrderDetailPage() {
 
             <TextField
               id="awb"
-              label="Tracking / AWB / Docket Number"
+              label="AWB / Tracking Number"
               value={trackingNumber}
               onChange={(event) => setTrackingNumber(event.target.value.toUpperCase())}
               placeholder="e.g. 1234567890"
-              pattern="[A-Za-z0-9_-]{4,50}"
-              minLength={4}
-              maxLength={50}
+              minLength={6}
+              maxLength={40}
               required
-              hint="4–50 characters"
+              hint="6–40 characters"
               error={formError || undefined}
             />
 
             <div className="mt-3 flex gap-2">
-              <Button type="submit" className="h-9 px-4 text-xs" loading={isUpdatingOrder}>
-                Confirm Order
+              <Button type="submit" className="h-9 px-4 text-xs" loading={submitting}>
+                Submit AWB
               </Button>
-              <Button type="button" variant="ghost" className="h-9 px-3 text-xs" disabled={isUpdatingOrder} onClick={() => setShowAwbForm(false)}>
+              <Button type="button" variant="ghost" className="h-9 px-3 text-xs" disabled={submitting} onClick={() => setShowAwbForm(false)}>
                 Cancel
               </Button>
             </div>
           </form>
-        ) : order.status === 'placed' ? (
-          <Button
-            variant="secondary"
-            className="h-9 px-4 text-xs"
-            onClick={() => {
-              setFormError('')
-              setTrackingNumber('')
-              setSelectedCarrier('Delhivery')
-              setCustomCarrierName('')
-              setShowAwbForm(true)
-            }}
-          >
-            Confirm Order & Assign Delivery
+        ) : order.status === 'placed' || order.status === 'confirmed' ? (
+          <Button variant="secondary" className="h-9 px-4 text-xs" onClick={() => { setFormError(''); setTrackingNumber(''); setCustomCarrierName(''); setShowAwbForm(true) }}>
+            Enter AWB & Ship Order
           </Button>
         ) : (
           <p className="text-xs text-ink-400">No tracking info yet.</p>

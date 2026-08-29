@@ -36,6 +36,46 @@ enum OrderStatus {
   DELIVERED
   CANCELLED
   RETURNED
+  // Set only when a customer opens a delivery dispute on a DELIVERED order
+  // (see Dispute below) — keeps the order from being treated as
+  // successfully completed while it's under review. Reverts to DELIVERED
+  // once the dispute is RESOLVED/REJECTED by an admin.
+  DISPUTED
+}
+
+// Courier-derived shipment lifecycle — deliberately separate from the
+// coarser OrderStatus above. This is the fine-grained state the tracking
+// provider reports; Order.status is derived from it (see
+// tracking.service.ts) but customers/sellers still see this level of
+// detail on the shipment timeline.
+enum ShipmentStatus {
+  AWB_SUBMITTED // Seller has entered the AWB; not yet verified with the carrier.
+  AWB_VERIFIED // Tracking provider (or simulation) confirms the AWB exists.
+  PICKUP_CONFIRMED // Carrier has scanned the package as picked up from the seller.
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  DELIVERED
+  DELIVERY_FAILED
+  RETURNED
+  EXCEPTION
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  REJECTED
+}
+
+enum PayoutStatus {
+  PAID
+  REVERSED
+}
+
+enum PayoutMethod {
+  BANK_TRANSFER
+  UPI
+  OTHER
 }
 
 enum PaymentStatus {
@@ -197,8 +237,15 @@ model User {
   aiChatSessions         AiChatSession[]
   cropAnalyses           CropAnalysis[]
   soilReports            SoilReport[]
+<<<<<<< HEAD
   payoutsReceived        Payout[]                        @relation("PayoutSeller")
   payoutsRecorded        Payout[]                         @relation("PayoutRecordedBy")
+=======
+  payoutsReceived        Payout[]                        @relation("SellerPayouts")
+  payoutsIssued          Payout[]                        @relation("PayoutsIssuedBy")
+  shipmentsAsSeller      Shipment[]                      @relation("ShipmentSeller")
+  disputesRaised         Dispute[]                       @relation("DisputeRaisedBy")
+>>>>>>> 441adbb369c21ed2d2f22dd3759d4188bd49908d
 
   @@index([email])
   @@map("users")
@@ -464,6 +511,13 @@ model Order {
   statusHistory  OrderStatusHistory[]
   shipmentEvents ShipmentEvent[]
   payment        Payment?
+  // Authoritative shipment record (courier, AWB, verification, pickup/
+  // delivery confirmation) — see Shipment below. The trackingCarrier/
+  // trackingNumber/lastTrackingSync columns above are kept in sync from it
+  // purely so existing reads of the Order object don't break; new code
+  // should read/write through `shipment`.
+  shipment       Shipment?
+  disputes       Dispute[]
 
   @@index([userId])
   @@index([status])
@@ -503,18 +557,147 @@ model OrderStatusHistory {
 }
 
 model ShipmentEvent {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   orderId     String
-  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order       Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  // Nullable only so the migration can backfill this column onto historical
+  // rows created before the Shipment table existed; every event created by
+  // the app from here on always sets it.
+  shipmentId  String?
+  shipment    Shipment? @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
   status      String // e.g. "InTransit", "OutForDelivery", "Delivered"
   description String // e.g. "Shipment arrived at Mumbai Hub"
   location    String? // e.g. "Mumbai, Maharashtra"
   eventTime   DateTime // When the event actually happened at the carrier
-  source      String   @default("TRACKING_API") // "TRACKING_API" | "SIMULATION" | "MANUAL"
-  createdAt   DateTime @default(now())
+  source      String    @default("TRACKING_API") // "TRACKING_API" | "SIMULATION" | "ADMIN"
+  // Raw provider payload for this event, kept for audit/debugging — never
+  // shown to buyers/sellers, never used to let anyone rewrite history.
+  raw         Json?
+  createdAt   DateTime  @default(now())
 
   @@index([orderId])
+  @@index([shipmentId])
   @@map("shipment_events")
+}
+
+// The authoritative shipment record for an order. One shipment per order —
+// this project's Order (like the rest of the marketplace) is not split
+// per-seller, so "the seller who shipped it" is recorded on the shipment
+// itself (sellerId) rather than implying every item necessarily belongs to
+// one seller. Courier-reported fields (status, pickupConfirmedAt,
+// deliveredAt, ...) are only ever written by tracking.service.ts —
+// never directly by a seller-facing endpoint.
+model Shipment {
+  id      String @id @default(uuid())
+  orderId String @unique
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  // The seller who submitted the AWB (whichever seller on the order acted
+  // first) — nullable to tolerate the historical-data backfill in this
+  // feature's migration, where the original seller can't be reconstructed
+  // with certainty from the old flat orders.trackingCarrier/trackingNumber
+  // columns.
+  sellerId String?
+  seller   User?   @relation("ShipmentSeller", fields: [sellerId], references: [id])
+
+  carrierCode String // one of tracking.service.ts's SUPPORTED_CARRIERS codes (incl. "OTHER" for local/unlisted couriers)
+  carrierName String? // free-text display name, only meaningful when carrierCode = "OTHER"
+  awb         String // seller-entered AWB/tracking number, as typed
+  normalizedAwb String // uppercased/trimmed form of `awb`, used for duplicate-AWB detection
+
+  status ShipmentStatus @default(AWB_SUBMITTED)
+
+  // --- AWB verification (requirement: never trust seller input alone) -----
+  verified              Boolean   @default(false)
+  verifiedCarrierCode   String? // courier the tracking provider actually detected, if any
+  verificationAttempts  Int       @default(0)
+  lastVerificationError String?
+
+  // --- Pickup / delivery confirmation — courier-derived only --------------
+  pickupConfirmedAt DateTime?
+  deliveredAt       DateTime?
+  deliverySource    String? // "TRACKING_API" | "SIMULATION" — never "SELLER"
+  deliveryEvidence  Json? // OTP/recipient-confirmation details from the provider, when available
+
+  // --- Sync bookkeeping -----------------------------------------------------
+  lastSyncedAt     DateTime?
+  lastSyncError    String?
+  syncFailureCount Int       @default(0)
+
+  // --- Fraud / risk (rule-based — see shipment.constants.ts) --------------
+  flaggedForReview Boolean  @default(false)
+  riskFlags        String[] @default([])
+  riskNote         String?
+
+  metadata Json?
+
+  events ShipmentEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([normalizedAwb])
+  @@index([carrierCode])
+  @@index([status])
+  @@index([sellerId])
+  @@map("shipments")
+}
+
+// A buyer-reported delivery problem on an order the courier has already
+// marked DELIVERED. Never deletes or edits prior shipment/tracking
+// evidence — this is purely an overlay reviewed by an admin.
+model Dispute {
+  id      String @id @default(uuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  userId  String
+  user    User   @relation("DisputeRaisedBy", fields: [userId], references: [id])
+
+  reason  String
+  details String?
+
+  status DisputeStatus @default(OPEN)
+
+  // Plain string (no FK) — an audit trail should still show who reviewed a
+  // dispute even if that admin account is later removed.
+  resolvedById String?
+  resolvedAt   DateTime?
+  adminNote    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orderId])
+  @@index([status])
+  @@map("disputes")
+}
+
+// Append-only audit trail for shipment/order actions — who did what, when,
+// and from what source (seller/courier/customer/admin/system). Nothing in
+// this app ever updates or deletes a row here.
+model ShipmentAuditLog {
+  id         String  @id @default(uuid())
+  orderId    String
+  shipmentId String?
+
+  action   String // e.g. "SELLER_SUBMITTED_AWB", "AWB_VERIFIED", "DELIVERED", "CUSTOMER_CREATED_DISPUTE"
+  // Plain strings (no FK) so the audit trail survives account deletion and
+  // covers non-user actors (the tracking cron, a webhook).
+  actorId   String?
+  actorRole String? // "SELLER" | "CUSTOMER" | "ADMIN" | "SYSTEM"
+  source    String // "SELLER" | "COURIER" | "CUSTOMER" | "ADMIN" | "SYSTEM"
+
+  previousState String?
+  newState      String?
+  metadata      Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+  @@index([shipmentId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("shipment_audit_logs")
 }
 
 // ---------------------------------------------------------------------------
@@ -544,6 +727,29 @@ model Payment {
   @@index([userId])
   @@index([razorpayOrderId])
   @@map("payments")
+}
+
+// ---------------------------------------------------------------------------
+// Seller Payout Ledger
+// ---------------------------------------------------------------------------
+
+model Payout {
+  id        String       @id @default(uuid())
+  sellerId  String
+  seller    User         @relation("SellerPayouts", fields: [sellerId], references: [id], onDelete: Restrict)
+  amount    Decimal      @db.Decimal(12, 2)
+  method    PayoutMethod @default(BANK_TRANSFER)
+  status    PayoutStatus @default(PAID)
+  reference String?
+  note      String?
+  paidById  String
+  paidBy    User         @relation("PayoutsIssuedBy", fields: [paidById], references: [id], onDelete: Restrict)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@index([sellerId])
+  @@index([status])
+  @@map("payouts")
 }
 
 // ---------------------------------------------------------------------------

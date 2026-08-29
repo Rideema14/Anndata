@@ -12,6 +12,7 @@ const STATUS_STYLES: Record<string, string> = {
   shipped: 'bg-brand-50 text-brand-700',
   out_for_delivery: 'bg-brand-50 text-brand-700',
   delivered: 'bg-brand-100 text-brand-800',
+  disputed: 'bg-amber-50 text-amber-700',
   cancelled: 'bg-danger-50 text-danger-600',
   returned: 'bg-danger-50 text-danger-600',
 }
@@ -23,6 +24,7 @@ const STATUS_KEYS: Record<string, TranslationKey> = {
   shipped: 'orders.statusShipped',
   out_for_delivery: 'orders.statusOutForDelivery',
   delivered: 'orders.statusDelivered',
+  disputed: 'orders.statusDisputed',
   cancelled: 'orders.statusCancelled',
   returned: 'orders.statusReturned',
 }
