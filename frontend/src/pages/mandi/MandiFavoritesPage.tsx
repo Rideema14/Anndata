@@ -1,9 +1,18 @@
+import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Heart, Trash2, MapPin } from 'lucide-react'
 import { useMandi } from '@/context/MandiContext'
 
 export default function MandiFavoritesPage() {
-  const { favorites, toggleFavorite, isLoading } = useMandi()
+  const { favorites, toggleFavorite, refreshFavorites, isLoading } = useMandi()
+
+  // The context keeps favorites in sync instantly by mandiId for the star
+  // toggle everywhere else, but the full mandi details (name, location, etc.)
+  // that this page displays only need to be accurate the moment it's opened.
+  useEffect(() => {
+    refreshFavorites()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   if (isLoading) {
     return (

@@ -1,11 +1,6 @@
 import { z } from 'zod';
+import { LANGUAGE_CODES } from './language';
 
-// --- Shared language codes -------------------------------------------------
-// Kept in sync with the frontend's src/locales supported languages, so a
-// person's UI language selection can pin the AI's reply/speech language
-// deterministically instead of relying on the model to infer it.
-export const LANGUAGE_CODES = ['en', 'hi', 'mr', 'pa', 'gu'] as const;
-export type LanguageCode = (typeof LANGUAGE_CODES)[number];
 const languageCodeSchema = z.enum(LANGUAGE_CODES).optional();
 
 // --- Chat -----------------------------------------------------------------
@@ -31,12 +26,14 @@ export const cropAdvisorSchema = z.object({
   soilType: z.string().trim().max(100).optional(),
   farmSizeAcres: z.coerce.number().positive().optional(),
   notes: z.string().trim().max(1000).optional(),
+  language: languageCodeSchema,
 });
 export type CropAdvisorInput = z.infer<typeof cropAdvisorSchema>;
 
 export const diseaseDetectionSchema = z.object({
   cropType: z.string().trim().max(100).optional(),
   notes: z.string().trim().max(1000).optional(),
+  language: languageCodeSchema,
 });
 export type DiseaseDetectionInput = z.infer<typeof diseaseDetectionSchema>;
 
@@ -45,6 +42,7 @@ export const fertilizerAdviceSchema = z.object({
   soilType: z.string().trim().max(100).optional(),
   growthStage: z.string().trim().max(100).optional(),
   notes: z.string().trim().max(1000).optional(),
+  language: languageCodeSchema,
 });
 export type FertilizerAdviceInput = z.infer<typeof fertilizerAdviceSchema>;
 
@@ -53,6 +51,7 @@ export const irrigationAdviceSchema = z.object({
   soilType: z.string().trim().max(100).optional(),
   location: z.string().trim().max(200).optional(),
   notes: z.string().trim().max(1000).optional(),
+  language: languageCodeSchema,
 });
 export type IrrigationAdviceInput = z.infer<typeof irrigationAdviceSchema>;
 
@@ -62,6 +61,7 @@ export const cropRotationSchema = z.object({
   soilType: z.string().trim().max(100).optional(),
   previousCrops: z.array(z.string().trim().max(100)).max(10).optional(),
   notes: z.string().trim().max(1000).optional(),
+  language: languageCodeSchema,
 });
 export type CropRotationInput = z.infer<typeof cropRotationSchema>;
 
@@ -69,6 +69,7 @@ export const weatherAdviceSchema = z.object({
   latitude: z.coerce.number().min(-90).max(90),
   longitude: z.coerce.number().min(-180).max(180),
   cropType: z.string().trim().max(100).optional(),
+  language: languageCodeSchema,
 });
 export type WeatherAdviceInput = z.infer<typeof weatherAdviceSchema>;
 
@@ -101,6 +102,7 @@ export const soilAnalysisSchema = z.object({
   latitude: z.coerce.number().min(-90).max(90).optional(),
   longitude: z.coerce.number().min(-180).max(180).optional(),
   notes: z.string().trim().max(1000).optional(),
+  language: languageCodeSchema,
 });
 export type SoilAnalysisInput = z.infer<typeof soilAnalysisSchema>;
 

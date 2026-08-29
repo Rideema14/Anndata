@@ -168,6 +168,9 @@ const AdminAnalyticsPage = lazy(
 const AdminPayoutsPage = lazy(
   () => import("@/pages/admin/AdminPayoutsPage"),
 );
+const AdminShipmentsPage = lazy(
+  () => import("@/pages/admin/AdminShipmentsPage"),
+);
 
 // =====================================================
 // ROOT ROUTE HELPER
@@ -509,6 +512,10 @@ const router = createBrowserRouter([
       {
         path: "/admin/payouts",
         element: <AdminPayoutsPage />,
+      },
+      {
+        path: "/admin/shipments",
+        element: <AdminShipmentsPage />,
       },
       // Application fallback
       {

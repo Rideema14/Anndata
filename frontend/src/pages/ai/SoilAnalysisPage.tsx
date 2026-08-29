@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle2, FlaskConical, RotateCcw } from 'lucide-rea
 import { Button } from '@/components/common/Button'
 import { SelectField } from '@/components/common/FormField'
 import { useAi } from '@/context/AiContext'
+import { useLanguage } from '@/context/LanguageContext'
 import { soilService, type AdvisoryResult } from '@/services/aiService'
 import { getApiErrorMessage } from '@/services/api'
 import { cn } from '@/utils/cn'
@@ -25,6 +26,7 @@ export default function SoilAnalysisPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const { refreshHistory } = useAi()
+  const { language } = useLanguage()
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -37,6 +39,7 @@ export default function SoilAnalysisPage() {
         phosphorusLevel,
         potassiumLevel,
         soilType,
+        language,
       })
       setResult(advice)
       refreshHistory()

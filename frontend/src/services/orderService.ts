@@ -1,8 +1,8 @@
 import { api } from './api'
-import type { Carrier, Order, OrderItem, OrderStatus, OrderSummary, SellerOrderDetail, ShipmentEvent } from '@/types'
+import type { Carrier, Dispute, Order, OrderItem, OrderStatus, OrderSummary, SellerOrderDetail, Shipment, ShipmentEvent } from '@/types'
 import type { PaginationMeta } from './productService'
 
-type BackendStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'CANCELLED' | 'RETURNED'
+type BackendStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'CANCELLED' | 'RETURNED' | 'DISPUTED'
 
 const STATUS_MAP: Record<BackendStatus, OrderStatus> = {
   PENDING: 'placed',
@@ -13,9 +13,10 @@ const STATUS_MAP: Record<BackendStatus, OrderStatus> = {
   DELIVERED: 'delivered',
   CANCELLED: 'cancelled',
   RETURNED: 'returned',
+  DISPUTED: 'disputed',
 }
 
-/** Reverse of STATUS_MAP — used only for the seller/admin status-update UI, if wired up later. */
+/** Reverse of STATUS_MAP — used only for the admin manual status-override UI, if wired up later. Sellers no longer have access to this endpoint at all (see submitShipment). */
 export const REVERSE_STATUS_MAP: Record<OrderStatus, BackendStatus> = {
   placed: 'PENDING',
   confirmed: 'CONFIRMED',
@@ -25,6 +26,7 @@ export const REVERSE_STATUS_MAP: Record<OrderStatus, BackendStatus> = {
   delivered: 'DELIVERED',
   cancelled: 'CANCELLED',
   returned: 'RETURNED',
+  disputed: 'DISPUTED',
 }
 
 interface BackendOrderItem {
@@ -58,6 +60,37 @@ interface BackendStatusHistoryEntry {
   note?: string | null
   changedAt: string
 }
+interface BackendShipmentEvent {
+  id: string
+  status: string
+  description: string
+  location: string | null
+  eventTime: string
+  source: string
+}
+type BackendShipmentStatus = 'AWB_SUBMITTED' | 'AWB_VERIFIED' | 'PICKUP_CONFIRMED' | 'IN_TRANSIT' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'DELIVERY_FAILED' | 'RETURNED' | 'EXCEPTION'
+interface BackendShipment {
+  carrierCode: string
+  carrierName?: string | null
+  awb: string
+  status: BackendShipmentStatus
+  verified: boolean
+  lastVerificationError?: string | null
+  pickupConfirmedAt?: string | null
+  deliveredAt?: string | null
+  lastSyncedAt?: string | null
+  flaggedForReview: boolean
+  events?: BackendShipmentEvent[]
+}
+type BackendDisputeStatus = 'OPEN' | 'UNDER_REVIEW' | 'RESOLVED' | 'REJECTED'
+interface BackendDispute {
+  id: string
+  reason: string
+  details?: string | null
+  status: BackendDisputeStatus
+  adminNote?: string | null
+  createdAt: string
+}
 interface BackendOrder {
   id: string
   orderNumber: string
@@ -78,6 +111,8 @@ interface BackendOrder {
    *  email/phone are only included on the detail endpoint. */
   user?: { id: string; name: string; email?: string; phone?: string | null }
   statusHistory?: BackendStatusHistoryEntry[]
+  shipment?: BackendShipment | null
+  disputes?: BackendDispute[]
 }
 
 function formatAddress(a: BackendAddress): string {
@@ -109,6 +144,30 @@ export function buildTrackingUrl(carrier?: string | null, number?: string | null
   return undefined
 }
 
+function mapShipmentEvent(e: BackendShipmentEvent): ShipmentEvent {
+  return { id: e.id, status: e.status, description: e.description, location: e.location, eventTime: e.eventTime, source: e.source }
+}
+
+function mapShipment(s: BackendShipment): Shipment {
+  return {
+    carrierCode: s.carrierCode,
+    carrierName: s.carrierName ?? undefined,
+    awb: s.awb,
+    status: s.status,
+    verified: s.verified,
+    lastVerificationError: s.lastVerificationError ?? undefined,
+    pickupConfirmedAt: s.pickupConfirmedAt ?? undefined,
+    deliveredAt: s.deliveredAt ?? undefined,
+    lastSyncedAt: s.lastSyncedAt ?? undefined,
+    flaggedForReview: s.flaggedForReview,
+    events: (s.events ?? []).map(mapShipmentEvent),
+  }
+}
+
+function mapDispute(d: BackendDispute): Dispute {
+  return { id: d.id, reason: d.reason, details: d.details ?? undefined, status: d.status, adminNote: d.adminNote ?? undefined, createdAt: d.createdAt }
+}
+
 function mapOrder(o: BackendOrder): Order {
   const trackingNumber = o.trackingNumber ?? undefined
   const trackingCarrier = o.trackingCarrier ?? undefined
@@ -125,6 +184,8 @@ function mapOrder(o: BackendOrder): Order {
     trackingCarrier,
     trackingNumber,
     trackingUrl,
+    shipment: o.shipment ? mapShipment(o.shipment) : undefined,
+    disputes: o.disputes?.map(mapDispute),
   }
 }
 
@@ -140,6 +201,9 @@ function mapSummary(o: BackendOrder): OrderSummary {
     placedAt: o.createdAt,
     updatedAt: o.updatedAt,
     buyerName: o.user?.name,
+    shipment: o.shipment
+      ? { carrierCode: o.shipment.carrierCode, awb: o.shipment.awb, status: o.shipment.status, verified: o.shipment.verified, flaggedForReview: o.shipment.flaggedForReview }
+      : undefined,
   }
 }
 
@@ -183,6 +247,8 @@ function mapSellerOrderDetail(o: BackendOrder): SellerOrderDetail {
     trackingCarrier,
     trackingNumber,
     trackingUrl: buildTrackingUrl(trackingCarrier, trackingNumber),
+    shipment: o.shipment ? mapShipment(o.shipment) : undefined,
+    disputes: o.disputes?.map(mapDispute),
     statusHistory: (o.statusHistory ?? []).map((h) => ({
       status: STATUS_MAP[h.status],
       note: h.note ?? undefined,
@@ -247,21 +313,48 @@ export const orderService = {
     return mapOrder(res.data.data)
   },
 
-  /** Seller/admin only — advances an order's fulfillment status. */
-  async updateStatus(
-    idOrNumber: string,
-    status: OrderStatus,
-    note?: string,
-    tracking?: { carrier: string; number: string },
-  ): Promise<OrderSummary> {
+  /**
+   * Admin-only manual status override. Sellers no longer have access to
+   * this endpoint at all — see submitShipment() below for their (courier-
+   * verified) shipment submission flow instead.
+   */
+  async updateStatus(idOrNumber: string, status: OrderStatus, note?: string): Promise<OrderSummary> {
     const realId = idByOrderNumber.get(idOrNumber) ?? idOrNumber
     const res = await api.patch<{ data: BackendOrder }>(`/orders/${realId}/status`, {
       status: REVERSE_STATUS_MAP[status],
       note,
-      trackingCarrier: tracking?.carrier,
-      trackingNumber: tracking?.number,
     })
     idByOrderNumber.set(res.data.data.orderNumber, res.data.data.id)
     return mapSummary(res.data.data)
+  },
+
+  /**
+   * The seller's ENTIRE shipment-management surface: submit the AWB, get it
+   * verified against the carrier. Every subsequent status change (pickup,
+   * transit, delivery) comes exclusively from the courier afterward.
+   */
+  async submitShipment(idOrNumber: string, input: { carrierCode: string; awb: string; carrierName?: string }): Promise<Order> {
+    const realId = idByOrderNumber.get(idOrNumber) ?? idOrNumber
+    const res = await api.post<{ data: BackendOrder }>(`/orders/${realId}/shipment`, input)
+    idByOrderNumber.set(res.data.data.orderNumber, res.data.data.id)
+    return mapOrder(res.data.data)
+  },
+
+  async getShipment(idOrNumber: string): Promise<Shipment | null> {
+    const realId = idByOrderNumber.get(idOrNumber) ?? idOrNumber
+    const res = await api.get<{ data: BackendShipment | null }>(`/orders/${realId}/shipment`)
+    return res.data.data ? mapShipment(res.data.data) : null
+  },
+
+  /** Buyer reports a delivery problem on a delivered order. */
+  async createDispute(idOrNumber: string, reason: string, details?: string): Promise<Dispute> {
+    const realId = idByOrderNumber.get(idOrNumber) ?? idOrNumber
+    const res = await api.post<{ data: BackendDispute }>(`/orders/${realId}/dispute`, { reason, details })
+    return mapDispute(res.data.data)
+  },
+
+  async listMyDisputes(): Promise<Dispute[]> {
+    const res = await api.get<{ data: BackendDispute[] }>('/orders/disputes/mine')
+    return res.data.data.map(mapDispute)
   },
 }

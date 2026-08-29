@@ -2,11 +2,14 @@ import cron from 'node-cron';
 import prisma from '../config/prisma';
 import { env } from '../config/env';
 import { syncTracking } from '../modules/order/tracking.service';
+import { TERMINAL_SHIPMENT_STATUSES } from '../modules/order/shipment.constants';
 import logger from '../common/utils/logger';
 
 /**
- * Periodically polls for shipment tracking updates on all active orders
- * that have a tracking number. Runs at the interval set by TRACKING_POLL_MINUTES.
+ * Periodically polls for shipment tracking updates on every order with a
+ * non-terminal Shipment. Runs at the interval set by TRACKING_POLL_MINUTES.
+ * Falls back to this even when the 17TRACK webhook is configured
+ * (requirement #7) — syncTracking() is fully idempotent either way.
  */
 export function startTrackingCron() {
   const intervalMinutes = env.tracking.pollIntervalMinutes;
@@ -16,27 +19,25 @@ export function startTrackingCron() {
 
   cron.schedule(expression, async () => {
     try {
-      // Find all orders that have tracking info and are not in a terminal state
-      const orders = await prisma.order.findMany({
+      const shipments = await prisma.shipment.findMany({
         where: {
-          trackingNumber: { not: null },
-          trackingCarrier: { not: null },
-          status: { notIn: ['DELIVERED', 'CANCELLED', 'RETURNED'] },
+          status: { notIn: TERMINAL_SHIPMENT_STATUSES },
+          order: { status: { not: 'CANCELLED' } },
         },
-        select: { id: true, orderNumber: true },
+        select: { orderId: true, order: { select: { orderNumber: true } } },
       });
 
-      if (orders.length === 0) return;
+      if (shipments.length === 0) return;
 
-      logger.info(`[TrackingCron] Syncing tracking for ${orders.length} order(s)...`);
+      logger.info(`[TrackingCron] Syncing tracking for ${shipments.length} shipment(s)...`);
 
-      for (const order of orders) {
+      for (const shipment of shipments) {
         try {
           // eslint-disable-next-line no-await-in-loop
-          await syncTracking(order.id);
+          await syncTracking(shipment.orderId);
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
-          logger.error(`[TrackingCron] Failed to sync ${order.orderNumber}: ${message}`);
+          logger.error(`[TrackingCron] Failed to sync ${shipment.order.orderNumber}: ${message}`);
         }
       }
 
@@ -47,3 +48,4 @@ export function startTrackingCron() {
     }
   });
 }
+

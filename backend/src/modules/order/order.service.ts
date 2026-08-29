@@ -6,7 +6,8 @@ import ApiError from '../../common/utils/ApiError';
 import { parsePagination, buildPaginationMeta } from '../../common/utils/pagination';
 import { emitOrderUpdate } from '../../config/socket';
 import { notifyUser } from '../notification/notification.service';
-import { syncTracking, getTrackingUrl } from './tracking.service';
+import { recordAudit } from './auditLog.service';
+import { AUDIT_ACTIONS, ORDER_STATUS_TRANSITIONS } from './shipment.constants';
 import type { CheckoutInput, ListOrdersQuery, UpdateStatusInput, CancelOrderInput } from './order.validation';
 
 const ORDER_INCLUDE_DETAIL = {
@@ -22,6 +23,11 @@ const ORDER_INCLUDE_DETAIL = {
   user: { select: { id: true, name: true, email: true, phone: true } },
   statusHistory: { orderBy: { changedAt: 'asc' as const } },
   payment: true,
+  // Courier is the sole source of truth for everything under `shipment`
+  // (see shipment.service.ts/tracking.service.ts) — included here so the
+  // existing GET /orders/:id response carries it without a second request.
+  shipment: { include: { events: { orderBy: { eventTime: 'asc' as const } } } },
+  disputes: { orderBy: { createdAt: 'desc' as const } },
 } satisfies Prisma.OrderInclude;
 
 type OrderWithDetail = Prisma.OrderGetPayload<{ include: typeof ORDER_INCLUDE_DETAIL }>;
@@ -30,15 +36,6 @@ type OrderWithDetail = Prisma.OrderGetPayload<{ include: typeof ORDER_INCLUDE_DE
 const FREE_SHIPPING_THRESHOLD = 999;
 const FLAT_SHIPPING_FEE = 49;
 const TAX_RATE = 0.05; // 5% flat placeholder tax
-
-// Sellers can only advance status manually when auto-tracking is NOT active.
-// Once tracking is linked, the cron handles advancement automatically.
-const SELLER_STATUS_TRANSITIONS: Partial<Record<string, string>> = {
-  PENDING: 'CONFIRMED',
-  CONFIRMED: 'PROCESSING',
-  PROCESSING: 'SHIPPED',
-  SHIPPED: 'DELIVERED',
-};
 
 async function generateUniqueOrderNumber(): Promise<string> {
   for (let attempt = 0; attempt < 5; attempt += 1) {
@@ -198,6 +195,7 @@ export async function listOrders(user: User, query: ListOrdersQuery) {
         },
         user: { select: { id: true, name: true, email: true } },
         payment: { select: { status: true, method: true } },
+        shipment: { select: { status: true, verified: true, carrierCode: true, awb: true, flaggedForReview: true } },
       },
       orderBy: { createdAt: 'desc' },
       skip,
@@ -219,41 +217,57 @@ export async function getOrderById(idOrNumber: string, user: User) {
   return order;
 }
 
-export async function updateStatus(idOrNumber: string, user: User, { status, note, trackingCarrier, trackingNumber }: UpdateStatusInput) {
+/**
+ * Admin-only manual status override (see order.routes.ts — sellers have no
+ * access to this endpoint at all; their entire shipment surface is
+ * shipment.service.ts's submitShipment, and every subsequent status change
+ * comes from the courier via tracking.service.ts). Restricted to the
+ * explicit transition graph in shipment.constants.ts, which is what
+ * actually blocks things like DELIVERED -> SHIPPED or DELIVERED ->
+ * PROCESSING — this function no longer contains any of that logic inline
+ * so there's a single source of truth for it.
+ *
+ * DISPUTED is deliberately excluded from both ends here: opening one always
+ * goes through dispute.service.createDispute (which creates the paired
+ * Dispute row) and resolving one through admin.service.reviewDispute (which
+ * closes it out with an adminNote) — never this generic status field, so a
+ * DISPUTED order can never end up without a matching Dispute record.
+ */
+export async function updateStatus(idOrNumber: string, user: User, { status, note }: UpdateStatusInput) {
+  if (user.role !== 'ADMIN') {
+    // Also enforced by authorize('ADMIN') on the route — kept here too per
+    // "verify ownership on every relevant backend endpoint", not only in
+    // route middleware.
+    throw ApiError.forbidden('Only admins can directly change order status.');
+  }
+
   const order = await prisma.order.findFirst({
     where: { OR: [{ id: idOrNumber }, { orderNumber: idOrNumber }] },
     include: ORDER_INCLUDE_DETAIL,
   });
   if (!order) throw ApiError.notFound('Order not found.');
-  const orderId = order.id;
 
-  if (user.role !== 'ADMIN') {
-    const isSellerOnOrder = order.items.some((item) => item.product?.sellerId === user.id);
-    if (!isSellerOnOrder) throw ApiError.forbidden('You do not have permission to update this order.');
-
-    // For tracked orders (have tracking number), only allow the initial PENDING→CONFIRMED transition.
-    // All subsequent status changes are handled automatically by the tracking cron.
-    const trackingNumber = (order as unknown as { trackingNumber?: string }).trackingNumber;
-    if (trackingNumber && status !== 'CONFIRMED') {
-      throw ApiError.badRequest('This order has live tracking enabled. Status updates happen automatically based on carrier data.');
-    }
-
-    const expectedStatus = SELLER_STATUS_TRANSITIONS[order.status];
-    if (status !== expectedStatus) {
-      throw ApiError.badRequest(`Order must move from ${order.status.toLowerCase()} to ${expectedStatus?.toLowerCase() ?? 'a terminal state'}.`);
-    }
+  if (order.status === 'DISPUTED') {
+    throw ApiError.badRequest('This order has an open delivery dispute. Resolve it from the dispute review screen instead of changing status directly.');
+  }
+  if (status === 'DISPUTED') {
+    throw ApiError.badRequest('Delivery disputes can only be opened by the buyer, from a delivered order.');
   }
 
-  if (['DELIVERED', 'CANCELLED', 'RETURNED'].includes(order.status)) {
-    throw ApiError.badRequest(`Order is already ${order.status.toLowerCase()} and cannot be changed further.`);
+  const allowedNext = ORDER_STATUS_TRANSITIONS[order.status] ?? [];
+  if (!allowedNext.includes(status)) {
+    throw ApiError.badRequest(
+      allowedNext.length > 0
+        ? `Order cannot move from ${order.status} to ${status}. Valid next state(s): ${allowedNext.join(', ')}.`
+        : `Order is already ${order.status.toLowerCase()} and cannot be changed further.`
+    );
   }
 
   const updated = await prisma.$transaction(async (tx) => {
     const result = await tx.order.update({
-      where: { id: orderId },
+      where: { id: order.id },
       data: {
         status,
-        ...(status === 'CONFIRMED' ? { trackingCarrier, trackingNumber } : {}),
         statusHistory: { create: { status, note, changedById: user.id } },
       },
       include: ORDER_INCLUDE_DETAIL,
@@ -265,33 +279,17 @@ export async function updateStatus(idOrNumber: string, user: User, { status, not
   });
 
   emitOrderUpdate(updated);
-
-  // After seller confirms with tracking info, trigger the first tracking sync
-  const updatedWithTracking = updated as OrderWithDetail & {
-    trackingCarrier?: string | null;
-    trackingNumber?: string | null;
-  };
-  if (status === 'CONFIRMED' && updatedWithTracking.trackingCarrier && updatedWithTracking.trackingNumber) {
-    const carrierName = updatedWithTracking.trackingCarrier;
-    const trackingNumber = updatedWithTracking.trackingNumber;
-    const trackUrl = getTrackingUrl(carrierName, trackingNumber);
-
-    notifyUser({
-      userId: updated.userId,
-      type: 'ORDER_STATUS',
-      title: 'Order confirmed — tracking active',
-      message: `Your order #${updated.orderNumber} has been confirmed. Tracking number: ${trackingNumber}. Status updates will appear automatically.`,
-      relatedEntityType: 'ORDER',
-      relatedEntityId: updated.id,
-      email: {
-        subject: `Your order #${updated.orderNumber} is confirmed`,
-        html: `<p>Your order has been confirmed.</p><p><b>Carrier:</b> ${carrierName}</p><p><b>Tracking:</b> ${trackingNumber}</p>${trackUrl ? `<p><a href="${trackUrl}">Track your shipment</a></p>` : ''}`,
-      },
-    }).catch(() => {});
-
-    // Fire initial sync asynchronously
-    syncTracking(updated.id).catch(() => {});
-  }
+  await recordAudit({
+    orderId: order.id,
+    shipmentId: order.shipment?.id,
+    action: AUDIT_ACTIONS.ADMIN_OVERRODE_ORDER_STATUS,
+    actorId: user.id,
+    actorRole: 'ADMIN',
+    source: 'ADMIN',
+    previousState: order.status,
+    newState: status,
+    metadata: note ? { note } : undefined,
+  });
 
   return updated;
 }

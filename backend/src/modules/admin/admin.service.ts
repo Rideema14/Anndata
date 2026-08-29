@@ -3,6 +3,8 @@ import prisma from '../../config/prisma';
 import ApiError from '../../common/utils/ApiError';
 import { parsePagination, buildPaginationMeta } from '../../common/utils/pagination';
 import { notifyUser } from '../notification/notification.service';
+import { recordAudit } from '../order/auditLog.service';
+import { AUDIT_ACTIONS } from '../order/shipment.constants';
 import type {
   ListUsersQuery,
   PlatformAnalyticsQuery,
@@ -11,6 +13,10 @@ import type {
   SellerBalancesQuery,
   CreatePayoutInput,
   ListPayoutsQuery,
+  ListShipmentsQuery,
+  FlagShipmentInput,
+  ListDisputesQuery,
+  ReviewDisputeInput,
 } from './admin.validation';
 
 // --- User management ---------------------------------------------------
@@ -423,4 +429,210 @@ export async function reversePayout(payoutId: string) {
   if (!payout) throw ApiError.notFound('Payout not found.');
   if (payout.status === 'REVERSED') throw ApiError.badRequest('This payout has already been reversed.');
   return prisma.payout.update({ where: { id: payoutId }, data: { status: 'REVERSED' } });
+}
+
+// --- Shipment management (requirement #10) ------------------------------
+
+const ADMIN_SHIPMENT_INCLUDE = {
+  order: {
+    select: {
+      id: true,
+      orderNumber: true,
+      status: true,
+      user: { select: { id: true, name: true, email: true } },
+      items: { select: { productName: true, product: { select: { name: true } } } },
+      disputes: { select: { id: true, status: true }, orderBy: { createdAt: 'desc' as const }, take: 1 },
+    },
+  },
+  seller: { select: { id: true, name: true, email: true } },
+  events: { orderBy: { eventTime: 'desc' as const }, take: 1 },
+} satisfies Prisma.ShipmentInclude;
+
+export async function listShipments(query: ListShipmentsQuery) {
+  const { page, limit, skip, take } = parsePagination(query);
+
+  const where: Prisma.ShipmentWhereInput = {};
+  if (query.status) where.status = query.status;
+  if (query.flagged !== undefined) where.flaggedForReview = query.flagged;
+  if (query.disputed !== undefined) {
+    where.order = { disputes: query.disputed ? { some: { status: { in: ['OPEN', 'UNDER_REVIEW'] } } } : { none: { status: { in: ['OPEN', 'UNDER_REVIEW'] } } } };
+  }
+  if (query.search) {
+    where.OR = [
+      { normalizedAwb: { contains: query.search.toUpperCase() } },
+      { order: { orderNumber: { contains: query.search, mode: 'insensitive' } } },
+    ];
+  }
+
+  const [items, totalItems] = await Promise.all([
+    prisma.shipment.findMany({
+      where,
+      include: ADMIN_SHIPMENT_INCLUDE,
+      orderBy: [{ flaggedForReview: 'desc' }, { updatedAt: 'desc' }],
+      skip,
+      take,
+    }),
+    prisma.shipment.count({ where }),
+  ]);
+
+  return { items, meta: buildPaginationMeta(page, limit, totalItems) };
+}
+
+/** Full shipment detail for one order — complete tracking timeline plus the shipment audit trail (requirement #10/#12). */
+export async function getShipmentDetail(orderIdOrNumber: string) {
+  const order = await prisma.order.findFirst({
+    where: { OR: [{ id: orderIdOrNumber }, { orderNumber: orderIdOrNumber }] },
+    include: {
+      user: { select: { id: true, name: true, email: true, phone: true } },
+      items: { include: { product: { select: { id: true, name: true, sellerId: true } } } },
+      shipment: { include: { events: { orderBy: { eventTime: 'asc' } }, seller: { select: { id: true, name: true, email: true } } } },
+      disputes: { orderBy: { createdAt: 'desc' } },
+      statusHistory: { orderBy: { changedAt: 'asc' } },
+    },
+  });
+  if (!order) throw ApiError.notFound('Order not found.');
+
+  const auditLog = await prisma.shipmentAuditLog.findMany({
+    where: { orderId: order.id },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  return { order, auditLog };
+}
+
+/**
+ * Admin manually flags a shipment for investigation (requirement #10/#11).
+ * Deliberately the ONLY shipment write available to admins — status,
+ * pickupConfirmedAt, deliveredAt, and every ShipmentEvent stay
+ * courier-derived and are never exposed for direct editing here.
+ */
+export async function flagShipmentForReview(orderIdOrNumber: string, admin: { id: string }, { note }: FlagShipmentInput) {
+  const order = await prisma.order.findFirst({
+    where: { OR: [{ id: orderIdOrNumber }, { orderNumber: orderIdOrNumber }] },
+    include: { shipment: true },
+  });
+  if (!order) throw ApiError.notFound('Order not found.');
+  if (!order.shipment) throw ApiError.badRequest('This order has no shipment yet.');
+
+  const updated = await prisma.shipment.update({
+    where: { id: order.shipment.id },
+    data: {
+      flaggedForReview: true,
+      riskNote: order.shipment.riskNote ? `${order.shipment.riskNote}\n---\n${note}` : note,
+    },
+  });
+
+  await recordAudit({
+    orderId: order.id,
+    shipmentId: order.shipment.id,
+    action: AUDIT_ACTIONS.ADMIN_FLAGGED_SHIPMENT,
+    actorId: admin.id,
+    actorRole: 'ADMIN',
+    source: 'ADMIN',
+    metadata: { note },
+  });
+
+  return updated;
+}
+
+// --- Dispute review (requirement #9) -------------------------------------
+
+export async function listDisputes(query: ListDisputesQuery) {
+  const { page, limit, skip, take } = parsePagination(query);
+
+  const where: Prisma.DisputeWhereInput = {};
+  if (query.status) where.status = query.status;
+
+  const [items, totalItems] = await Promise.all([
+    prisma.dispute.findMany({
+      where,
+      include: {
+        order: { select: { id: true, orderNumber: true, status: true, shipment: { select: { deliveredAt: true } } } },
+        user: { select: { id: true, name: true, email: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take,
+    }),
+    prisma.dispute.count({ where }),
+  ]);
+
+  return { items, meta: buildPaginationMeta(page, limit, totalItems) };
+}
+
+/**
+ * Admin resolves (or moves to review) a delivery dispute. RESOLVED/REJECTED
+ * both close it out and take the order out of DISPUTED — the distinction is
+ * business meaning admins record via adminNote (e.g. refund issued vs.
+ * delivery evidence upheld), not a different order-status outcome, since
+ * that downstream action (refund, replacement, ...) is outside the scope of
+ * this shipment-tracking system. Never touches prior shipment/tracking
+ * evidence.
+ */
+export async function reviewDispute(disputeId: string, admin: { id: string }, { status, adminNote }: ReviewDisputeInput) {
+  const dispute = await prisma.dispute.findUnique({ where: { id: disputeId }, include: { order: true } });
+  if (!dispute) throw ApiError.notFound('Dispute not found.');
+  if (dispute.status === 'RESOLVED' || dispute.status === 'REJECTED') {
+    throw ApiError.badRequest('This dispute has already been closed.');
+  }
+
+  const updatedDispute = await prisma.dispute.update({
+    where: { id: disputeId },
+    data: {
+      status,
+      adminNote,
+      resolvedById: status === 'RESOLVED' || status === 'REJECTED' ? admin.id : undefined,
+      resolvedAt: status === 'RESOLVED' || status === 'REJECTED' ? new Date() : undefined,
+    },
+  });
+
+  if ((status === 'RESOLVED' || status === 'REJECTED') && dispute.order.status === 'DISPUTED') {
+    await prisma.order.update({
+      where: { id: dispute.orderId },
+      data: {
+        status: 'DELIVERED',
+        statusHistory: {
+          create: { status: 'DELIVERED', note: `Dispute ${status.toLowerCase()}${adminNote ? `: ${adminNote}` : ''}`, changedById: admin.id },
+        },
+      },
+    });
+  }
+
+  await recordAudit({
+    orderId: dispute.orderId,
+    action: AUDIT_ACTIONS.ADMIN_REVIEWED_DISPUTE,
+    actorId: admin.id,
+    actorRole: 'ADMIN',
+    source: 'ADMIN',
+    previousState: dispute.status,
+    newState: status,
+    metadata: adminNote ? { adminNote } : undefined,
+  });
+
+  return updatedDispute;
+}
+
+/**
+ * Recent seller-level risk signals (requirement #11) — repeated invalid AWB
+ * submissions or repeated disputes against the same seller, raised by
+ * shipment.service.ts / dispute.service.ts as SHIPMENT_FLAGGED audit
+ * entries with no shipmentId (since a rejected AWB attempt never creates a
+ * Shipment row to attach a per-shipment flag to). Kept intentionally simple
+ * — a recent list, not a paginated report — since this is meant as an
+ * admin "worth a look" feed, not a full audit query surface.
+ */
+export async function listRiskSignals(limit = 50) {
+  const logs = await prisma.shipmentAuditLog.findMany({
+    where: { action: AUDIT_ACTIONS.SHIPMENT_FLAGGED },
+    orderBy: { createdAt: 'desc' },
+    take: limit,
+  });
+
+  const actorIds = [...new Set(logs.map((l) => l.actorId).filter((id): id is string => Boolean(id)))];
+  const actors = actorIds.length
+    ? await prisma.user.findMany({ where: { id: { in: actorIds } }, select: { id: true, name: true, email: true } })
+    : [];
+  const actorById = new Map(actors.map((a) => [a.id, a]));
+
+  return logs.map((log) => ({ ...log, actor: log.actorId ? (actorById.get(log.actorId) ?? null) : null }));
 }

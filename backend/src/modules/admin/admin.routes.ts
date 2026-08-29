@@ -14,11 +14,20 @@ import {
   sellerBalancesQuerySchema,
   createPayoutSchema,
   listPayoutsQuerySchema,
+  listShipmentsQuerySchema,
+  flagShipmentSchema,
+  listDisputesQuerySchema,
+  reviewDisputeSchema,
 } from './admin.validation';
 
 const router = Router();
 
 const idParamSchema = z.object({ id: z.string().uuid() });
+// Shipment/dispute endpoints below take an order id/number or a dispute
+// id — not always a UUID (orders can be addressed by their human-readable
+// order number, same as everywhere else in the order module), so these use
+// a looser param schema than idParamSchema above.
+const looseIdParamSchema = z.object({ id: z.string().trim().min(1) });
 
 // Every route in this module is admin-only.
 router.use(authenticate, authorize('ADMIN'));
@@ -103,5 +112,52 @@ router.get('/payouts', validate({ query: listPayoutsQuerySchema }), controller.l
 
 /** PATCH /admin/payouts/:id/reverse — correct a mistaken payout entry without deleting the audit row */
 router.patch('/payouts/:id/reverse', validate({ params: idParamSchema }), controller.reversePayout);
+
+// --- Shipment management (requirement #10) --------------------------------
+
+/**
+ * @openapi
+ * /admin/shipments:
+ *   get:
+ *     tags: [Admin]
+ *     summary: Platform-wide shipment list — order/product/buyer/seller/courier/AWB, status, pickup confirmation, last event, last sync, delivery, dispute status, risk flags
+ */
+router.get('/shipments', validate({ query: listShipmentsQuerySchema }), controller.listShipments);
+
+/** GET /admin/shipments/risk-signals — recent repeated-invalid-AWB / repeated-dispute flags by seller (requirement #11) */
+router.get('/shipments/risk-signals', controller.listRiskSignals);
+
+/** GET /admin/shipments/:id — full tracking timeline + audit trail for one order's shipment */
+router.get('/shipments/:id', validate({ params: looseIdParamSchema }), controller.getShipmentDetail);
+
+/**
+ * @openapi
+ * /admin/shipments/{id}/flag:
+ *   post:
+ *     tags: [Admin]
+ *     summary: Flag a shipment for investigation. Deliberately the ONLY shipment field an admin can write — courier-derived
+ *       status/events/timestamps are never editable here.
+ */
+router.post('/shipments/:id/flag', validate({ params: looseIdParamSchema, body: flagShipmentSchema }), controller.flagShipment);
+
+// --- Dispute review (requirement #9) ---------------------------------------
+
+/**
+ * @openapi
+ * /admin/disputes:
+ *   get:
+ *     tags: [Admin]
+ *     summary: Delivery dispute queue, filterable by status
+ */
+router.get('/disputes', validate({ query: listDisputesQuerySchema }), controller.listDisputes);
+
+/**
+ * @openapi
+ * /admin/disputes/{id}/review:
+ *   patch:
+ *     tags: [Admin]
+ *     summary: Move a dispute to UNDER_REVIEW, or close it as RESOLVED/REJECTED (both take the order out of DISPUTED)
+ */
+router.patch('/disputes/:id/review', validate({ params: idParamSchema, body: reviewDisputeSchema }), controller.reviewDispute);
 
 export default router;

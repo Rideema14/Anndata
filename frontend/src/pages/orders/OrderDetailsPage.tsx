@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { Check, ChevronLeft, ExternalLink, MapPin, Radio, Truck, Wallet } from 'lucide-react'
+import { AlertTriangle, Check, ChevronLeft, ExternalLink, MapPin, Radio, Truck, Wallet } from 'lucide-react'
 import { Button } from '@/components/common/Button'
 import { STATUS_SEQUENCE, useOrders } from '@/context/OrderContext'
 import { orderService } from '@/services/orderService'
@@ -20,6 +20,7 @@ const STAGE_KEYS: Record<string, TranslationKey> = {
 }
 const ORDER_STATUS_KEYS: Record<string, TranslationKey> = {
   ...STAGE_KEYS,
+  disputed: 'orders.statusDisputed',
   cancelled: 'orders.statusCancelled',
   returned: 'orders.statusReturned',
 }
@@ -51,6 +52,11 @@ export default function OrderDetailsPage() {
   const [loading, setLoading] = useState(true)
   const [cancelling, setCancelling] = useState(false)
   const [error, setError] = useState('')
+  const [showDisputeForm, setShowDisputeForm] = useState(false)
+  const [disputeReason, setDisputeReason] = useState('')
+  const [disputeDetails, setDisputeDetails] = useState('')
+  const [disputeSubmitting, setDisputeSubmitting] = useState(false)
+  const [disputeError, setDisputeError] = useState('')
 
   // Fetch order and tracking timeline
   useEffect(() => {
@@ -78,7 +84,7 @@ export default function OrderDetailsPage() {
 
     // Poll for live updates every 8 seconds if order is active and tracked
     const interval = setInterval(() => {
-      if (order && !['delivered', 'cancelled', 'returned'].includes(order.status) && order.trackingNumber) {
+      if (order && !['delivered', 'disputed', 'cancelled', 'returned'].includes(order.status) && order.trackingNumber) {
         loadData()
       }
     }, 8000)
@@ -104,6 +110,23 @@ export default function OrderDetailsPage() {
     }
   }
 
+  async function handleReportProblem() {
+    if (!id || !disputeReason.trim()) return
+    setDisputeSubmitting(true)
+    setDisputeError('')
+    try {
+      const dispute = await orderService.createDispute(id, disputeReason.trim(), disputeDetails.trim() || undefined)
+      setOrder((prev) => (prev ? { ...prev, status: 'disputed', disputes: [dispute, ...(prev.disputes ?? [])] } : prev))
+      setShowDisputeForm(false)
+      setDisputeReason('')
+      setDisputeDetails('')
+    } catch (err) {
+      setDisputeError(getApiErrorMessage(err, 'Could not submit your report. Please try again.'))
+    } finally {
+      setDisputeSubmitting(false)
+    }
+  }
+
   if (loading) {
     return <div className="flex min-h-[60vh] items-center justify-center text-sm text-ink-400">{t('common.loading')}</div>
   }
@@ -120,9 +143,15 @@ export default function OrderDetailsPage() {
   }
 
   const isTerminalOffPath = order.status === 'cancelled' || order.status === 'returned'
-  const currentIndex = STATUS_SEQUENCE.indexOf(order.status)
+  // A dispute can only ever be opened on an order the courier already
+  // marked delivered — treat it as "delivered" for the stepper so the
+  // buyer still sees their full delivery journey, with the dispute called
+  // out separately below rather than resetting the progress bar.
+  const currentIndex = STATUS_SEQUENCE.indexOf(order.status === 'disputed' ? 'delivered' : order.status)
   const canCancel = order.status === 'placed'
   const carrierName = formatCarrierName(order.trackingCarrier)
+  const openDispute = order.disputes?.find((d) => d.status === 'OPEN' || d.status === 'UNDER_REVIEW')
+  const canReportProblem = order.status === 'delivered' && !openDispute
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-5 md:px-6 md:py-8">
@@ -243,6 +272,61 @@ export default function OrderDetailsPage() {
           </>
         )}
       </div>
+
+      {/* Delivery dispute — report a problem / show review status */}
+      {openDispute && (
+        <div className="mb-5 flex items-start gap-3 rounded-2xl border-2 border-amber-200 bg-amber-50 p-4">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" aria-hidden="true" />
+          <div className="min-w-0 flex-1 text-sm">
+            <p className="font-semibold text-amber-900">This order is under review</p>
+            <p className="mt-0.5 text-amber-800">
+              You reported: "{openDispute.reason}". Our team is looking into it — we'll update you once it's resolved.
+            </p>
+          </div>
+        </div>
+      )}
+      {canReportProblem && (
+        <div className="mb-5 rounded-2xl border border-ink-100 bg-surface p-4">
+          {!showDisputeForm ? (
+            <button
+              type="button"
+              onClick={() => setShowDisputeForm(true)}
+              className="text-sm font-semibold text-danger-500 hover:underline"
+            >
+              I did not receive this order / something's wrong
+            </button>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm font-semibold text-ink-900">Report a delivery problem</p>
+              <input
+                type="text"
+                value={disputeReason}
+                onChange={(e) => setDisputeReason(e.target.value)}
+                placeholder={'What went wrong? (e.g. "Never received the package")'}
+                maxLength={200}
+                className="w-full rounded-xl border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500"
+              />
+              <textarea
+                value={disputeDetails}
+                onChange={(e) => setDisputeDetails(e.target.value)}
+                placeholder="Any extra details (optional)"
+                maxLength={1000}
+                rows={3}
+                className="w-full rounded-xl border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500"
+              />
+              {disputeError && <p className="text-xs font-medium text-danger-500">{disputeError}</p>}
+              <div className="flex gap-2">
+                <Button variant="danger" onClick={handleReportProblem} loading={disputeSubmitting} disabled={!disputeReason.trim()}>
+                  Submit report
+                </Button>
+                <Button variant="ghost" onClick={() => setShowDisputeForm(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Items */}
       <div className="mb-5 space-y-2">

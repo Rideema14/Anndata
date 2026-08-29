@@ -4,7 +4,6 @@ import { PlusSquare, Sprout, Trash2 } from 'lucide-react'
 import { useSeller } from '@/context/SellerContext'
 import { formatINR } from '@/utils/format'
 import { cn } from '@/utils/cn'
-import { LoadingOverlay } from '@/components/common/LoadingOverlay'
 
 type Tab = 'active' | 'inactive'
 
@@ -17,45 +16,29 @@ export default function SellerListingsPage() {
   const { listings, isLoadingListings, toggleListingActive, removeListing } = useSeller()
   const [tab, setTab] = useState<Tab>('active')
   const [busyId, setBusyId] = useState<string | null>(null)
-  const [busyAction, setBusyAction] = useState<'activate' | 'deactivate' | 'delete' | null>(null)
 
   const filtered = listings.filter((l) => (tab === 'active' ? l.isActive !== false : l.isActive === false))
 
-  async function handleToggle(id: string, isCurrentlyActive: boolean) {
+  async function handleToggle(id: string) {
     setBusyId(id)
-    setBusyAction(isCurrentlyActive ? 'deactivate' : 'activate')
     try {
       await toggleListingActive(id)
     } finally {
       setBusyId(null)
-      setBusyAction(null)
     }
   }
 
   async function handleRemove(id: string) {
     setBusyId(id)
-    setBusyAction('delete')
     try {
       await removeListing(id)
     } finally {
       setBusyId(null)
-      setBusyAction(null)
     }
   }
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-5 md:px-6 md:py-8">
-      <LoadingOverlay
-        isLoading={busyId !== null}
-        title={busyAction === 'activate' ? 'Activating listing…' : busyAction === 'deactivate' ? 'Deactivating listing…' : 'Deleting listing…'}
-        message={
-          busyAction === 'activate'
-            ? 'Making this listing visible to buyers again.'
-            : busyAction === 'deactivate'
-              ? 'Hiding this listing from buyers.'
-              : 'Removing this listing for good.'
-        }
-      />
       <div className="mb-5 flex items-center justify-between">
         <h1 className="text-xl">My Listings</h1>
         <Link to="/seller/add-product" className="flex items-center gap-1.5 rounded-full bg-brand-600 px-4 py-2 text-xs font-semibold text-white">
@@ -108,7 +91,7 @@ export default function SellerListingsPage() {
               </span>
               <button
                 type="button"
-                onClick={() => handleToggle(listing.id, listing.isActive !== false)}
+                onClick={() => handleToggle(listing.id)}
                 disabled={busyId === listing.id}
                 className={cn(
                   'shrink-0 text-xs font-semibold hover:underline disabled:opacity-50',

@@ -59,18 +59,21 @@ export interface CropAdvisorInput {
   soilType?: string
   farmSizeAcres?: number
   notes?: string
+  language?: string
 }
 export interface FertilizerAdviceInput {
   cropType: string
   soilType?: string
   growthStage?: string
   notes?: string
+  language?: string
 }
 export interface IrrigationAdviceInput {
   cropType: string
   soilType?: string
   location?: string
   notes?: string
+  language?: string
 }
 export interface CropRotationInput {
   currentCrop: string
@@ -78,11 +81,13 @@ export interface CropRotationInput {
   soilType?: string
   previousCrops?: string[]
   notes?: string
+  language?: string
 }
 export interface WeatherAdviceInput {
   latitude: number
   longitude: number
   cropType?: string
+  language?: string
 }
 
 export const cropAnalysisService = {
@@ -91,11 +96,12 @@ export const cropAnalysisService = {
     return res.data.data.resultData
   },
 
-  async diseaseDetection(image: File, extra: { cropType?: string; notes?: string } = {}): Promise<AdvisoryResult & { imageUrl?: string }> {
+  async diseaseDetection(image: File, extra: { cropType?: string; notes?: string; language?: string } = {}): Promise<AdvisoryResult & { imageUrl?: string }> {
     const form = new FormData()
     form.append('image', image)
     if (extra.cropType) form.append('cropType', extra.cropType)
     if (extra.notes) form.append('notes', extra.notes)
+    if (extra.language) form.append('language', extra.language)
     const res = await api.post<{ data: BackendCropAnalysis }>('/ai/disease-detection', form)
     return { ...res.data.data.resultData, imageUrl: res.data.data.imageUrl ?? undefined }
   },
@@ -147,6 +153,7 @@ export interface SoilAnalysisInput {
   latitude?: number
   longitude?: number
   notes?: string
+  language?: string
 }
 
 export const soilService = {

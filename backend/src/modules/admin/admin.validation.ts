@@ -75,3 +75,62 @@ export const adminProductsQuerySchema = z.object({
   search: z.string().trim().optional(),
 });
 export type AdminProductsQuery = z.infer<typeof adminProductsQuerySchema>;
+
+// ---------------------------------------------------------------------------
+// Shipment management (requirement #10) & disputes (requirement #9)
+// ---------------------------------------------------------------------------
+
+export const SHIPMENT_STATUSES = [
+  'AWB_SUBMITTED',
+  'AWB_VERIFIED',
+  'PICKUP_CONFIRMED',
+  'IN_TRANSIT',
+  'OUT_FOR_DELIVERY',
+  'DELIVERED',
+  'DELIVERY_FAILED',
+  'RETURNED',
+  'EXCEPTION',
+] as const;
+
+export const listShipmentsQuerySchema = z.object({
+  page: z.string().optional(),
+  limit: z.string().optional(),
+  status: z.enum(SHIPMENT_STATUSES).optional(),
+  flagged: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((v) => (v === undefined ? undefined : v === 'true')),
+  disputed: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((v) => (v === undefined ? undefined : v === 'true')),
+  // Matches order number or AWB.
+  search: z.string().trim().min(1).optional(),
+});
+export type ListShipmentsQuery = z.infer<typeof listShipmentsQuerySchema>;
+
+// Admin can flag a shipment for investigation and attach a note — this is
+// the ONLY shipment field an admin may write directly. Courier-derived
+// fields (status, pickupConfirmedAt, deliveredAt, events, ...) are never
+// exposed for direct admin edits (requirement #10: "manually changing
+// courier-derived historical events should not be allowed").
+export const flagShipmentSchema = z.object({
+  note: z.string().trim().min(1, 'Add a note explaining why this shipment is flagged.').max(1000),
+});
+export type FlagShipmentInput = z.infer<typeof flagShipmentSchema>;
+
+export const DISPUTE_STATUSES = ['OPEN', 'UNDER_REVIEW', 'RESOLVED', 'REJECTED'] as const;
+
+export const listDisputesQuerySchema = z.object({
+  page: z.string().optional(),
+  limit: z.string().optional(),
+  status: z.enum(DISPUTE_STATUSES).optional(),
+});
+export type ListDisputesQuery = z.infer<typeof listDisputesQuerySchema>;
+
+export const reviewDisputeSchema = z.object({
+  status: z.enum(['UNDER_REVIEW', 'RESOLVED', 'REJECTED']),
+  adminNote: z.string().trim().max(1000).optional(),
+});
+export type ReviewDisputeInput = z.infer<typeof reviewDisputeSchema>;
+

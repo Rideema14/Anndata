@@ -6,18 +6,10 @@ import { chatCompleteJson } from './aiProvider.service';
 import type { AiMessage } from './aiProvider.service';
 import type { SoilAnalysisInput } from './ai.validation';
 import type { PaginationQuery } from '../../common/utils/pagination';
+import { jsonLanguageInstruction } from './language';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AdvisoryResult = Record<string, any>;
-
-// Same multilingual instruction used across every other AI advisory prompt
-// (see cropAnalysis.service.ts) — kept here too since this file has its own
-// prompt rather than sharing one.
-const LANGUAGE_NOTE =
-  'Language: write every string value in your JSON reply in the same language as any free-text the farmer wrote, ' +
-  'matching their script (Devanagari for Hindi/Marathi, Gurmukhi for Punjabi, Gujarati script, or Latin-script ' +
-  '"Hinglish"). If no free text was given, use the language named in the request data if one is given, and ' +
-  'otherwise default to English. Never translate the JSON keys themselves — only the values.';
 
 export async function analyzeSoil(userId: string, data: SoilAnalysisInput) {
   const messages: AiMessage[] = [
@@ -28,7 +20,7 @@ export async function analyzeSoil(userId: string, data: SoilAnalysisInput) {
         'shaped exactly like: {"summary": string, "recommendations": string[], "suitableCrops": string[], ' +
         '"amendments": string[], "warnings": string[], "confidence": "low"|"medium"|"high"}. Some input fields may ' +
         'be missing — work with what is given, and note in warnings if a key value (like pH) was not provided and ' +
-        `would meaningfully change the advice. ${LANGUAGE_NOTE}`,
+        `would meaningfully change the advice.${jsonLanguageInstruction(data.language)}`,
     },
     { role: 'user', content: `Soil data: ${JSON.stringify(data)}` },
   ];

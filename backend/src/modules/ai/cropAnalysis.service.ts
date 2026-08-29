@@ -6,6 +6,7 @@ import { parsePagination, buildPaginationMeta } from '../../common/utils/paginat
 import { chatCompleteJson } from './aiProvider.service';
 import type { AiMessage } from './aiProvider.service';
 import { getWeather } from '../weather/weather.service';
+import { jsonLanguageInstruction } from './language';
 import type {
   CropAdvisorInput,
   DiseaseDetectionInput,
@@ -28,18 +29,6 @@ const SAFETY_NOTE =
   'Never give exact chemical/pesticide dosages as if they were universally safe — always caveat that the ' +
   'farmer should confirm against the specific product label and local agricultural extension guidance, since ' +
   'safe rates vary by product formulation and region.';
-
-// Applied to every advisory prompt below. The farmer's own words (a "notes"
-// field, a crop name, etc.) are the strongest signal; when a request has no
-// free text at all, the reply falls back to whatever language was passed in
-// as `data.language` — the app's currently selected UI language — rather
-// than silently defaulting to English.
-const LANGUAGE_NOTE =
-  'Language: write every string value in your JSON reply (summary, recommendations, warnings, etc.) in the same ' +
-  'language as any free-text the farmer wrote (e.g. a notes/description field), matching their script too — ' +
-  'Devanagari for Hindi/Marathi, Gurmukhi for Punjabi, Gujarati script, or Latin-script "Hinglish" if that\'s what ' +
-  'they used. If no free text was given, use the language named in the request data if one is given, and ' +
-  'otherwise default to English. Never leave the JSON keys themselves translated — only the values.';
 
 async function runAnalysis(
   userId: string,
@@ -71,7 +60,7 @@ export async function getCropAdvice(userId: string, data: CropAdvisorInput) {
         'You are an expert agronomist giving crop planting recommendations to farmers. Respond ONLY with a JSON ' +
         'object shaped exactly like: {"summary": string, "recommendedCrops": string[], "recommendations": string[], ' +
         '"warnings": string[], "confidence": "low"|"medium"|"high"}. If no specific crop was named, suggest 2-4 ' +
-        `crops well-suited to the given conditions. ${LANGUAGE_NOTE}`,
+        `crops well-suited to the given conditions.${jsonLanguageInstruction(data.language)}`,
     },
     { role: 'user', content: `Conditions: ${JSON.stringify(data)}` },
   ];
@@ -89,7 +78,7 @@ export async function detectDisease(userId: string, data: DiseaseDetectionInput,
         'JSON object shaped exactly like: {"summary": string, "diseaseName": string|null, "isHealthy": boolean, ' +
         '"recommendations": string[], "warnings": string[], "confidence": "low"|"medium"|"high"}. Base your answer ' +
         "only on what's actually visible in the image — if it's unclear, poorly lit, or doesn't show a plant, say " +
-        `so plainly rather than guessing. ${SAFETY_NOTE} ${LANGUAGE_NOTE}`,
+        `so plainly rather than guessing. ${SAFETY_NOTE}${jsonLanguageInstruction(data.language)}`,
     },
     {
       role: 'user',
@@ -115,7 +104,7 @@ export async function getFertilizerAdvice(userId: string, data: FertilizerAdvice
       content:
         'You are an agricultural input advisor giving fertilizer recommendations. Respond ONLY with a JSON object ' +
         'shaped exactly like: {"summary": string, "recommendations": string[], "npkGuidance": string, "warnings": ' +
-        `string[], "confidence": "low"|"medium"|"high"}. ${SAFETY_NOTE} ${LANGUAGE_NOTE}`,
+        `string[], "confidence": "low"|"medium"|"high"}. ${SAFETY_NOTE}${jsonLanguageInstruction(data.language)}`,
     },
     { role: 'user', content: `Details: ${JSON.stringify(data)}` },
   ];
@@ -129,7 +118,7 @@ export async function getIrrigationAdvice(userId: string, data: IrrigationAdvice
       content:
         'You are an irrigation planning advisor for farmers. Respond ONLY with a JSON object shaped exactly like: ' +
         '{"summary": string, "recommendations": string[], "suggestedSchedule": string, "warnings": string[], ' +
-        `"confidence": "low"|"medium"|"high"}. ${LANGUAGE_NOTE}`,
+        `"confidence": "low"|"medium"|"high"}.${jsonLanguageInstruction(data.language)}`,
     },
     { role: 'user', content: `Details: ${JSON.stringify(data)}` },
   ];
@@ -144,7 +133,7 @@ export async function getCropRotationPlan(userId: string, data: CropRotationInpu
         'You are a crop rotation planning expert. Respond ONLY with a JSON object shaped exactly like: {"summary": ' +
         'string, "suggestedNextCrops": string[], "rotationPlan": string, "recommendations": string[], "warnings": ' +
         `string[], "confidence": "low"|"medium"|"high"}. Favor rotations that manage soil nutrients and break pest ` +
-        `and disease cycles. ${LANGUAGE_NOTE}`,
+        `and disease cycles.${jsonLanguageInstruction(data.language)}`,
     },
     { role: 'user', content: `Details: ${JSON.stringify(data)}` },
   ];
@@ -161,8 +150,8 @@ export async function getWeatherAdvice(userId: string, data: WeatherAdviceInput)
         'You are an agricultural advisor giving weather-correlated farming recommendations. You will be given a ' +
         'REAL weather forecast — base your advice specifically on it (e.g. rain expected soon → delay spraying; a ' +
         'heat spell → adjust irrigation timing; high wind → delay aerial/spray application). Respond ONLY with a ' +
-        `JSON object shaped exactly like: {"summary": string, "recommendations": string[], "warnings": string[], ` +
-        `"confidence": "low"|"medium"|"high"}. ${LANGUAGE_NOTE}`,
+        'JSON object shaped exactly like: {"summary": string, "recommendations": string[], "warnings": string[], ' +
+        `"confidence": "low"|"medium"|"high"}.${jsonLanguageInstruction(data.language)}`,
     },
     {
       role: 'user',

@@ -32,6 +32,7 @@
     "adminSeeds": "बीज प्रबंधन",
     "adminAnalytics": "विश्लेषण",
     "adminPayouts": "भुगतान",
+    "adminShipments": "शिपमेंट और विवाद",
     "admin": "एडमिन",
     "settings": "सेटिंग्स",
     "logout": "लॉग आउट"
@@ -201,7 +202,8 @@
     "statusOutForDelivery": "डिलीवरी के लिए निकल गया",
     "statusDelivered": "डिलीवर हो गया",
     "statusCancelled": "रद्द किया गया",
-    "statusReturned": "वापस किया गया"
+    "statusReturned": "वापस किया गया",
+    "statusDisputed": "समीक्षाधीन"
   },
   "product": {
     "notFound": "उत्पाद नहीं मिला",
