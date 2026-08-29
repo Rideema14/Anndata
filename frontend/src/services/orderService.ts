@@ -36,12 +36,8 @@ interface BackendOrderItem {
   quantity: number
   unitPrice: number | string
   totalPrice: number | string
-  /** Only present on the detail endpoint (GET /orders/:id), which includes each item's product thumbnail. */
-  product?: { id: string; images?: { url: string }[] }
 }
 interface BackendAddress {
-  fullName: string
-  phone: string
   addressLine1: string
   addressLine2?: string | null
   city: string
@@ -53,12 +49,6 @@ interface BackendPayment {
   razorpayOrderId: string
   amount: number | string
   status: 'CREATED' | 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED'
-  method?: string | null
-}
-interface BackendStatusHistoryEntry {
-  status: BackendStatus
-  note?: string | null
-  changedAt: string
 }
 interface BackendShipmentEvent {
   id: string
@@ -286,14 +276,6 @@ export const orderService = {
     const res = await api.get<{ data: BackendOrder }>(`/orders/${realId}`)
     idByOrderNumber.set(res.data.data.orderNumber, res.data.data.id)
     return mapOrder(res.data.data)
-  },
-
-  /** Seller/admin order detail page — full customer contact + delivery address + item images + status timeline. */
-  async getSellerOrderDetail(idOrNumber: string): Promise<SellerOrderDetail> {
-    const realId = idByOrderNumber.get(idOrNumber) ?? idOrNumber
-    const res = await api.get<{ data: BackendOrder }>(`/orders/${realId}`)
-    idByOrderNumber.set(res.data.data.orderNumber, res.data.data.id)
-    return mapSellerOrderDetail(res.data.data)
   },
 
   async getTracking(idOrNumber: string): Promise<ShipmentEvent[]> {
