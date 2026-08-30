@@ -15,7 +15,18 @@ import logger from './common/utils/logger';
 
 const app = express();
 
-app.use(helmet());
+// Render sits behind a reverse proxy. Trust one proxy hop so
+// express-rate-limit can correctly read the client's forwarded IP.
+app.set('trust proxy', 1);
+
+app.use(
+  helmet({
+    crossOriginOpenerPolicy: {
+      policy: 'same-origin-allow-popups',
+    },
+  })
+);
+
 app.use(cors({ origin: env.clientUrl, credentials: true }));
 app.use(compression());
 app.use(morgan(env.nodeEnv === 'development' ? 'dev' : 'combined', { stream: { write: (msg: string) => logger.info(msg.trim()) } }));

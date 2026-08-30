@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@google/genai": "^2.19.0",
-    "@prisma/client": "5.22.0",
+    "@prisma/client": "^6.19.3",
     "bcryptjs": "^2.4.3",
     "cloudinary": "^2.5.1",
     "compression": "^1.7.5",
@@ -58,7 +58,7 @@
     "@types/nodemailer": "^6.4.16",
     "@types/swagger-jsdoc": "^6.0.4",
     "@types/swagger-ui-express": "^4.1.6",
-    "prisma": "5.22.0"
+    "prisma": "^6.19.3"
   },
   "engines": {
     "node": ">=18.0.0"
