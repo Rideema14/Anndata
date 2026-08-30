@@ -31,7 +31,7 @@ export function AuthLayout() {
         <Link
           to="/"
           className="shrink-0"
-          aria-label="Anndata home"
+          aria-label="home"
         >
           <Logo />
         </Link>

@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "Aandata",
+    "name": "FarmVerse",
     "tagline": "ਸਮਾਰਟ ਖੇਤੀ। ਬਿਹਤਰ ਫੈਸਲੇ।"
   },
   "nav": {
@@ -94,7 +94,7 @@
     "recommended": "ਤੁਹਾਡੇ ਲਈ ਸਿਫਾਰਸ਼ੀ",
     "recentOrders": "ਹਾਲੀਆ ਆਰਡਰ",
     "sellerShortcut": "ਵੇਚਣ ਲਈ ਫਸਲਾਂ ਜਾਂ ਸੰਦ ਹਨ?",
-    "sellerShortcutCta": "Aandata 'ਤੇ ਵੇਚਣਾ ਸ਼ੁਰੂ ਕਰੋ",
+    "sellerShortcutCta": "FarmVerse 'ਤੇ ਵੇਚਣਾ ਸ਼ੁਰੂ ਕਰੋ",
     "weatherToday": "ਅੱਜ ਦਾ ਮੌਸਮ"
   },
   "auth": {
@@ -106,17 +106,17 @@
     "forgotPassword": "ਪਾਸਵਰਡ ਭੁੱਲ ਗਏ?",
     "email": "ਈਮੇਲ",
     "password": "ਪਾਸਵਰਡ",
-    "welcomeBack": "Aandata 'ਤੇ ਦੁਬਾਰਾ ਜੀ ਆਇਆਂ ਨੂੰ।",
+    "welcomeBack": "FarmVerse 'ਤੇ ਦੁਬਾਰਾ ਜੀ ਆਇਆਂ ਨੂੰ।",
     "oneAccountTagline": "ਖਰੀਦਣ ਅਤੇ ਵੇਚਣ ਲਈ ਇੱਕੋ ਖਾਤਾ।",
     "fullName": "ਪੂਰਾ ਨਾਮ",
     "phoneOptional": "ਫ਼ੋਨ ਨੰਬਰ (ਵਿਕਲਪਿਕ)",
-    "passwordHint": "ਘੱਟੋ-ਘੱਟ 8 ਅੱਖਰ, ਇੱਕ ਵੱਡਾ ਅੱਖਰ, ਇੱਕ ਛੋਟਾ ਅੱਖਰ ਅਤੇ ਇੱਕ ਅੰਕ ਹੋਣਾ ਚਾਹੀਦਾ ਹੈ।",
-    "orDivider": "ਜਾਂ",
-    "alreadyHaveAccount": "ਪਹਿਲਾਂ ਹੀ ਖਾਤਾ ਹੈ?",
-    "newToAandata": "Aandata 'ਤੇ ਨਵੇਂ ਹੋ?",
-    "backToLogin": "ਲੌਗ ਇਨ 'ਤੇ ਵਾਪਸ ਜਾਓ",
-    "enterCodeSentTo": "ਇਸ ਪਤੇ 'ਤੇ ਭੇਜਿਆ ਕੋਡ ਦਰਜ ਕਰੋ",
-    "yourEmail": "ਤੁਹਾਡੀ ਈਮੇਲ",
+    "passwordHint": "ਘੱటੋ-ਘੱટ 8 ਅੱખਰ, ਇੱਕ ਵੱડਾ ਅੱખਰ, ਇੱਕ ਛੋટا ਅੱખਰ ਅતੇ ਇੱਕ અੰك ਹੋਣa ਚাহੀਦa ਹੈ।",
+    "orDivider": "ਜಾಂ",
+    "alreadyHaveAccount": "ਪಹिलಾಂ ಹೀ ಖಾತೆಯನ್ನು ಹೊಂದಿದ್ದರೆ?",
+    "newToFarmVerse": "FarmVerse ಪರ ಹರಿಯಲಿ?",
+    "backToLogin": "ಲಾಗಿನ್ ಪರ ಹಿಂದಕ್ಕೆ ಹರಡಿ",
+    "enterCodeSentTo": "ಆ ಸಮಯದಲ್ಲಿ ಕಡತವನ್ನು ಕಡತವನ್ನು ದಾಖಲಮಾಡಿ",
+    "yourEmail": "ನಮಗೆ ಈಮೆಲ್",
     "resendCode": "ਕੋਡ ਦੁਬਾਰਾ ਭੇਜੋ",
     "newCodeSent": "ਇੱਕ ਨਵਾਂ ਕੋਡ ਭੇਜਿਆ ਗਿਆ ਹੈ।",
     "enterFullCode": "ਪੂਰਾ 6 ਅੰਕਾਂ ਦਾ ਕੋਡ ਦਰਜ ਕਰੋ।",

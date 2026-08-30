@@ -267,7 +267,7 @@ export default function LoginPage() {
           />
 
           <p className="mt-5 text-center text-[10px] text-[#858D80]">
-            {t('auth.newToAandata')}{' '}
+            {t('auth.newToFarmVerse')}{' '}
             <Link
               to="/register"
               className="font-semibold text-[#536A31] hover:underline"

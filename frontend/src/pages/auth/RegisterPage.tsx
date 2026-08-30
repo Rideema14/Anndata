@@ -109,7 +109,7 @@ export default function RegisterPage() {
               <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#45572D] text-[#E3E9D8]">
                 <Sprout className="h-[17px] w-[17px]" strokeWidth={1.8} />
               </span>
-              <span className="text-sm font-semibold text-[#F1F3EB]">Anndata</span>
+              <span className="text-sm font-semibold text-[#F1F3EB]">FarmVerse</span>
             </Link>
 
             <div className="max-w-[430px]">

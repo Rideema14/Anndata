@@ -36,8 +36,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'robots.txt'],
       manifest: {
-        name: 'Aandata — Smart Farming. Better Decisions.',
-        short_name: 'Aandata',
+        name: 'FarmVerse — Smart Farming. Better Decisions.',
+        short_name: 'FarmVerse',
         description:
           'AI-powered agricultural marketplace and farming assistance platform for Indian farmers.',
         theme_color: '#2A6B3F',

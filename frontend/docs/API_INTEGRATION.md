@@ -1,4 +1,4 @@
-# Aandata — Frontend API Integration Guide
+# FarmVerse— Frontend API Integration Guide
 
 This document describes what the **frontend currently expects** from the
 backend, based on the mock data and TypeScript types already in the

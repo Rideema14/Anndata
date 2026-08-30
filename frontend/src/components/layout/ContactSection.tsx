@@ -27,7 +27,7 @@ function useRevealOnScroll<T extends HTMLElement>() {
 }
 
 const contactDetails = [
-  { icon: Mail, label: 'Email Us', value: 'hello@anndataa.in' },
+  { icon: Mail, label: 'Email Us', value: 'hello@farmverse.in' },
   { icon: Phone, label: 'Call Us', value: '+91 98765 43210' },
   { icon: MapPin, label: 'Visit Us', value: 'Bhopal, Madhya Pradesh, India' },
 ]

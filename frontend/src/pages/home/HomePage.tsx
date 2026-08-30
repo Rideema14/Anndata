@@ -331,7 +331,7 @@ export default function HomePage() {
               >
                 <Sparkles className="h-4 w-4 text-[#d6b841]" />
 
-                Ask Anndataa AI
+                Ask FarmVerse AI
               </Link>
 
             </div>

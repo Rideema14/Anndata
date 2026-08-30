@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "Aandata",
+    "name": "FarmVerse",
     "tagline": "Smart Farming. Better Decisions."
   },
   "nav": {
@@ -94,7 +94,7 @@
     "recommended": "Recommended for you",
     "recentOrders": "Recent Orders",
     "sellerShortcut": "Have crops or equipment to sell?",
-    "sellerShortcutCta": "Start selling on Aandata",
+    "sellerShortcutCta": "Start selling on FarmVerse",
     "weatherToday": "Today's Weather"
   },
   "auth": {
@@ -106,14 +106,14 @@
     "forgotPassword": "Forgot Password?",
     "email": "Email",
     "password": "Password",
-    "welcomeBack": "Welcome back to Aandata.",
+    "welcomeBack": "Welcome back to FarmVerse.",
     "oneAccountTagline": "One account for buying and selling.",
     "fullName": "Full Name",
     "phoneOptional": "Phone Number (optional)",
     "passwordHint": "At least 8 characters, with an uppercase letter, a lowercase letter, and a number.",
     "orDivider": "or",
     "alreadyHaveAccount": "Already have an account?",
-    "newToAandata": "New to Aandata?",
+    "newToFarmVerse": "New to FarmVerse?",
     "backToLogin": "Back to Log In",
     "enterCodeSentTo": "Enter the code sent to",
     "yourEmail": "your email",

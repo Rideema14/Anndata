@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { useAuth } from '@/context/AuthContext'
 import type { AppMode } from '@/types'
 
-const STORAGE_KEY = 'aandata.mode'
+const STORAGE_KEY = 'farmverse.mode'
 
 interface AppModeContextValue {
   mode: AppMode

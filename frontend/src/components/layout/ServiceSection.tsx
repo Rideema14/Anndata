@@ -334,7 +334,7 @@ export function ServicesSection() {
               Ready to elevate your harvest workflow?
             </h3>
             <p className="text-xs sm:text-sm text-[#aebca2] leading-relaxed font-light">
-              Join 45,000+ agricultural enterprises and farmers maximizing yields on Aandata.
+              Join 45,000+ agricultural enterprises and farmers maximizing yields on FarmVerse.
             </p>
             <div className="pt-1">
               <Link

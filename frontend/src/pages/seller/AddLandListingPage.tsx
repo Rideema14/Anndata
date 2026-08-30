@@ -82,7 +82,7 @@ export default function AddLandListingPage() {
       <LoadingOverlay
         isLoading={isActionLoading}
         title="Publishing Land Listing…"
-        message="Uploading plot photos and publishing to Aandata marketplace."
+        message="Uploading plot photos and publishing to FarmVerse marketplace."
       />
       <Link to="/seller/land" className="mb-4 inline-flex items-center gap-1 text-xs font-semibold text-brand-600 hover:underline">
         <ChevronLeft className="h-4 w-4" />
@@ -91,7 +91,7 @@ export default function AddLandListingPage() {
 
       <div className="mb-6">
         <h1 className="text-2xl font-extrabold text-ink-900">List Agricultural Land</h1>
-        <p className="text-xs text-ink-500">Post your plot for sale or lease on Aandata marketplace.</p>
+        <p className="text-xs text-ink-500">Post your plot for sale or lease on FarmVerse marketplace.</p>
       </div>
 
       {errorMsg && (

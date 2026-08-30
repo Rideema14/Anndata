@@ -20,8 +20,8 @@ export const api = axios.create({
   },
 })
 
-const ACCESS_TOKEN_KEY = 'aandata.authToken'
-const REFRESH_TOKEN_KEY = 'aandata.refreshToken'
+const ACCESS_TOKEN_KEY = 'farmverse.authToken'
+const REFRESH_TOKEN_KEY = 'farmverse.refreshToken'
 
 export function getAccessToken(): string | null {
   return window.localStorage.getItem(ACCESS_TOKEN_KEY)

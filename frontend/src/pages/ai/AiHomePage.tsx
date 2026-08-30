@@ -32,7 +32,7 @@ export default function AiHomePage() {
           <Sparkles className="h-5.5 w-5.5" aria-hidden="true" />
         </span>
         <div>
-          <h1 className="text-xl">Aandata Krishi AI</h1>
+          <h1 className="text-xl">FarmVerse Krishi AI</h1>
           <p className="text-xs text-ink-500">Your farming assistant, in Hindi or English.</p>
         </div>
       </div>

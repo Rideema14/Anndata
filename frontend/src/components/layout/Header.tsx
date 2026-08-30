@@ -62,7 +62,7 @@ export function Header() {
 
         <Link
           to="/"
-          aria-label="Aandata home"
+          aria-label="FarmVerse home"
           className="
             shrink-0
             rounded-xl

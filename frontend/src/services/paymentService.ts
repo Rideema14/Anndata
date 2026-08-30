@@ -77,7 +77,7 @@ export const paymentService = {
         key: keyId,
         amount: Math.round(options.amountInRupees * 100),
         currency: 'INR',
-        name: 'Aandata',
+        name: 'FarmVerse',
         description: options.description ?? 'Order payment',
         order_id: options.razorpayOrderId,
         prefill: { name: options.name, email: options.email, contact: options.phone },

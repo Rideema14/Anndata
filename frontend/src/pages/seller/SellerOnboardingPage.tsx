@@ -66,7 +66,7 @@ export default function SellerOnboardingPage() {
   return (
     <div className="mx-auto max-w-lg px-4 py-6 md:px-6 md:py-8">
       <h1 className="mb-1 text-xl">Become a Seller</h1>
-      <p className="mb-5 text-sm text-ink-500">One account — this adds selling tools to your existing Aandata login.</p>
+      <p className="mb-5 text-sm text-ink-500">One account — this adds selling tools to your existing FarmVerse login.</p>
 
       <StepperHeader steps={STEPS} currentIndex={step} />
 

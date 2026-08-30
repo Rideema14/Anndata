@@ -207,7 +207,7 @@ export function Sidebar() {
                     text-[#D8B15A]
                   "
                 >
-                  Sell on Aandata
+                  Sell on FarmVerse
                 </p>
 
                 <p

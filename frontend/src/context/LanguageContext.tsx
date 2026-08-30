@@ -8,7 +8,7 @@ import {
   type TranslationShape,
 } from '@/locales'
 
-const STORAGE_KEY = 'aandata.language'
+const STORAGE_KEY = 'farmverse.language'
 
 // Builds a union of dot-delimited paths into the translation object, e.g.
 // "nav.home" | "common.search" | ... — gives autocomplete + compile-time

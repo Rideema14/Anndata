@@ -117,10 +117,10 @@ export default function AddProductPage() {
       <LoadingOverlay
         isLoading={isPublishing}
         title="Publishing Listing…"
-        message="Uploading product photo and publishing to Aandata marketplace."
+        message="Uploading product photo and publishing to FarmVerse marketplace."
       />
       <h1 className="mb-1 text-xl">Add Product</h1>
-      <p className="mb-5 text-sm text-ink-500">List a product for sale on Aandata.</p>
+      <p className="mb-5 text-sm text-ink-500">List a product for sale on FarmVerse.</p>
 
       <StepperHeader steps={STEPS} currentIndex={step} />
 

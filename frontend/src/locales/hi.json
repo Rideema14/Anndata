@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "Aandata",
+    "name": "FarmVerse",
     "tagline": "स्मार्ट खेती। बेहतर फैसले।"
   },
   "nav": {
@@ -94,7 +94,7 @@
     "recommended": "आपके लिए सुझाव",
     "recentOrders": "हाल के ऑर्डर",
     "sellerShortcut": "बेचने के लिए फसल या उपकरण है?",
-    "sellerShortcutCta": "Aandata पर बेचना शुरू करें",
+    "sellerShortcutCta": "FarmVerse पर बेचना शुरू करें",
     "weatherToday": "आज का मौसम"
   },
   "auth": {
@@ -106,14 +106,14 @@
     "forgotPassword": "पासवर्ड भूल गए?",
     "email": "ईमेल",
     "password": "पासवर्ड",
-    "welcomeBack": "Aandata में आपका फिर से स्वागत है।",
+    "welcomeBack": "FarmVerse में आपका फिर से स्वागत है।",
     "oneAccountTagline": "खरीदने और बेचने के लिए एक ही खाता।",
     "fullName": "पूरा नाम",
     "phoneOptional": "फ़ोन नंबर (वैकल्पिक)",
     "passwordHint": "कम से कम 8 अक्षर, एक बड़ा अक्षर, एक छोटा अक्षर और एक अंक होना चाहिए।",
     "orDivider": "या",
     "alreadyHaveAccount": "पहले से खाता है?",
-    "newToAandata": "Aandata पर नए हैं?",
+    "newToFarmVerse": "FarmVerse पर नए हैं?",
     "backToLogin": "लॉग इन पर वापस जाएं",
     "enterCodeSentTo": "इस पते पर भेजा गया कोड डालें",
     "yourEmail": "आपका ईमेल",

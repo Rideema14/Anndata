@@ -11,7 +11,7 @@ export function PageLoader() {
         </div>
       </div>
       <div className="flex flex-col items-center gap-1">
-        <span className="text-sm font-bold text-ink-800">Loading Aandata…</span>
+        <span className="text-sm font-bold text-ink-800">Loading FarmVerse…</span>
         <span className="text-xs text-ink-400">Fetching latest market data</span>
       </div>
     </div>
