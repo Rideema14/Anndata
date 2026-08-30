@@ -277,9 +277,9 @@ export default function HomePage() {
   ======================================================= */
 
   return (
-    <div className="min-h-screen bg-[#f4f0e6] text-[#292b24]">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-[#f4f0e6] text-[#292b24]">
 
-      <main className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-9">
+      <main className="mx-auto w-full max-w-[1500px] min-w-0 overflow-x-hidden px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-9">
 
         {/* =================================================
             HERO
@@ -632,7 +632,7 @@ export default function HomePage() {
 
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+          <div className="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-5">
 
             <QuickActionTile
               to="/ai/disease"
@@ -678,7 +678,7 @@ export default function HomePage() {
             MAIN CONTENT + RIGHT RAIL
         ================================================= */}
 
-        <div className="mt-10 grid items-stretch gap-8 lg:grid-cols-[1.65fr_0.75fr]">
+        <div className="mt-10 grid min-w-0 items-stretch gap-8 lg:grid-cols-[minmax(0,1.65fr)_minmax(0,0.75fr)]">
 
           {/* =================================================
               LEFT SIDE
@@ -775,7 +775,7 @@ export default function HomePage() {
 
               </div>
 
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
+              <div className="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-2">
 
                 {recommendedProducts.map((product) => (
 
@@ -891,7 +891,7 @@ export default function HomePage() {
 
           ================================================= */}
 
-          <aside className="flex w-full h-250 min-h-0 flex-col gap-5 lg:w-100">
+         <aside className="flex w-full min-w-0 flex-none flex-col gap-5 h-[600px] sm:h-[900px] lg:h-[1000px] lg:w-auto">
 
 
             {/* =================================================
