@@ -5,6 +5,7 @@ import { chatComplete } from './aiProvider.service';
 import type { AiMessage } from './aiProvider.service';
 import type { PaginationQuery } from '../../common/utils/pagination';
 import { LANGUAGE_NAMES, type LanguageCode } from './language';
+import { buildGroundingContext } from './grounding.service';
 
 const SYSTEM_PROMPT =
   'You are an agricultural advisory assistant helping farmers with questions about crops, soil, weather, ' +
@@ -15,7 +16,14 @@ const SYSTEM_PROMPT =
   'ALWAYS reply in the same language the user just wrote or spoke in — do not switch to English or any other ' +
   'language unless the user does. You are fluent in Hindi, Marathi, Punjabi, English, and other Indian languages; ' +
   'match the user\'s language, script, and tone (including code-mixed/Hinglish input) rather than translating or ' +
-  'defaulting to a different language.';
+  'defaulting to a different language. ' +
+  'When a message below is followed by a block labelled MANDI PRICE DATA, LAND LISTING DATA, MACHINERY RENTAL ' +
+  'DATA, SEED LISTING DATA, or MARKETPLACE PRODUCT DATA, that block is real, live data pulled from this ' +
+  "website's own database moments ago — it is the only source of truth for any crop price, land listing, " +
+  'machinery rental price, seed listing, or product price you mention. Quote figures from it exactly; never ' +
+  'invent, estimate, or recall a price from your own general knowledge for these topics. If a block says nothing ' +
+  'matched or nothing is available, say so plainly and suggest the person check the relevant section of the ' +
+  'site directly — do not guess a number instead.';
 
 // Human-readable names (with native script/self-name) for each supported UI
 // language, used to pin the reply language explicitly when the caller (the
@@ -75,9 +83,17 @@ export async function sendMessage(userId: string, sessionId: string, content: st
 
   const userMessage = await prisma.aiChatMessage.create({ data: { sessionId, role: 'USER', content } });
 
+  // Real DB lookup for mandi price / land / machinery questions, run
+  // alongside nothing else blocking — a handful of indexed Prisma queries,
+  // not another AI call, so this doesn't add noticeable latency. Injected as
+  // its own system message right before the user's message so the model
+  // sees it as the freshest, most relevant context for this specific turn.
+  const grounding = await buildGroundingContext(content);
+
   const conversation: AiMessage[] = [
     { role: 'system', content: SYSTEM_PROMPT },
     ...priorMessages.map((m): AiMessage => ({ role: m.role === 'USER' ? 'user' : 'assistant', content: m.content })),
+    ...(grounding ? [{ role: 'system' as const, content: grounding }] : []),
     { role: 'user', content },
   ];
 
