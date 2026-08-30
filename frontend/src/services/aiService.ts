@@ -24,16 +24,17 @@ export interface AdvisoryResult {
   amendments?: string[]
 }
 
+export type CropAnalysisType = 'CROP_ADVISOR' | 'DISEASE_DETECTION' | 'FERTILIZER_ADVICE' | 'IRRIGATION_ADVICE' | 'CROP_ROTATION' | 'WEATHER_ADVICE'
 interface BackendCropAnalysis {
   id: string
-  type: 'CROP_ADVISOR' | 'DISEASE_DETECTION' | 'FERTILIZER_ADVICE' | 'IRRIGATION_ADVICE' | 'CROP_ROTATION' | 'WEATHER_ADVICE'
+  type: CropAnalysisType
   imageUrl?: string | null
   resultSummary: string
   resultData: AdvisoryResult
   createdAt: string
 }
 
-interface BackendSoilReport {
+export interface BackendSoilReport {
   id: string
   soilPh?: number | null
   nitrogenLevel?: 'Low' | 'Medium' | 'High' | null
@@ -133,6 +134,11 @@ export const cropAnalysisService = {
     return { items: res.data.data, meta: res.data.meta.pagination }
   },
 
+  async getOne(id: string): Promise<{ type: BackendCropAnalysis['type']; imageUrl?: string | null; resultData: AdvisoryResult; createdAt: string }> {
+    const res = await api.get<{ data: BackendCropAnalysis }>(`/ai/crop-analyses/${id}`)
+    return res.data.data
+  },
+
   async remove(id: string): Promise<void> {
     await api.delete(`/ai/crop-analyses/${id}`)
   },
@@ -167,6 +173,11 @@ export const soilService = {
       params,
     })
     return { items: res.data.data, meta: res.data.meta.pagination }
+  },
+
+  async getOne(id: string): Promise<BackendSoilReport> {
+    const res = await api.get<{ data: BackendSoilReport }>(`/ai/soil-reports/${id}`)
+    return res.data.data
   },
 
   async remove(id: string): Promise<void> {

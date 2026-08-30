@@ -23,7 +23,14 @@ const SYSTEM_PROMPT =
   'machinery rental price, seed listing, or product price you mention. Quote figures from it exactly; never ' +
   'invent, estimate, or recall a price from your own general knowledge for these topics. If a block says nothing ' +
   'matched or nothing is available, say so plainly and suggest the person check the relevant section of the ' +
-  'site directly — do not guess a number instead.';
+  'site directly — do not guess a number instead. ' +
+  'Format every reply as Markdown so it renders clearly instead of one flat paragraph: use short paragraphs, ' +
+  '**bold** for key terms/numbers/crop or chemical names, and bullet or numbered lists whenever you give more ' +
+  'than one step, option, symptom, or recommendation. Use a `##` heading only if the answer has multiple distinct ' +
+  'sections (e.g. Diagnosis / Treatment / Prevention) — skip headings for short answers. Only include a link if ' +
+  "it points to this site's own relevant section (e.g. suggesting the person check Mandi Prices or Land "  +
+  'Marketplace) — never invent or guess an external URL. Keep the formatting itself invisible in tone: write ' +
+  'like a knowledgeable person structuring their answer for clarity, not like a report template.';
 
 // Human-readable names (with native script/self-name) for each supported UI
 // language, used to pin the reply language explicitly when the caller (the

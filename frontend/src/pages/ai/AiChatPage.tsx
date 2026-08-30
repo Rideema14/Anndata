@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useParams } from 'react-router-dom'
 import { Send, Sparkles } from 'lucide-react'
+import { AiMarkdown } from '@/components/common/AiMarkdown'
 import { chatService, type ChatMessage } from '@/services/aiService'
 import { getApiErrorMessage } from '@/services/api'
 import { useAi } from '@/context/AiContext'
@@ -9,10 +11,15 @@ import { cn } from '@/utils/cn'
 const SUGGESTIONS = ['मेरी गेहूं की फसल पीली हो रही है', 'Best time to sow soybean?', 'सिंचाई कब करें?']
 
 export default function AiChatPage() {
-  const [sessionId, setSessionId] = useState<string | null>(null)
+  // Present when this page is opened from AI History to reopen a past
+  // conversation, rather than starting a brand-new one.
+  const { sessionId: routeSessionId } = useParams<{ sessionId?: string }>()
+
+  const [sessionId, setSessionId] = useState<string | null>(routeSessionId ?? null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [typing, setTyping] = useState(false)
+  const [isLoadingSession, setIsLoadingSession] = useState(Boolean(routeSessionId))
   const [error, setError] = useState('')
   const endRef = useRef<HTMLDivElement>(null)
   const { refreshHistory } = useAi()
@@ -21,6 +28,31 @@ export default function AiChatPage() {
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, typing])
+
+  // Load the existing conversation when arriving with a sessionId in the URL
+  // (i.e. opened from the AI History list).
+  useEffect(() => {
+    if (!routeSessionId) return
+    let cancelled = false
+    setIsLoadingSession(true)
+    chatService
+      .getSession(routeSessionId)
+      .then(({ messages: loaded }) => {
+        if (cancelled) return
+        setSessionId(routeSessionId)
+        setMessages(loaded)
+      })
+      .catch((err) => {
+        if (cancelled) return
+        setError(getApiErrorMessage(err, "Couldn't load that conversation."))
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingSession(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [routeSessionId])
 
   async function ensureSession(): Promise<string> {
     if (sessionId) return sessionId
@@ -63,25 +95,30 @@ export default function AiChatPage() {
       </div>
 
       <div className="flex-1 space-y-3 overflow-y-auto pb-3">
-        {messages.length === 0 && !typing && (
+        {isLoadingSession && (
+          <div className="flex justify-center py-8 text-sm text-ink-400">Loading conversation…</div>
+        )}
+        {!isLoadingSession && messages.length === 0 && !typing && (
           <div className="flex justify-start">
             <p className="max-w-[80%] rounded-2xl bg-surface-sunk px-3.5 py-2.5 text-sm leading-relaxed text-ink-800">
               नमस्ते! मैं आपकी खेती से जुड़े सवालों में मदद कर सकता हूँ। आप क्या जानना चाहते हैं?
             </p>
           </div>
         )}
-        {messages.map((m) => (
-          <div key={m.id} className={cn('flex', m.role === 'user' ? 'justify-end' : 'justify-start')}>
-            <p
-              className={cn(
-                'max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed',
-                m.role === 'user' ? 'bg-brand-600 text-white' : 'bg-surface-sunk text-ink-800',
+        {!isLoadingSession &&
+          messages.map((m) => (
+            <div key={m.id} className={cn('flex', m.role === 'user' ? 'justify-end' : 'justify-start')}>
+              {m.role === 'user' ? (
+                <p className="max-w-[80%] rounded-2xl bg-brand-600 px-3.5 py-2.5 text-sm leading-relaxed text-white">
+                  {m.content}
+                </p>
+              ) : (
+                <div className="max-w-[80%] rounded-2xl bg-surface-sunk px-3.5 py-2.5 text-ink-800">
+                  <AiMarkdown content={m.content} />
+                </div>
               )}
-            >
-              {m.content}
-            </p>
-          </div>
-        ))}
+            </div>
+          ))}
         {typing && (
           <div className="flex justify-start">
             <span className="flex items-center gap-1 rounded-2xl bg-surface-sunk px-4 py-3">
@@ -96,7 +133,7 @@ export default function AiChatPage() {
 
       {error && <p className="mb-2 text-xs font-medium text-danger-500">{error}</p>}
 
-      {messages.length === 0 && (
+      {messages.length === 0 && !isLoadingSession && (
         <div className="mb-2 flex flex-wrap gap-2">
           {SUGGESTIONS.map((s) => (
             <button

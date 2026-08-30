@@ -85,6 +85,9 @@ const CropRotationPage = lazy(() => import("@/pages/ai/CropRotationPage"));
 const AiChatPage = lazy(() => import("@/pages/ai/AiChatPage"));
 const VoiceAssistantPage = lazy(() => import("@/pages/ai/VoiceAssistantPage"));
 const AiHistoryPage = lazy(() => import("@/pages/ai/AiHistoryPage"));
+const AiHistoryDetailPage = lazy(
+  () => import("@/pages/ai/AiHistoryDetailPage"),
+);
 
 // Seeds
 const SeedStorePage = lazy(() => import("@/pages/seeds/SeedStorePage"));
@@ -361,12 +364,20 @@ const router = createBrowserRouter([
         element: <AiChatPage />,
       },
       {
+        path: "/ai/chat/:sessionId",
+        element: <AiChatPage />,
+      },
+      {
         path: "/ai/voice",
         element: <VoiceAssistantPage />,
       },
       {
         path: "/ai/history",
         element: <AiHistoryPage />,
+      },
+      {
+        path: "/ai/history/:kind/:id",
+        element: <AiHistoryDetailPage />,
       },
 
       // Seeds

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { AlertTriangle, ChevronDown, ChevronUp, Mic, PhoneOff, Volume2 } from 'lucide-react'
+import { AlertTriangle, Mic, PhoneOff, Volume2 } from 'lucide-react'
+import { AiMarkdown } from '@/components/common/AiMarkdown'
 import { chatService } from '@/services/aiService'
 import { getApiErrorMessage } from '@/services/api'
 import { useAi } from '@/context/AiContext'
@@ -7,6 +8,7 @@ import { cn } from '@/utils/cn'
 
 type VoiceState = 'idle' | 'listening' | 'processing' | 'speaking' | 'error'
 type VoiceLang = 'hi' | 'en'
+type Turn = { role: 'user' | 'assistant'; text: string }
 
 const STATE_LABEL: Record<VoiceState, string> = {
   idle: 'Tap the mic to start talking',
@@ -27,13 +29,33 @@ function getSpeechRecognitionCtor(): SpeechRecognitionConstructor | undefined {
   return window.SpeechRecognition ?? window.webkitSpeechRecognition
 }
 
+// The AI's reply is shown formatted (bullets, bold, links) in the transcript
+// panel, but speech synthesis should never read out markdown punctuation
+// ("asterisk asterisk", "hash") — so this strips markdown syntax down to
+// plain words before the text is handed to the speech synthesizer.
+function stripMarkdownForSpeech(text: string): string {
+  return text
+    .replace(/```[\s\S]*?```/g, ' ') // code blocks
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/!\[[^\]]*]\([^)]+\)/g, '') // images
+    .replace(/\[([^\]]+)]\([^)]+\)/g, '$1') // links -> link text only
+    .replace(/^#{1,6}\s+/gm, '') // headings
+    .replace(/^\s*[-*+]\s+/gm, '') // bullet markers
+    .replace(/^\s*\d+\.\s+/gm, '') // numbered list markers
+    .replace(/\*\*([^*]+)\*\*/g, '$1') // bold
+    .replace(/\*([^*]+)\*/g, '$1') // italics
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/_([^_]+)_/g, '$1')
+    .replace(/^>\s?/gm, '')
+    .replace(/[-*_]{3,}/g, ' ')
+    .trim()
+}
+
 export default function VoiceAssistantPage() {
   const [state, setState] = useState<VoiceState>('idle')
   const [voiceLang, setVoiceLang] = useState<VoiceLang>('hi')
-  const [transcript, setTranscript] = useState('')
   const [interimTranscript, setInterimTranscript] = useState('')
-  const [reply, setReply] = useState('')
-  const [showCaptions, setShowCaptions] = useState(false)
+  const [history, setHistory] = useState<Turn[]>([]) // full running transcript, shown below the mic at all times
   const [errorMessage, setErrorMessage] = useState('')
   const [unsupported, setUnsupported] = useState(false)
 
@@ -43,8 +65,14 @@ export default function VoiceAssistantPage() {
   const conversationActiveRef = useRef(false) // whether to auto-resume listening after speaking
   const finalTranscriptRef = useRef('')
   const voiceLangRef = useRef<VoiceLang>('hi') // recognition callbacks close over stale state, so read the current language from here
+  const transcriptEndRef = useRef<HTMLDivElement | null>(null)
 
   const { refreshHistory } = useAi()
+
+  // Keep the transcript panel scrolled to the latest line, ChatGPT-voice-style.
+  useEffect(() => {
+    transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+  }, [history, interimTranscript])
 
   useEffect(() => {
     voiceLangRef.current = voiceLang
@@ -78,7 +106,7 @@ export default function VoiceAssistantPage() {
 
   const speakReply = useCallback((text: string) => {
     window.speechSynthesis.cancel()
-    const utterance = new SpeechSynthesisUtterance(text)
+    const utterance = new SpeechSynthesisUtterance(stripMarkdownForSpeech(text))
     const lang = voiceLangRef.current
     utterance.lang = SPEECH_LANG[lang]
     const voice = pickVoice(lang)
@@ -91,7 +119,6 @@ export default function VoiceAssistantPage() {
       else setState('idle')
     }
     utterance.onerror = () => {
-      setShowCaptions(true)
       setState('idle')
       conversationActiveRef.current = false
     }
@@ -103,6 +130,9 @@ export default function VoiceAssistantPage() {
 
   const submitTranscript = useCallback(
     async (text: string) => {
+      // Show what the person said immediately — don't wait on the network
+      // round trip before the transcript panel updates.
+      setHistory((prev) => [...prev, { role: 'user', text }])
       setState('processing')
       try {
         if (!sessionIdRef.current) {
@@ -110,7 +140,7 @@ export default function VoiceAssistantPage() {
           sessionIdRef.current = session.id
         }
         const { assistantMessage } = await chatService.sendMessage(sessionIdRef.current, text, voiceLangRef.current)
-        setReply(assistantMessage.content)
+        setHistory((prev) => [...prev, { role: 'assistant', text: assistantMessage.content }])
         refreshHistory()
         speakReply(assistantMessage.content)
       } catch (err) {
@@ -131,7 +161,6 @@ export default function VoiceAssistantPage() {
     }
 
     setErrorMessage('')
-    setTranscript('')
     setInterimTranscript('')
     finalTranscriptRef.current = ''
     conversationActiveRef.current = true
@@ -150,8 +179,9 @@ export default function VoiceAssistantPage() {
         if (result.isFinal) finalTranscriptRef.current += text
         else interim += text
       }
-      setInterimTranscript(interim)
-      if (finalTranscriptRef.current) setTranscript(finalTranscriptRef.current)
+      // Live-update the interim line so the transcript panel below the mic
+      // reflects speech as it's being recognized, not just after the fact.
+      setInterimTranscript(finalTranscriptRef.current + interim)
     }
 
     recognition.onerror = (event) => {
@@ -220,7 +250,6 @@ export default function VoiceAssistantPage() {
   }
 
   const inConversation = state !== 'idle' && state !== 'error'
-  const displayTranscript = interimTranscript || transcript
 
   if (unsupported) {
     return (
@@ -234,10 +263,12 @@ export default function VoiceAssistantPage() {
     )
   }
 
+  const hasTranscript = history.length > 0 || (state === 'listening' && interimTranscript)
+
   return (
-    <div className="mx-auto flex min-h-[70vh] max-w-md flex-col items-center justify-center px-6 text-center">
+    <div className="mx-auto flex min-h-[80vh] max-w-md flex-col px-4 pt-6 text-center">
       {/* Hindi/English toggle — only these two, per the voice assistant's scope */}
-      <div className="mb-6 flex items-center gap-1 rounded-full bg-surface-sunk p-1">
+      <div className="mx-auto mb-4 flex items-center gap-1 rounded-full bg-surface-sunk p-1">
         {(['hi', 'en'] as const).map((lang) => (
           <button
             key={lang}
@@ -254,81 +285,91 @@ export default function VoiceAssistantPage() {
         ))}
       </div>
 
-      <button
-        type="button"
-        onClick={handleMicTap}
-        disabled={state === 'processing'}
-        aria-label="Toggle voice assistant"
-        className={cn(
-          'flex h-28 w-28 items-center justify-center rounded-full transition-colors',
-          state === 'listening' && 'bg-danger-500 text-white shadow-float',
-          state === 'processing' && 'bg-gold-400 text-white shadow-float',
-          state === 'speaking' && 'bg-brand-600 text-white shadow-float animate-pulse',
-          (state === 'idle' || state === 'error') && 'bg-brand-600 text-white shadow-float'
-        )}
-      >
-        {state === 'speaking' ? (
-          <Volume2 className="h-11 w-11" strokeWidth={1.5} aria-hidden="true" />
+      {/* Live transcript panel — always visible, ChatGPT-voice-style: every
+          turn (what you said, what the AI said) stays on screen as the
+          conversation goes, instead of being hidden behind a toggle. */}
+      <div className="mb-3 flex-1 overflow-y-auto rounded-2xl border border-ink-100 bg-surface p-3.5 text-left" style={{ maxHeight: '48vh' }}>
+        {!hasTranscript ? (
+          <p className="mt-6 text-center text-sm text-ink-400">
+            {voiceLang === 'hi'
+              ? 'बातचीत यहाँ दिखेगी — माइक दबाकर बोलना शुरू करें'
+              : 'Your conversation will appear here — tap the mic to start'}
+          </p>
         ) : (
-          <Mic className="h-11 w-11" strokeWidth={1.5} aria-hidden="true" />
+          <div className="space-y-2.5">
+            {history.map((turn, i) => (
+              <div
+                key={i}
+                className={cn(
+                  'max-w-[90%] rounded-2xl p-3',
+                  turn.role === 'user' ? 'ml-auto bg-brand-600 text-white' : 'mr-auto bg-surface-sunk text-ink-800'
+                )}
+              >
+                <p className="text-[10px] font-semibold uppercase tracking-wide opacity-70">
+                  {turn.role === 'user' ? 'You' : 'AI'}
+                </p>
+                {turn.role === 'assistant' ? (
+                  <AiMarkdown content={turn.text} className="mt-0.5" tone="light" />
+                ) : (
+                  <p className="mt-0.5 whitespace-pre-wrap text-sm">{turn.text}</p>
+                )}
+              </div>
+            ))}
+            {state === 'listening' && interimTranscript && (
+              <div className="ml-auto max-w-[90%] rounded-2xl bg-brand-600/60 p-3 text-white">
+                <p className="text-[10px] font-semibold uppercase tracking-wide opacity-70">You</p>
+                <p className="mt-0.5 whitespace-pre-wrap text-sm italic">{interimTranscript}</p>
+              </div>
+            )}
+          </div>
         )}
-      </button>
+        <div ref={transcriptEndRef} />
+      </div>
 
-      <p className="mt-5 text-sm font-medium text-ink-700">{STATE_LABEL[state]}</p>
-      <p className="mt-1 text-xs text-ink-400">
-        {voiceLang === 'hi' ? 'हिंदी में बोलें — जवाब भी हिंदी में मिलेगा' : 'Speak in English — reply comes back in English'}
-      </p>
-
-      {state === 'listening' && displayTranscript && (
-        <p className="mt-3 max-w-full text-sm italic text-ink-500">"{displayTranscript}"</p>
-      )}
-
-      {inConversation && (
+      <div className="flex flex-col items-center pb-6">
         <button
           type="button"
-          onClick={endConversation}
-          className="mt-4 flex items-center gap-1.5 rounded-full border border-ink-200 px-4 py-1.5 text-xs font-semibold text-ink-500 hover:bg-surface-sunk"
+          onClick={handleMicTap}
+          disabled={state === 'processing'}
+          aria-label="Toggle voice assistant"
+          className={cn(
+            'flex h-24 w-24 items-center justify-center rounded-full transition-colors',
+            state === 'listening' && 'bg-danger-500 text-white shadow-float',
+            state === 'processing' && 'bg-gold-400 text-white shadow-float',
+            state === 'speaking' && 'bg-brand-600 text-white shadow-float animate-pulse',
+            (state === 'idle' || state === 'error') && 'bg-brand-600 text-white shadow-float'
+          )}
         >
-          <PhoneOff className="h-3.5 w-3.5" aria-hidden="true" />
-          End conversation
+          {state === 'speaking' ? (
+            <Volume2 className="h-10 w-10" strokeWidth={1.5} aria-hidden="true" />
+          ) : (
+            <Mic className="h-10 w-10" strokeWidth={1.5} aria-hidden="true" />
+          )}
         </button>
-      )}
 
-      {state === 'error' && errorMessage && (
-        <div className="mt-4 flex items-start gap-2 rounded-2xl bg-danger-50 p-3.5 text-left text-sm text-danger-700">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-          {errorMessage}
-        </div>
-      )}
+        <p className="mt-4 text-sm font-medium text-ink-700">{STATE_LABEL[state]}</p>
+        <p className="mt-1 text-xs text-ink-400">
+          {voiceLang === 'hi' ? 'हिंदी में बोलें — जवाब भी हिंदी में मिलेगा' : 'Speak in English — reply comes back in English'}
+        </p>
 
-      {(reply || transcript) && state !== 'listening' && (
-        <div className="mt-6 w-full">
+        {inConversation && (
           <button
             type="button"
-            onClick={() => setShowCaptions((v) => !v)}
-            className="mx-auto flex items-center gap-1 text-xs font-semibold text-ink-400 hover:text-ink-600"
+            onClick={endConversation}
+            className="mt-4 flex items-center gap-1.5 rounded-full border border-ink-200 px-4 py-1.5 text-xs font-semibold text-ink-500 hover:bg-surface-sunk"
           >
-            {showCaptions ? 'Hide captions' : 'Show captions'}
-            {showCaptions ? <ChevronUp className="h-3.5 w-3.5" aria-hidden="true" /> : <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />}
+            <PhoneOff className="h-3.5 w-3.5" aria-hidden="true" />
+            End conversation
           </button>
-          {showCaptions && (
-            <div className="mt-2 space-y-2 text-left">
-              {transcript && (
-                <div className="rounded-2xl border border-ink-100 bg-surface p-3.5">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-ink-400">You said</p>
-                  <p className="mt-1 text-sm text-ink-800">{transcript}</p>
-                </div>
-              )}
-              {reply && (
-                <div className="rounded-2xl bg-brand-50 p-3.5">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-brand-600">Reply</p>
-                  <p className="mt-1 text-sm text-brand-800">{reply}</p>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+        )}
+
+        {state === 'error' && errorMessage && (
+          <div className="mt-4 flex items-start gap-2 rounded-2xl bg-danger-50 p-3.5 text-left text-sm text-danger-700">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            {errorMessage}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
