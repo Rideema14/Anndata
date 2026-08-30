@@ -547,7 +547,12 @@ async function applyProviderEvents(params: {
       if (mapped === 'DELIVERED' && !deliveredAt) {
         deliveredAt = evt.eventTime;
         deliverySource = source;
-        deliveryEvidence = (evt.raw as unknown as Prisma.InputJsonValue) ?? null;
+        // deliveryEvidence is later written back with `data: { deliveryEvidence }`
+        // in a **read** (JsonValue) shaped variable, not Prisma's write-input
+        // type — casting through InputJsonValue mismatches structurally
+        // (InputJsonObject values may be `undefined`, which JsonObject
+        // disallows), which is what TS2322 was complaining about.
+        deliveryEvidence = (evt.raw as unknown as Prisma.JsonValue) ?? null;
         if (priorMeaningfulEventCount < 2) stickyFlags.add(RISK_FLAGS.DELIVERED_WITHOUT_HISTORY);
         auditEntries.push({ action: AUDIT_ACTIONS.DELIVERED, previousState: nextStatus, newState: mapped, metadata: { eventTime: evt.eventTime, source } });
       } else if (mapped === 'OUT_FOR_DELIVERY' && nextStatus !== 'OUT_FOR_DELIVERY') {
