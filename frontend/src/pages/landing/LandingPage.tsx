@@ -1,8 +1,9 @@
+
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowRight,
-  Tractor,
+  ShoppingBag,
   Sprout,
   User,
   Menu,
@@ -10,9 +11,6 @@ import {
   ChevronRight,
 } from 'lucide-react'
 
-import { PlantGrowthSection } from '@/components/layout/PlantGrowthSection'
-import { ServicesSection } from '@/components/layout/ServiceSection'
-import { ContactSection } from '@/components/layout/ContactSection'
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher'
 
 export default function LandingPage() {
@@ -63,7 +61,7 @@ export default function LandingPage() {
   }, [lastScrollY, mobileMenuOpen])
 
   // =========================================================
-  // CLOSE MOBILE MENU WHEN ESC IS PRESSED
+  // CLOSE MOBILE MENU WITH ESC
   // =========================================================
 
   useEffect(() => {
@@ -81,7 +79,7 @@ export default function LandingPage() {
   }, [])
 
   // =========================================================
-  // CLOSE MOBILE MENU WHEN SCREEN BECOMES DESKTOP
+  // CLOSE MOBILE MENU ON DESKTOP
   // =========================================================
 
   useEffect(() => {
@@ -109,18 +107,18 @@ export default function LandingPage() {
   }
 
   // =========================================================
-  // NAVIGATION ITEM
+  // MOBILE NAV ITEM STYLE
   // =========================================================
 
   const mobileLinkClass =
-    'flex items-center justify-between rounded-xl px-4 py-3.5 text-sm font-bold uppercase tracking-wider text-[#d5d9d0] transition-all duration-200 hover:bg-[#27351d] hover:text-[#d6b841] active:scale-[0.98]'
+    'flex items-center justify-between rounded-xl px-4 py-3.5 text-sm font-bold uppercase tracking-wider text-white/75 transition-all duration-200 hover:bg-white/10 hover:text-[#d6b841] active:scale-[0.98]'
 
   return (
     <div
       className="
         min-h-screen
         overflow-x-hidden
-        bg-[#1c2a13]
+        bg-[#11140f]
         font-['Plus_Jakarta_Sans',sans-serif]
         text-[#f8f4e9]
         antialiased
@@ -136,36 +134,35 @@ export default function LandingPage() {
         @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@700&family=Yellowtail&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
         :root {
-          --sticker-stroke: 6px;
-          --script-stroke: 4px;
+          --sticker-stroke: 5px;
+          --script-stroke: 3px;
         }
 
         @media (min-width: 640px) {
           :root {
-            --sticker-stroke: 10px;
-            --script-stroke: 7px;
+            --sticker-stroke: 8px;
+            --script-stroke: 5px;
           }
         }
 
         @media (min-width: 1024px) {
           :root {
-            --sticker-stroke: 14px;
-            --script-stroke: 10px;
+            --sticker-stroke: 12px;
+            --script-stroke: 8px;
           }
         }
 
-        .brand-sticker-green {
+        .brand-sticker {
           font-family: 'Fredoka', cursive, sans-serif;
           font-weight: 700;
-          color: #27351d;
+          color: #20231c;
           -webkit-text-stroke: var(--sticker-stroke) #f8f4e9;
           paint-order: stroke fill;
           stroke-linejoin: round;
           stroke-linecap: round;
-          letter-spacing: -0.01em;
-          filter: drop-shadow(
-            0px 6px 16px rgba(0, 0, 0, 0.45)
-          );
+          letter-spacing: -0.02em;
+          filter:
+            drop-shadow(0px 5px 12px rgba(0, 0, 0, 0.45));
         }
 
         .brand-script-yellow {
@@ -175,9 +172,8 @@ export default function LandingPage() {
           paint-order: stroke fill;
           stroke-linejoin: round;
           stroke-linecap: round;
-          filter: drop-shadow(
-            0px 4px 12px rgba(0, 0, 0, 0.35)
-          );
+          filter:
+            drop-shadow(0px 4px 10px rgba(0, 0, 0, 0.35));
         }
       `}</style>
 
@@ -195,16 +191,25 @@ export default function LandingPage() {
           duration-500
           ease-in-out
 
-          ${
-            isVisible
-              ? 'translate-y-0'
-              : '-translate-y-full'
-          }
+          ${isVisible ? 'translate-y-0' : '-translate-y-full'}
 
           ${
             scrolled
-              ? 'bg-[#1c2a13]/90 py-3 shadow-2xl shadow-black/80 backdrop-blur-xl'
-              : 'bg-gradient-to-b from-[#1c2a13]/90 via-[#1c2a13]/40 to-transparent py-4'
+              ? `
+                border-b
+                border-white/10
+                bg-[#11140f]/80
+                py-3
+                shadow-xl
+                backdrop-blur-xl
+              `
+              : `
+                bg-gradient-to-b
+                from-black/60
+                via-black/20
+                to-transparent
+                py-4
+              `
           }
         `}
       >
@@ -227,11 +232,17 @@ export default function LandingPage() {
           <Link
             to="/"
             onClick={() => setMobileMenuOpen(false)}
-            className="group flex items-center gap-2.5 sm:gap-3"
+            className="
+              group
+              flex
+              shrink-0
+              items-center
+              gap-2.5
+              sm:gap-3
+            "
           >
             <div
               className="
-                relative
                 flex
                 h-9
                 w-9
@@ -240,15 +251,22 @@ export default function LandingPage() {
                 justify-center
                 rounded-full
                 border
-                border-white/30
-                bg-[#27351d]
+                border-white/20
+                bg-white/10
+                backdrop-blur-md
                 transition-all
                 duration-300
                 group-hover:border-[#d6b841]
-                group-hover:bg-[#394a2d]
+                group-hover:bg-white/15
               "
             >
-              <Sprout className="h-5 w-5 text-white" />
+              <Sprout
+                className="
+                  h-5
+                  w-5
+                  text-[#d6b841]
+                "
+              />
             </div>
 
             <span
@@ -263,188 +281,163 @@ export default function LandingPage() {
                 sm:text-xl
               "
             >
-              FarmVerse
+              Anndataa
             </span>
           </Link>
 
           {/* =================================================
-              DESKTOP NAVIGATION
+              DESKTOP NAVIGATION + TAGLINE
           ================================================= */}
 
-          <nav
+          <div
             className="
               hidden
+              flex-1
               items-center
-              gap-6
-              text-xs
-              font-bold
-              uppercase
-              tracking-[0.16em]
-              text-[#e7eee1]
+              justify-center
+              gap-8
               md:flex
-              lg:gap-8
-              lg:text-sm
+              lg:gap-10
             "
           >
-            {/* HOME */}
+            {/* NAVIGATION */}
 
-            <a
-              href="#hero"
+            <nav
               className="
-                group
-                relative
-                py-1
-                transition-colors
-                duration-300
-                hover:text-white
-              "
-            >
-              <span>Home</span>
-
-              <span
-                className="
-                  absolute
-                  bottom-0
-                  left-0
-                  h-[2px]
-                  w-0
-                  bg-[#d6b841]
-                  transition-all
-                  duration-300
-                  ease-out
-                  group-hover:w-full
-                "
-              />
-            </a>
-
-            {/* FEATURES */}
-
-            <button
-              type="button"
-              onClick={goToFeatures}
-              className="
-                group
-                relative
-                cursor-pointer
-                py-1
+                flex
+                items-center
+                gap-5
+                text-[11px]
+                font-bold
                 uppercase
-                transition-colors
-                duration-300
-                hover:text-white
+                tracking-[0.16em]
+                text-white/70
+                lg:gap-7
+                lg:text-xs
               "
             >
-              <span>Features</span>
-
-              <span
+              <a
+                href="#hero"
                 className="
-                  absolute
-                  bottom-0
-                  left-0
-                  h-[2px]
-                  w-0
-                  bg-[#d6b841]
-                  transition-all
+                  transition-colors
                   duration-300
-                  ease-out
-                  group-hover:w-full
+                  hover:text-white
                 "
-              />
-            </button>
+              >
+                Home
+              </a>
 
-            {/* SERVICES */}
+              <button
+                type="button"
+                onClick={goToFeatures}
+                className="
+                  cursor-pointer
+                  uppercase
+                  transition-colors
+                  duration-300
+                  hover:text-white
+                "
+              >
+                Features
+              </button>
 
-            <a
-              href="#about"
+              <a
+                href="#about"
+                className="
+                  transition-colors
+                  duration-300
+                  hover:text-white
+                "
+              >
+                Services
+              </a>
+
+              <a
+                href="#features"
+                className="
+                  transition-colors
+                  duration-300
+                  hover:text-white
+                "
+              >
+                Ecosystem
+              </a>
+            </nav>
+
+            {/* TAGLINE */}
+
+            <div
               className="
-                group
-                relative
-                py-1
-                transition-colors
-                duration-300
-                hover:text-white
+                hidden
+                items-center
+                gap-2
+                border-l
+                border-white/15
+                pl-7
+                xl:flex
               "
             >
-              <span>Services</span>
+              <span
+                className="
+                  h-1.5
+                  w-1.5
+                  rounded-full
+                  bg-[#d6b841]
+                "
+              />
 
               <span
                 className="
-                  absolute
-                  bottom-0
-                  left-0
-                  h-[2px]
-                  w-0
-                  bg-[#d6b841]
-                  transition-all
-                  duration-300
-                  ease-out
-                  group-hover:w-full
+                  whitespace-nowrap
+                  text-[10px]
+                  font-semibold
+                  tracking-wide
+                  text-white/50
+                  lg:text-[11px]
                 "
-              />
-            </a>
-
-            {/* CONTACT */}
-
-            <a
-              href="#contact"
-              className="
-                group
-                relative
-                py-1
-                transition-colors
-                duration-300
-                hover:text-white
-              "
-            >
-              <span>Contact</span>
-
-              <span
-                className="
-                  absolute
-                  bottom-0
-                  left-0
-                  h-[2px]
-                  w-0
-                  bg-[#d6b841]
-                  transition-all
-                  duration-300
-                  ease-out
-                  group-hover:w-full
-                "
-              />
-            </a>
-          </nav>
+              >
+                Rooted in Farming. Built for the Future.
+              </span>
+            </div>
+          </div>
 
           {/* =================================================
               RIGHT SIDE
           ================================================= */}
 
-          <div className="flex items-center gap-2 sm:gap-3">
-            {/* LANGUAGE SWITCHER
-                Visible on BOTH desktop and mobile
-            */}
+          <div
+            className="
+              flex
+              shrink-0
+              items-center
+              gap-2
+              sm:gap-3
+            "
+          >
+            {/* LANGUAGE */}
 
             <div className="shrink-0">
               <LanguageSwitcher
                 className="
-                  [&>button]:border-[#394a2d]
-                  [&>button]:bg-[#27351d]/90
-                  [&>button]:text-[#e7eee1]
+                  [&>button]:border-white/15
+                  [&>button]:bg-white/10
+                  [&>button]:text-white/80
 
                   hover:[&>button]:border-[#d6b841]/50
-                  hover:[&>button]:text-[#e0c64d]
+                  hover:[&>button]:text-[#d6b841]
 
-                  [&>div[role=menu]]:bg-[#1c2a13]/95
-                  [&>div[role=menu]]:border-[#394a2d]
-                  [&>div[role=menu]]:text-[#e7eee1]
+                  [&>div[role=menu]]:border-white/10
+                  [&>div[role=menu]]:bg-[#171914]/95
+                  [&>div[role=menu]]:text-white/80
 
-                  [&_p]:text-[#7d806f]
+                  [&_p]:text-white/40
 
-                  [&_button[role=menuitemradio]]:text-[#d5d9d0]
-                  hover:[&_button[role=menuitemradio]]:bg-[#27351d]
+                  [&_button[role=menuitemradio]]:text-white/70
+                  hover:[&_button[role=menuitemradio]]:bg-white/10
                   hover:[&_button[role=menuitemradio]]:text-white
 
-                  [&_div[aria-disabled]]:text-[#7d806f]
-                  [&_div.border-t]:border-[#394a2d]
+                  [&_div[aria-disabled]]:text-white/30
+                  [&_div.border-t]:border-white/10
                 "
               />
             </div>
@@ -459,18 +452,20 @@ export default function LandingPage() {
                 items-center
                 gap-2
                 rounded-full
-                bg-[#27351d]/80
+                border
+                border-white/15
+                bg-white/10
                 px-5
                 py-2.5
                 text-xs
                 font-extrabold
                 uppercase
                 tracking-wider
-                text-[#f8f4e9]
-                shadow-md
+                text-white
                 backdrop-blur-md
                 transition-all
                 duration-300
+                hover:border-[#d6b841]
                 hover:bg-[#d6b841]
                 hover:text-[#262c1d]
                 active:scale-95
@@ -478,22 +473,14 @@ export default function LandingPage() {
                 md:inline-flex
               "
             >
-              <User
-                className="
-                  h-4
-                  w-4
-                  transition-transform
-                  duration-300
-                  group-hover:scale-110
-                "
-              />
+              <User className="h-4 w-4" />
 
-              <span>Login / Register</span>
+              <span>
+                Login / Register
+              </span>
             </Link>
 
-            {/* =================================================
-                MOBILE MENU BUTTON
-            ================================================= */}
+            {/* MOBILE MENU BUTTON */}
 
             <button
               type="button"
@@ -509,9 +496,9 @@ export default function LandingPage() {
                 justify-center
                 rounded-full
                 border
-                border-[#394a2d]
-                bg-[#27351d]/90
-                text-[#d5d9d0]
+                border-white/15
+                bg-white/10
+                text-white/80
                 backdrop-blur-md
                 transition-all
                 duration-300
@@ -547,9 +534,10 @@ export default function LandingPage() {
             transition-all
             duration-300
             md:hidden
+
             ${
               mobileMenuOpen
-                ? 'max-h-[500px] pt-3 opacity-100'
+                ? 'max-h-[520px] pt-3 opacity-100'
                 : 'max-h-0 pt-0 opacity-0'
             }
           `}
@@ -560,24 +548,54 @@ export default function LandingPage() {
               max-w-7xl
               rounded-2xl
               border
-              border-[#394a2d]
-              bg-[#1c2a13]/98
+              border-white/10
+              bg-[#151713]/95
               p-3
               shadow-2xl
-              shadow-black/70
+              shadow-black/50
               backdrop-blur-2xl
             "
           >
+            {/* MOBILE TAGLINE */}
+
+            <div
+              className="
+                mb-2
+                rounded-xl
+                border
+                border-white/10
+                bg-white/[0.04]
+                px-4
+                py-3
+                text-center
+              "
+            >
+              <p
+                className="
+                  text-[10px]
+                  font-semibold
+                  tracking-wide
+                  text-[#d6b841]
+                "
+              >
+                Rooted in Farming. Built for the Future.
+              </p>
+            </div>
+
             {/* HOME */}
 
             <a
               href="#hero"
-              onClick={() => setMobileMenuOpen(false)}
+              onClick={() =>
+                setMobileMenuOpen(false)
+              }
               className={mobileLinkClass}
             >
               <span>Home</span>
 
-              <ChevronRight className="h-4 w-4 text-[#7d806f]" />
+              <ChevronRight
+                className="h-4 w-4 text-white/30"
+              />
             </a>
 
             {/* FEATURES */}
@@ -589,42 +607,58 @@ export default function LandingPage() {
             >
               <span>Features</span>
 
-              <ChevronRight className="h-4 w-4 text-[#7d806f]" />
+              <ChevronRight
+                className="h-4 w-4 text-white/30"
+              />
             </button>
 
             {/* SERVICES */}
 
             <a
               href="#about"
-              onClick={() => setMobileMenuOpen(false)}
+              onClick={() =>
+                setMobileMenuOpen(false)
+              }
               className={mobileLinkClass}
             >
               <span>Services</span>
 
-              <ChevronRight className="h-4 w-4 text-[#7d806f]" />
+              <ChevronRight
+                className="h-4 w-4 text-white/30"
+              />
             </a>
 
-            {/* CONTACT */}
+            {/* ECOSYSTEM */}
 
             <a
-              href="#contact"
-              onClick={() => setMobileMenuOpen(false)}
+              href="#features"
+              onClick={() =>
+                setMobileMenuOpen(false)
+              }
               className={mobileLinkClass}
             >
-              <span>Contact</span>
+              <span>Ecosystem</span>
 
-              <ChevronRight className="h-4 w-4 text-[#7d806f]" />
+              <ChevronRight
+                className="h-4 w-4 text-white/30"
+              />
             </a>
 
-            {/* =================================================
-                LOGIN / REGISTER INSIDE MOBILE MENU
-            ================================================= */}
+            <div
+              className="
+                my-2
+                border-t
+                border-white/10
+              "
+            />
 
-            <div className="my-2 border-t border-[#394a2d]" />
+            {/* LOGIN */}
 
             <Link
               to="/login"
-              onClick={() => setMobileMenuOpen(false)}
+              onClick={() =>
+                setMobileMenuOpen(false)
+              }
               className="
                 flex
                 items-center
@@ -667,6 +701,7 @@ export default function LandingPage() {
           flex
           min-h-[100dvh]
           items-center
+          justify-center
           overflow-hidden
           px-4
           pb-16
@@ -674,15 +709,16 @@ export default function LandingPage() {
           sm:px-8
           md:px-16
           md:pt-32
-          lg:pt-32
         "
       >
-        {/* BACKGROUND */}
+        {/* =================================================
+            BACKGROUND IMAGE
+        ================================================= */}
 
         <div className="absolute inset-0 z-0">
           <img
-            src="https://images.unsplash.com/photo-1592982537447-7440770cbfc9?q=80&w=1600&auto=format&fit=crop"
-            alt="Tractor working a farm field"
+            src="https://images.unsplash.com/photo-1623958045855-0b7a60cfb9eb?q=80&w=1600&auto=format&fit=crop"
+            alt="Farmers harvesting crop in field"
             className="
               h-full
               w-full
@@ -692,59 +728,122 @@ export default function LandingPage() {
             "
           />
 
+          {/* DARK CINEMATIC OVERLAY */}
+
           <div
             className="
               absolute
               inset-0
               bg-gradient-to-r
-              from-[#1c2a13]/95
-              via-[#1c2a13]/75
-              to-[#1c2a13]/20
-              sm:via-[#1c2a13]/70
+              from-black/85
+              via-black/55
+              to-black/15
+            "
+          />
+
+          <div
+            className="
+              absolute
+              inset-0
+              bg-gradient-to-t
+              from-black/45
+              via-transparent
+              to-black/20
             "
           />
         </div>
 
-        {/* HERO CONTENT */}
+        {/* =================================================
+            CENTERED HERO CONTENT
+        ================================================= */}
 
         <div
           className="
             relative
             z-10
-            my-auto
+            mx-auto
+            flex
             w-full
-            max-w-5xl
-            space-y-6
-            py-6
-            sm:space-y-8
-            sm:py-12
+            max-w-6xl
+            flex-col
+            items-center
+            justify-center
+            text-center
           "
         >
-          {/* HERO TITLE */}
+          {/* HERO TAG */}
+
+          <div
+            className="
+              mb-5
+              inline-flex
+              items-center
+              gap-2
+              rounded-full
+              border
+              border-white/15
+              bg-black/25
+              px-4
+              py-2
+              backdrop-blur-md
+              sm:mb-7
+            "
+          >
+            <span
+              className="
+                h-2
+                w-2
+                rounded-full
+                bg-[#d6b841]
+              "
+            />
+
+            <span
+              className="
+                text-[9px]
+                font-bold
+                uppercase
+                tracking-[0.18em]
+                text-white/75
+                sm:text-[11px]
+              "
+            >
+              Agriculture • Technology • Opportunity
+            </span>
+          </div>
+
+          {/* =================================================
+              MAIN HERO TITLE
+          ================================================= */}
 
           <div
             className="
               flex
+              w-full
               flex-col
-              items-start
+              items-center
+              justify-center
               leading-none
               select-none
             "
           >
+            {/* EVERY MEAL */}
+
             <h1
               className="
-                brand-sticker-green
+                brand-sticker
                 py-1
                 text-5xl
                 leading-[1.1]
                 sm:text-7xl
-                sm:leading-none
                 md:text-8xl
                 lg:text-[96px]
               "
             >
-              Rent Machines.
+              Every Meal
             </h1>
+
+            {/* BEGINS WITH + A FARMER */}
 
             <div
               className="
@@ -752,6 +851,7 @@ export default function LandingPage() {
                 flex
                 flex-wrap
                 items-center
+                justify-center
                 gap-2
                 py-1
                 sm:-mt-4
@@ -763,8 +863,8 @@ export default function LandingPage() {
               <span
                 className="
                   brand-script-yellow
-                  transform
                   -rotate-6
+                  transform
                   pr-1
                   text-4xl
                   sm:text-6xl
@@ -772,69 +872,84 @@ export default function LandingPage() {
                   lg:text-8xl
                 "
               >
-                Lease Land.
+                begins with
               </span>
 
               <h2
                 className="
-                  brand-sticker-green
+                  brand-sticker
                   text-5xl
                   leading-[1.1]
                   sm:text-7xl
-                  sm:leading-none
                   md:text-8xl
                   lg:text-[96px]
                 "
               >
-                Sell Smart.
+                a Farmer.
               </h2>
             </div>
           </div>
 
-          {/* DESCRIPTION */}
+          {/* =================================================
+              DESCRIPTION
+          ================================================= */}
 
           <p
             className="
-              max-w-xl
-              pt-1
+              mt-6
+              max-w-2xl
+              px-4
+              text-center
               text-sm
               font-light
               leading-relaxed
-              text-[#d5d9d0]
+              text-white/75
+              sm:mt-8
+              sm:px-0
               sm:text-base
               md:text-lg
             "
           >
-            Book tractors and harvesters by the day, find farmland to lease
-            near you, and track live mandi prices across 2,500+ markets —
-            everything your farm needs, in one place.
+            Empowering agricultural communities with direct
+            produce markets, real-time mandi prices, modern
+            equipment rentals, and AI-driven crop intelligence.
           </p>
 
-          {/* CTA BUTTONS */}
+          {/* =================================================
+              CTA BUTTONS
+          ================================================= */}
 
           <div
             className="
+              mt-7
               flex
+              w-full
               flex-col
-              items-stretch
+              items-center
+              justify-center
               gap-3
-              pt-2
+              px-4
+              sm:mt-9
+              sm:w-auto
               sm:flex-row
-              sm:items-center
+              sm:px-0
               sm:gap-4
             "
           >
+            {/* MARKETPLACE */}
+
             <Link
               to="/login"
               className="
                 flex
+                w-full
                 items-center
                 justify-center
                 gap-2
                 rounded-xl
                 border
-                border-[#5c744d]
-                bg-[#394a2d]
+                border-white/20
+                bg-white/10
                 px-6
                 py-3.5
                 text-xs
@@ -843,22 +958,36 @@ export default function LandingPage() {
                 tracking-wider
                 text-white
                 shadow-xl
+                backdrop-blur-md
                 transition-all
-                hover:bg-[#435c39]
+                duration-300
+                hover:bg-white/20
+                hover:border-white/30
                 active:scale-[0.98]
+                sm:w-auto
                 sm:px-8
                 sm:py-4
               "
             >
-              <Tractor className="h-4 w-4 sm:h-5 sm:w-5" />
+              <ShoppingBag
+                className="
+                  h-4
+                  w-4
+                  sm:h-5
+                  sm:w-5
+                "
+              />
 
-              Browse Machinery
+              Explore Marketplace
             </Link>
+
+            {/* GET STARTED */}
 
             <Link
               to="/login"
               className="
                 flex
+                w-full
                 items-center
                 justify-center
                 gap-2
@@ -873,37 +1002,29 @@ export default function LandingPage() {
                 text-[#262c1d]
                 shadow-xl
                 transition-all
+                duration-300
                 hover:bg-[#e0c64d]
                 active:scale-[0.98]
+                sm:w-auto
                 sm:px-8
                 sm:py-4
               "
             >
               Get Started Now
 
-              <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />
+              <ArrowRight
+                className="
+                  h-4
+                  w-4
+                  sm:h-5
+                  sm:w-5
+                "
+              />
             </Link>
           </div>
         </div>
       </section>
-
-      {/* =====================================================
-          PLANT GROWTH
-      ===================================================== */}
-
-      <PlantGrowthSection />
-
-      {/* =====================================================
-          SERVICES
-      ===================================================== */}
-
-      <ServicesSection />
-
-      {/* =====================================================
-          CONTACT
-      ===================================================== */}
-
-      <ContactSection />
     </div>
   )
 }
+

@@ -82,7 +82,7 @@ export default function LoginPage() {
             </span>
 
             <span className="text-sm font-semibold text-[#F1F3EB]">
-              FarmVerse
+              Anndata
             </span>
           </Link>
 
