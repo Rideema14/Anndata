@@ -478,10 +478,15 @@ export async function listAllOrders(query: ListAllOrdersQuery) {
   ]);
 
   // Flatten the distinct seller(s) per order for the table's "Seller" column.
-  const withSellers = items.map((order) => ({
-    ...order,
-    sellers: [...new Map(order.items.map((i) => [i.product?.seller?.id, i.product?.seller]).filter(([id]) => id)).values()],
-  }));
+  const withSellers = items.map((order) => {
+    const sellerEntries = order.items
+      .map((i): [string, { id: string; name: string }] | null => (i.product?.seller ? [i.product.seller.id, i.product.seller] : null))
+      .filter((entry): entry is [string, { id: string; name: string }] => entry !== null);
+    return {
+      ...order,
+      sellers: [...new Map(sellerEntries).values()],
+    };
+  });
 
   return { items: withSellers, meta: buildPaginationMeta(page, limit, totalItems) };
 }

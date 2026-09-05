@@ -1,7 +1,6 @@
 import { api } from './api'
 import type { Order, OrderItem, OrderStatus, OrderSummary, ProductReview } from '@/types'
 import type { PaginationMeta } from './productService'
-import { buildTrackingUrl } from './orderService'
 
 /* =========================================================================
  * Catalog
@@ -341,8 +340,6 @@ interface BackendSeedOrder {
   items: BackendSeedOrderItem[]
   address: BackendAddress
   payment?: BackendSeedPayment | null
-  trackingCarrier?: string | null
-  trackingNumber?: string | null
   user?: { id: string; name: string }
 }
 
@@ -353,8 +350,6 @@ function mapItem(i: BackendSeedOrderItem): OrderItem {
   return { productId: i.seedId, name: i.seedName, quantity: i.quantity, price: Number(i.unitPrice) }
 }
 function mapOrder(o: BackendSeedOrder): Order {
-  const trackingNumber = o.trackingNumber ?? undefined
-  const trackingCarrier = o.trackingCarrier ?? undefined
   return {
     id: o.orderNumber,
     items: o.items.map(mapItem),
@@ -364,9 +359,6 @@ function mapOrder(o: BackendSeedOrder): Order {
     updatedAt: o.updatedAt,
     address: formatAddress(o.address),
     paymentMethod: o.payment ? 'Razorpay' : 'Pending',
-    trackingCarrier,
-    trackingNumber,
-    trackingUrl: buildTrackingUrl(trackingCarrier, trackingNumber),
   }
 }
 function mapSummary(o: BackendSeedOrder): OrderSummary {
