@@ -61,27 +61,36 @@ export const reversePayout = asyncHandler(async (req, res) => {
   ApiResponse.ok(res, payout, 'Payout reversed.');
 });
 
-// --- Shipment management (requirement #10) ------------------------------
+// --- All-orders management (requirement #11/#12/#13) ------------------------
 
-export const listShipments = asyncHandler(async (req, res) => {
-  const { items, meta } = await adminService.listShipments(req.query as any);
+export const listAllOrders = asyncHandler(async (req, res) => {
+  const { items, meta } = await adminService.listAllOrders(req.query as any);
   ApiResponse.paginated(res, items, meta);
 });
 
-export const getShipmentDetail = asyncHandler(async (req, res) => {
-  const detail = await adminService.getShipmentDetail(req.params.id);
+export const getOrderAdminDetail = asyncHandler(async (req, res) => {
+  const detail = await adminService.getOrderAdminDetail(req.params.id);
   ApiResponse.ok(res, detail);
 });
 
-export const flagShipment = asyncHandler(async (req, res) => {
+// --- Settlement decisions (requirement #18–#25) ------------------------------
+
+export const decideSettlement = asyncHandler(async (req, res) => {
   if (!req.user) throw ApiError.unauthorized('Authentication required.');
-  const shipment = await adminService.flagShipmentForReview(req.params.id, req.user, req.body);
-  ApiResponse.ok(res, shipment, 'Shipment flagged for review.');
+  const settlement = await adminService.decideSettlement(req.params.id, req.user, req.body);
+  ApiResponse.ok(res, settlement, 'Settlement decision recorded.');
 });
 
-export const listRiskSignals = asyncHandler(async (_req, res) => {
-  const signals = await adminService.listRiskSignals();
-  ApiResponse.ok(res, signals);
+export const confirmBuyerRefund = asyncHandler(async (req, res) => {
+  if (!req.user) throw ApiError.unauthorized('Authentication required.');
+  const settlement = await adminService.confirmBuyerRefund(req.params.id, req.user, req.body);
+  ApiResponse.ok(res, settlement, 'Refund marked as issued.');
+});
+
+export const correctSettlement = asyncHandler(async (req, res) => {
+  if (!req.user) throw ApiError.unauthorized('Authentication required.');
+  const settlement = await adminService.correctSettlement(req.params.id, req.user, req.body);
+  ApiResponse.ok(res, settlement, 'Settlement reopened for review.');
 });
 
 // --- Dispute review (requirement #9) --------------------------------------

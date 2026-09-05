@@ -1,8 +1,18 @@
 import { api } from './api'
-import type { Carrier, Dispute, Order, OrderItem, OrderStatus, OrderSummary, SellerOrderDetail, Shipment, ShipmentEvent } from '@/types'
+import type { Carrier, Dispute, Order, OrderItem, OrderStatus, OrderSummary, SellerOrderDetail, SettlementStatus, Shipment } from '@/types'
 import type { PaginationMeta } from './productService'
 
-type BackendStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'CANCELLED' | 'RETURNED' | 'DISPUTED'
+type BackendStatus =
+  | 'PENDING'
+  | 'CONFIRMED'
+  | 'PROCESSING'
+  | 'SHIPPED'
+  | 'OUT_FOR_DELIVERY'
+  | 'DELIVERED'
+  | 'DELIVERY_FAILED'
+  | 'CANCELLED'
+  | 'RETURNED'
+  | 'DISPUTED'
 
 const STATUS_MAP: Record<BackendStatus, OrderStatus> = {
   PENDING: 'placed',
@@ -11,12 +21,13 @@ const STATUS_MAP: Record<BackendStatus, OrderStatus> = {
   SHIPPED: 'shipped',
   OUT_FOR_DELIVERY: 'out_for_delivery',
   DELIVERED: 'delivered',
+  DELIVERY_FAILED: 'delivery_failed',
   CANCELLED: 'cancelled',
   RETURNED: 'returned',
   DISPUTED: 'disputed',
 }
 
-/** Reverse of STATUS_MAP — used only for the admin manual status-override UI, if wired up later. Sellers no longer have access to this endpoint at all (see submitShipment). */
+/** Reverse of STATUS_MAP — used only for the admin manual status-override UI. Sellers have no access to this endpoint at all (see submitShipment). */
 export const REVERSE_STATUS_MAP: Record<OrderStatus, BackendStatus> = {
   placed: 'PENDING',
   confirmed: 'CONFIRMED',
@@ -24,9 +35,27 @@ export const REVERSE_STATUS_MAP: Record<OrderStatus, BackendStatus> = {
   shipped: 'SHIPPED',
   out_for_delivery: 'OUT_FOR_DELIVERY',
   delivered: 'DELIVERED',
+  delivery_failed: 'DELIVERY_FAILED',
   cancelled: 'CANCELLED',
   returned: 'RETURNED',
   disputed: 'DISPUTED',
+}
+
+type BackendSettlementStatus =
+  | 'NOT_ELIGIBLE'
+  | 'PENDING_REVIEW'
+  | 'SELLER_PAYOUT_PENDING'
+  | 'SELLER_PAID'
+  | 'BUYER_REFUND_PENDING'
+  | 'BUYER_REFUNDED'
+
+const SETTLEMENT_STATUS_MAP: Record<BackendSettlementStatus, SettlementStatus> = {
+  NOT_ELIGIBLE: 'not_eligible',
+  PENDING_REVIEW: 'pending_review',
+  SELLER_PAYOUT_PENDING: 'seller_payout_pending',
+  SELLER_PAID: 'seller_paid',
+  BUYER_REFUND_PENDING: 'buyer_refund_pending',
+  BUYER_REFUNDED: 'buyer_refunded',
 }
 
 interface BackendOrderItem {
@@ -55,27 +84,15 @@ interface BackendPayment {
   status: 'CREATED' | 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED'
   method?: string | null
 }
-interface BackendShipmentEvent {
-  id: string
-  status: string
-  description: string
-  location: string | null
-  eventTime: string
-  source: string
-}
-type BackendShipmentStatus = 'AWB_SUBMITTED' | 'AWB_VERIFIED' | 'PICKUP_CONFIRMED' | 'IN_TRANSIT' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'DELIVERY_FAILED' | 'RETURNED' | 'EXCEPTION'
 interface BackendShipment {
   carrierCode: string
   carrierName?: string | null
   awb: string
-  status: BackendShipmentStatus
-  verified: boolean
-  lastVerificationError?: string | null
-  pickupConfirmedAt?: string | null
-  deliveredAt?: string | null
-  lastSyncedAt?: string | null
-  flaggedForReview: boolean
-  events?: BackendShipmentEvent[]
+  shipmentDate?: string | null
+  note?: string | null
+  submittedAt: string
+  trackingUrl?: string | null
+  trackingUrlIsDirect?: boolean
 }
 type BackendDisputeStatus = 'OPEN' | 'UNDER_REVIEW' | 'RESOLVED' | 'REJECTED'
 interface BackendDispute {
@@ -95,6 +112,7 @@ interface BackendOrder {
   id: string
   orderNumber: string
   status: BackendStatus
+  settlementStatus?: BackendSettlementStatus
   subtotal: number | string
   shippingFee: number | string
   tax: number | string
@@ -104,8 +122,6 @@ interface BackendOrder {
   items: BackendOrderItem[]
   address: BackendAddress
   payment?: BackendPayment | null
-  trackingCarrier?: string | null
-  trackingNumber?: string | null
   /** The buyer who placed the order. Present on every order, but only
    *  relevant to sellers/admins viewing the fulfillment list/detail page.
    *  email/phone are only included on the detail endpoint. */
@@ -123,6 +139,16 @@ function mapItem(i: BackendOrderItem): OrderItem {
   return { productId: i.productId, name: i.productName, quantity: i.quantity, price: Number(i.unitPrice) }
 }
 
+/**
+ * Generic "carrier name + tracking number -> official tracking URL" helper.
+ * Kept here (rather than removed) purely because the unrelated seed-store
+ * order module (seedService.ts) still uses its own flat trackingCarrier/
+ * trackingNumber fields and depends on this — the seed-store fulfillment
+ * flow is out of scope for the shipment/settlement rework in this file.
+ * The product-order Shipment type above no longer needs this: the backend
+ * now returns a ready-made `trackingUrl` on the shipment itself (see
+ * mapShipment), built server-side from the same courier list.
+ */
 export function buildTrackingUrl(carrier?: string | null, number?: string | null): string | undefined {
   if (!carrier || !number) return undefined
   if (number.startsWith('http://') || number.startsWith('https://')) return number
@@ -137,15 +163,11 @@ export function buildTrackingUrl(carrier?: string | null, number?: string | null
   if (norm.includes('INDIA_POST') || norm.includes('SPEED_POST')) return `https://www.indiapost.gov.in/_layouts/15/DOP.Portal.Tracking/TrackConsignment.aspx?TrackConsignmentID=${enc}`
   if (norm.includes('EKART')) return `https://ekartlogistics.com/track/${enc}`
   if (norm.includes('XPRESSBEES')) return `https://www.xpressbees.com/shipment/tracking?awb=${enc}`
-  if (norm.includes('SHADOWFAX')) return `https://tracker.shadowfax.in/#/track/${enc}`
+  if (norm.includes('SHADOWFAX')) return `https://tracker.shadowfax.in/`
   if (norm.includes('ECOM_EXPRESS')) return `https://www.ecomexpress.in/tracking/?awb_field=${enc}`
   if (norm.includes('PROFESSIONAL')) return `https://www.tpcindia.com/track.aspx?id=${enc}`
 
   return undefined
-}
-
-function mapShipmentEvent(e: BackendShipmentEvent): ShipmentEvent {
-  return { id: e.id, status: e.status, description: e.description, location: e.location, eventTime: e.eventTime, source: e.source }
 }
 
 function mapShipment(s: BackendShipment): Shipment {
@@ -153,14 +175,11 @@ function mapShipment(s: BackendShipment): Shipment {
     carrierCode: s.carrierCode,
     carrierName: s.carrierName ?? undefined,
     awb: s.awb,
-    status: s.status,
-    verified: s.verified,
-    lastVerificationError: s.lastVerificationError ?? undefined,
-    pickupConfirmedAt: s.pickupConfirmedAt ?? undefined,
-    deliveredAt: s.deliveredAt ?? undefined,
-    lastSyncedAt: s.lastSyncedAt ?? undefined,
-    flaggedForReview: s.flaggedForReview,
-    events: (s.events ?? []).map(mapShipmentEvent),
+    shipmentDate: s.shipmentDate ?? undefined,
+    note: s.note ?? undefined,
+    submittedAt: s.submittedAt,
+    trackingUrl: s.trackingUrl ?? undefined,
+    trackingUrlIsDirect: s.trackingUrlIsDirect,
   }
 }
 
@@ -169,21 +188,16 @@ function mapDispute(d: BackendDispute): Dispute {
 }
 
 function mapOrder(o: BackendOrder): Order {
-  const trackingNumber = o.trackingNumber ?? undefined
-  const trackingCarrier = o.trackingCarrier ?? undefined
-  const trackingUrl = buildTrackingUrl(trackingCarrier, trackingNumber)
   return {
     id: o.orderNumber,
     items: o.items.map(mapItem),
     total: Number(o.totalAmount),
     status: STATUS_MAP[o.status],
+    settlementStatus: o.settlementStatus ? SETTLEMENT_STATUS_MAP[o.settlementStatus] : undefined,
     placedAt: o.createdAt,
     updatedAt: o.updatedAt,
     address: formatAddress(o.address),
     paymentMethod: o.payment ? 'Razorpay' : 'Pending',
-    trackingCarrier,
-    trackingNumber,
-    trackingUrl,
     shipment: o.shipment ? mapShipment(o.shipment) : undefined,
     disputes: o.disputes?.map(mapDispute),
   }
@@ -198,21 +212,19 @@ function mapSummary(o: BackendOrder): OrderSummary {
     total: Number(o.totalAmount),
     itemsSubtotal,
     status: STATUS_MAP[o.status],
+    settlementStatus: o.settlementStatus ? SETTLEMENT_STATUS_MAP[o.settlementStatus] : undefined,
     placedAt: o.createdAt,
     updatedAt: o.updatedAt,
     buyerName: o.user?.name,
-    shipment: o.shipment
-      ? { carrierCode: o.shipment.carrierCode, awb: o.shipment.awb, status: o.shipment.status, verified: o.shipment.verified, flaggedForReview: o.shipment.flaggedForReview }
-      : undefined,
+    shipment: o.shipment ? { carrierCode: o.shipment.carrierCode, carrierName: o.shipment.carrierName ?? undefined, awb: o.shipment.awb } : undefined,
   }
 }
 
 function mapSellerOrderDetail(o: BackendOrder): SellerOrderDetail {
-  const trackingNumber = o.trackingNumber ?? undefined
-  const trackingCarrier = o.trackingCarrier ?? undefined
   return {
     id: o.orderNumber,
     status: STATUS_MAP[o.status],
+    settlementStatus: o.settlementStatus ? SETTLEMENT_STATUS_MAP[o.settlementStatus] : undefined,
     placedAt: o.createdAt,
     updatedAt: o.updatedAt,
     items: o.items.map((i) => ({
@@ -244,9 +256,6 @@ function mapSellerOrderDetail(o: BackendOrder): SellerOrderDetail {
     },
     paymentStatus: o.payment?.status,
     paymentMethod: o.payment?.method ?? undefined,
-    trackingCarrier,
-    trackingNumber,
-    trackingUrl: buildTrackingUrl(trackingCarrier, trackingNumber),
     shipment: o.shipment ? mapShipment(o.shipment) : undefined,
     disputes: o.disputes?.map(mapDispute),
     statusHistory: (o.statusHistory ?? []).map((h) => ({
@@ -296,12 +305,7 @@ export const orderService = {
     return mapSellerOrderDetail(res.data.data)
   },
 
-  async getTracking(idOrNumber: string): Promise<ShipmentEvent[]> {
-    const realId = idByOrderNumber.get(idOrNumber) ?? idOrNumber
-    const res = await api.get<{ data: ShipmentEvent[] }>(`/orders/${realId}/tracking`)
-    return res.data.data
-  },
-
+  /** Supported delivery platforms for the seller shipment-form dropdown. */
   async getCarriers(): Promise<Carrier[]> {
     const res = await api.get<{ data: Carrier[] }>('/orders/carriers')
     return res.data.data
@@ -314,9 +318,9 @@ export const orderService = {
   },
 
   /**
-   * Admin-only manual status override. Sellers no longer have access to
-   * this endpoint at all — see submitShipment() below for their (courier-
-   * verified) shipment submission flow instead.
+   * Admin-only manual status override. Sellers have no access to this
+   * endpoint at all — see submitShipment() below for their shipment
+   * submission flow instead.
    */
   async updateStatus(idOrNumber: string, status: OrderStatus, note?: string): Promise<OrderSummary> {
     const realId = idByOrderNumber.get(idOrNumber) ?? idOrNumber
@@ -329,11 +333,15 @@ export const orderService = {
   },
 
   /**
-   * The seller's ENTIRE shipment-management surface: submit the AWB, get it
-   * verified against the carrier. Every subsequent status change (pickup,
-   * transit, delivery) comes exclusively from the courier afterward.
+   * The seller's ENTIRE shipment-management surface: submit courier + AWB
+   * (plus an optional shipment date/note). Submitting moves the order
+   * straight to "shipped" — there is no separate courier-confirmed pickup
+   * step anymore (no tracking provider left to report it).
    */
-  async submitShipment(idOrNumber: string, input: { carrierCode: string; awb: string; carrierName?: string }): Promise<Order> {
+  async submitShipment(
+    idOrNumber: string,
+    input: { carrierCode: string; awb: string; carrierName?: string; shipmentDate?: string; note?: string }
+  ): Promise<Order> {
     const realId = idByOrderNumber.get(idOrNumber) ?? idOrNumber
     const res = await api.post<{ data: BackendOrder }>(`/orders/${realId}/shipment`, input)
     idByOrderNumber.set(res.data.data.orderNumber, res.data.data.id)
@@ -356,5 +364,13 @@ export const orderService = {
   async listMyDisputes(): Promise<Dispute[]> {
     const res = await api.get<{ data: BackendDispute[] }>('/orders/disputes/mine')
     return res.data.data.map(mapDispute)
+  },
+
+  /** Exposed so admin.service.ts / admin pages can reuse the same order-number -> id cache. */
+  rememberOrderId(orderNumber: string, id: string) {
+    idByOrderNumber.set(orderNumber, id)
+  },
+  resolveOrderId(idOrNumber: string): string {
+    return idByOrderNumber.get(idOrNumber) ?? idOrNumber
   },
 }

@@ -162,10 +162,25 @@ export type OrderStatus =
   | 'shipped'
   | 'out_for_delivery'
   | 'delivered'
+  | 'delivery_failed'
   | 'cancelled'
   | 'returned'
   | 'disputed'
 export type SellerOrderStatus = OrderStatus
+
+/**
+ * Who ultimately receives an order's money — deliberately separate from
+ * OrderStatus (fulfillment outcome) and payment status (gateway state). See
+ * SellerOrderDetail/Order below for where this shows up, and
+ * adminService.ts for the admin-only settlement-decision surface.
+ */
+export type SettlementStatus =
+  | 'not_eligible'
+  | 'pending_review'
+  | 'seller_payout_pending'
+  | 'seller_paid'
+  | 'buyer_refund_pending'
+  | 'buyer_refunded'
 
 export interface SellerOrder {
   id: string
@@ -175,10 +190,8 @@ export interface SellerOrder {
   status: SellerOrderStatus
   placedAt: string
   updatedAt: string
-  trackingCarrier?: string
-  trackingNumber?: string
-  /** Courier-verified shipment status — undefined until the seller has submitted an AWB. */
-  shipment?: Pick<Shipment, 'carrierCode' | 'awb' | 'status' | 'verified' | 'flaggedForReview'>
+  /** Undefined until the seller has submitted courier + AWB for this order. */
+  shipment?: Pick<Shipment, 'carrierCode' | 'carrierName' | 'awb'>
 }
 
 export type AiHistoryType = 'crop_advisor' | 'disease' | 'soil' | 'fertilizer' | 'chat'
@@ -198,26 +211,6 @@ export interface OrderItem {
   price: number
 }
 
-export interface ShipmentEvent {
-  id: string
-  status: string
-  description: string
-  location: string | null
-  eventTime: string
-  source: string
-}
-
-export type ShipmentStatus =
-  | 'AWB_SUBMITTED'
-  | 'AWB_VERIFIED'
-  | 'PICKUP_CONFIRMED'
-  | 'IN_TRANSIT'
-  | 'OUT_FOR_DELIVERY'
-  | 'DELIVERED'
-  | 'DELIVERY_FAILED'
-  | 'RETURNED'
-  | 'EXCEPTION'
-
 export type DisputeStatus = 'OPEN' | 'UNDER_REVIEW' | 'RESOLVED' | 'REJECTED'
 
 export interface Dispute {
@@ -230,22 +223,24 @@ export interface Dispute {
 }
 
 /**
- * The courier-verified shipment record for an order. Everything from
- * `status` down is written exclusively by the backend from courier data —
- * never by the seller, and never editable from the seller UI.
+ * The seller-submitted shipment record for an order — courier + AWB,
+ * submitted exactly once. There is no third-party tracking integration
+ * (17TRACK has been removed): `trackingUrl` is just the official courier
+ * tracking page/deep-link built from `carrierCode`+`awb`, not a live
+ * status. Delivery is confirmed manually by an admin via OrderStatus, not
+ * anything on this object.
  */
 export interface Shipment {
   carrierCode: string
   carrierName?: string
   awb: string
-  status: ShipmentStatus
-  verified: boolean
-  lastVerificationError?: string
-  pickupConfirmedAt?: string
-  deliveredAt?: string
-  lastSyncedAt?: string
-  flaggedForReview: boolean
-  events: ShipmentEvent[]
+  shipmentDate?: string
+  note?: string
+  submittedAt: string
+  /** Official courier tracking destination, built server-side (courier.config.ts) — undefined if the courier has no known tracking page. */
+  trackingUrl?: string
+  /** True if trackingUrl already has the AWB baked in; false means the buyer/admin still needs to paste the AWB in themselves on that page. */
+  trackingUrlIsDirect?: boolean
 }
 
 export interface Carrier {
@@ -258,13 +253,12 @@ export interface Order {
   items: OrderItem[]
   total: number
   status: OrderStatus
+  /** Undefined for older cached summaries that predate the settlement system — treat as 'not_eligible'. */
+  settlementStatus?: SettlementStatus
   placedAt: string
   updatedAt: string
   address: string
   paymentMethod: string
-  trackingCarrier?: string
-  trackingNumber?: string
-  trackingUrl?: string
   shipment?: Shipment
   disputes?: Dispute[]
 }
@@ -274,14 +268,15 @@ export interface OrderSummary {
   itemsLabel: string
   total: number
   status: OrderStatus
+  settlementStatus?: SettlementStatus
   placedAt: string
   updatedAt: string
   /** Name of the buyer who placed the order. Only meaningful to a seller/admin viewing their fulfillment list. */
   buyerName?: string
   /** Sum of just the caller's own line items — differs from `total` (the whole order's total) when other sellers' products share the same order. */
   itemsSubtotal?: number
-  /** Lightweight shipment status for the fulfillment list (courier-verified — see Shipment for the full detail-page shape). */
-  shipment?: Pick<Shipment, 'carrierCode' | 'awb' | 'status' | 'verified' | 'flaggedForReview'>
+  /** Lightweight shipment info for the fulfillment list. */
+  shipment?: Pick<Shipment, 'carrierCode' | 'carrierName' | 'awb'>
 }
 
 // --- Seller-facing order detail page ---------------------------------------
@@ -307,6 +302,7 @@ export interface OrderStatusEvent {
 export interface SellerOrderDetail {
   id: string
   status: OrderStatus
+  settlementStatus?: SettlementStatus
   placedAt: string
   updatedAt: string
   items: OrderDetailItem[]
@@ -333,9 +329,6 @@ export interface SellerOrderDetail {
   }
   paymentStatus?: string
   paymentMethod?: string
-  trackingCarrier?: string
-  trackingNumber?: string
-  trackingUrl?: string
   shipment?: Shipment
   disputes?: Dispute[]
   statusHistory: OrderStatusEvent[]

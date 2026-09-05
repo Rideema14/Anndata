@@ -32,7 +32,7 @@
     "adminSeeds": "बियाणे व्यवस्थापन",
     "adminAnalytics": "विश्लेषण",
     "adminPayouts": "भरणा",
-    "adminShipments": "शिपमेंट आणि वाद",
+    "adminShipments": "ऑर्डर",
     "admin": "अ‍ॅडमिन",
     "settings": "सेटिंग्ज",
     "logout": "लॉग आउट"
@@ -203,7 +203,8 @@
     "statusDelivered": "डिलिव्हर झाली",
     "statusCancelled": "रद्द केली",
     "statusReturned": "परत केली",
-    "statusDisputed": "पुनरावलोकनाधीन"
+    "statusDisputed": "पुनरावलोकनाधीन",
+    "statusDeliveryFailed": "वितरण अयशस्वी"
   },
   "product": {
     "notFound": "उत्पादन सापडले नाही",

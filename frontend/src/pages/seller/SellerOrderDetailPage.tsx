@@ -4,7 +4,6 @@ import {
   AlertTriangle,
   CheckCircle2,
   ChevronLeft,
-  Clock,
   Mail,
   MapPin,
   Package,
@@ -28,6 +27,7 @@ const STATUS_STYLES: Record<string, string> = {
   shipped: 'bg-brand-50 text-brand-700',
   out_for_delivery: 'bg-amber-100 text-amber-800',
   delivered: 'bg-brand-100 text-brand-800',
+  delivery_failed: 'bg-danger-50 text-danger-500',
   disputed: 'bg-amber-100 text-amber-800',
   cancelled: 'bg-danger-50 text-danger-500',
   returned: 'bg-danger-50 text-danger-500',
@@ -46,6 +46,7 @@ export default function SellerOrderDetailPage() {
   const [selectedCarrierCode, setSelectedCarrierCode] = useState('')
   const [customCarrierName, setCustomCarrierName] = useState('')
   const [trackingNumber, setTrackingNumber] = useState('')
+  const [shipmentNote, setShipmentNote] = useState('')
   const [formError, setFormError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -77,9 +78,9 @@ export default function SellerOrderDetailPage() {
       .catch(() => {})
   }, [])
 
-  // The seller's ENTIRE action on this order: submit the AWB. The backend
-  // verifies it against the carrier before accepting it — everything after
-  // this (pickup, transit, delivery) is reported exclusively by the courier.
+  // The seller's ENTIRE action on this order: submit courier + AWB. This
+  // moves the order straight to "shipped" and notifies the buyer — there's
+  // no separate courier-confirmed pickup step anymore.
   async function submitAwb() {
     if (!order || !id) return
     setFormError('')
@@ -101,11 +102,13 @@ export default function SellerOrderDetailPage() {
         carrierCode: selectedCarrierCode,
         awb: trackingNumber.trim(),
         carrierName: selectedCarrierCode === 'OTHER' ? customCarrierName.trim() : undefined,
+        note: shipmentNote.trim() || undefined,
       })
       setShowAwbForm(false)
       setTrackingNumber('')
       setCustomCarrierName('')
-      await load() // pull the fresh status + verification result + status history
+      setShipmentNote('')
+      await load() // pull the fresh status + shipment info + status history
     } catch (err) {
       setFormError(getApiErrorMessage(err, 'Could not submit this AWB. Double-check the carrier and number.'))
     } finally {
@@ -273,34 +276,26 @@ export default function SellerOrderDetailPage() {
               <span className="text-ink-500">AWB / Tracking No.: </span>
               <span className="font-semibold">{order.shipment.awb}</span>
             </p>
-
-            <div className="mt-2 flex items-center gap-1.5 text-xs">
-              {order.shipment.verified ? (
-                <>
-                  <CheckCircle2 className="h-3.5 w-3.5 text-brand-600" aria-hidden="true" />
-                  <span className="font-medium text-brand-700">Verified with carrier</span>
-                </>
-              ) : (
-                <>
-                  <Clock className="h-3.5 w-3.5 text-amber-600" aria-hidden="true" />
-                  <span className="font-medium text-amber-700">Verifying with carrier…</span>
-                </>
-              )}
-            </div>
-            {order.shipment.flaggedForReview && (
-              <p className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-danger-500">
-                <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
-                This shipment has been flagged for admin review.
+            {order.shipment.shipmentDate && (
+              <p className="mt-1">
+                <span className="text-ink-500">Shipped on: </span>
+                <span className="font-semibold">{formatDateTimeLabel(order.shipment.shipmentDate)}</span>
               </p>
             )}
+            {order.shipment.note && <p className="mt-1 text-xs text-ink-500">{order.shipment.note}</p>}
 
-            {order.trackingUrl && (
-              <a href={order.trackingUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs font-semibold text-brand-600 hover:underline">
-                Track shipment →
+            <div className="mt-2 flex items-center gap-1.5 text-xs">
+              <CheckCircle2 className="h-3.5 w-3.5 text-brand-600" aria-hidden="true" />
+              <span className="font-medium text-brand-700">Shipment submitted</span>
+            </div>
+
+            {order.shipment.trackingUrl && (
+              <a href={order.shipment.trackingUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs font-semibold text-brand-600 hover:underline">
+                {order.shipment.trackingUrlIsDirect ? 'Track shipment →' : 'Open courier tracking page →'}
               </a>
             )}
             <p className="mt-2 text-xs text-ink-400">
-              Status now updates automatically from the carrier — no further action needed here.
+              Delivery is confirmed by our team once verified with the courier — no further action needed from you here.
             </p>
           </div>
         ) : showAwbForm ? (
@@ -312,7 +307,7 @@ export default function SellerOrderDetailPage() {
             }}
           >
             <div className="mb-3 flex items-start justify-between gap-3">
-              <p className="text-xs text-ink-600">Select the delivery carrier and enter the AWB / tracking number. We'll verify it with the carrier before confirming the order.</p>
+              <p className="text-xs text-ink-600">Select the delivery carrier and enter the AWB / tracking number. The order will be marked shipped and the buyer notified right away.</p>
               <button type="button" aria-label="Close" onClick={() => setShowAwbForm(false)} className="text-ink-500 hover:text-ink-900">
                 <X className="h-4 w-4" aria-hidden="true" />
               </button>
@@ -355,12 +350,23 @@ export default function SellerOrderDetailPage() {
               value={trackingNumber}
               onChange={(event) => setTrackingNumber(event.target.value.toUpperCase())}
               placeholder="e.g. 1234567890"
-              minLength={6}
+              minLength={4}
               maxLength={40}
               required
-              hint="6–40 characters"
+              hint="4–40 characters"
               error={formError || undefined}
             />
+
+            <div className="mt-3">
+              <TextField
+                id="shipment-note"
+                label="Note (optional)"
+                value={shipmentNote}
+                onChange={(event) => setShipmentNote(event.target.value)}
+                placeholder="e.g. Handed to courier at the local branch"
+                maxLength={500}
+              />
+            </div>
 
             <div className="mt-3 flex gap-2">
               <Button type="submit" className="h-9 px-4 text-xs" loading={submitting}>
@@ -371,8 +377,8 @@ export default function SellerOrderDetailPage() {
               </Button>
             </div>
           </form>
-        ) : order.status === 'placed' || order.status === 'confirmed' ? (
-          <Button variant="secondary" className="h-9 px-4 text-xs" onClick={() => { setFormError(''); setTrackingNumber(''); setCustomCarrierName(''); setShowAwbForm(true) }}>
+        ) : order.status === 'placed' || order.status === 'confirmed' || order.status === 'packed' ? (
+          <Button variant="secondary" className="h-9 px-4 text-xs" onClick={() => { setFormError(''); setTrackingNumber(''); setCustomCarrierName(''); setShipmentNote(''); setShowAwbForm(true) }}>
             Enter AWB & Ship Order
           </Button>
         ) : (

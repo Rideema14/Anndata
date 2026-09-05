@@ -9,6 +9,7 @@ import { emitOrderUpdate } from '../../config/socket';
 import { notifyUser } from '../notification/notification.service';
 import { recordAudit } from './auditLog.service';
 import { AUDIT_ACTIONS, ORDER_STATUS_TRANSITIONS } from './shipment.constants';
+import * as settlementService from './settlement.service';
 import type { CheckoutInput, ListOrdersQuery, UpdateStatusInput, CancelOrderInput } from './order.validation';
 
 const ORDER_INCLUDE_DETAIL = {
@@ -16,10 +17,10 @@ const ORDER_INCLUDE_DETAIL = {
   address: true,
   statusHistory: { orderBy: { changedAt: 'asc' as const } },
   payment: true,
-  // Courier is the sole source of truth for everything under `shipment`
-  // (see shipment.service.ts/tracking.service.ts) — included here so the
-  // existing GET /orders/:id response carries it without a second request.
-  shipment: { include: { events: { orderBy: { eventTime: 'asc' as const } } } },
+  // The seller-submitted shipment record (see shipment.service.ts) — there
+  // is no automatic tracking provider anymore, so this is exactly what the
+  // seller entered plus who submitted it, nothing courier-derived.
+  shipment: true,
   disputes: { orderBy: { createdAt: 'desc' as const } },
 } satisfies Prisma.OrderInclude;
 
@@ -190,7 +191,7 @@ export async function listOrders(user: User, query: ListOrdersQuery) {
         },
         user: { select: { id: true, name: true, email: true } },
         payment: { select: { status: true, method: true } },
-        shipment: { select: { status: true, verified: true, carrierCode: true, awb: true, flaggedForReview: true } },
+        shipment: { select: { carrierCode: true, carrierName: true, awb: true, shipmentDate: true, submittedAt: true } },
       },
       orderBy: { createdAt: 'desc' },
       skip,
@@ -228,7 +229,7 @@ const SELLER_ORDER_DETAIL_INCLUDE = {
   statusHistory: { orderBy: { changedAt: 'asc' as const } },
   payment: true,
   user: { select: { id: true, name: true, email: true, phone: true } },
-  shipment: { include: { events: { orderBy: { eventTime: 'asc' as const } } } },
+  shipment: true,
   disputes: { orderBy: { createdAt: 'desc' as const } },
 } satisfies Prisma.OrderInclude;
 
@@ -256,12 +257,15 @@ export async function getSellerOrderDetail(idOrNumber: string, user: User) {
 /**
  * Admin-only manual status override (see order.routes.ts — sellers have no
  * access to this endpoint at all; their entire shipment surface is
- * shipment.service.ts's submitShipment, and every subsequent status change
- * comes from the courier via tracking.service.ts). Restricted to the
- * explicit transition graph in shipment.constants.ts, which is what
- * actually blocks things like DELIVERED -> SHIPPED or DELIVERED ->
- * PROCESSING — this function no longer contains any of that logic inline
- * so there's a single source of truth for it.
+ * shipment.service.ts's submitShipment, which moves an order to SHIPPED
+ * directly). Every status change past that point is now a manual admin
+ * action — there's no automatic tracking provider left to report pickup,
+ * transit, or delivery. Restricted to the explicit transition graph in
+ * shipment.constants.ts, which is what actually blocks things like
+ * DELIVERED -> SHIPPED or DELIVERED -> PROCESSING — this function no longer
+ * contains any of that logic inline so there's a single source of truth
+ * for it. Reaching DELIVERED/DELIVERY_FAILED/RETURNED here also drives the
+ * order's settlement (see the block below the transaction).
  *
  * DISPUTED is deliberately excluded from both ends here: opening one always
  * goes through dispute.service.createDispute (which creates the paired
@@ -299,26 +303,31 @@ export async function updateStatus(idOrNumber: string, user: User, { status, not
     );
   }
 
-  const updated = await prisma.$transaction(async (tx) => {
-    const result = await tx.order.update({
+  await prisma.$transaction(async (tx) => {
+    await tx.order.update({
       where: { id: order.id },
       data: {
         status,
         statusHistory: { create: { status, note, changedById: user.id } },
       },
-      include: ORDER_INCLUDE_DETAIL,
     });
     if (status === 'CANCELLED' || status === 'RETURNED') {
       await restoreStockForOrder(tx, order);
     }
-    return result;
   });
 
-  emitOrderUpdate(updated);
+  const auditAction =
+    status === 'DELIVERED'
+      ? AUDIT_ACTIONS.ADMIN_MARKED_DELIVERED
+      : status === 'DELIVERY_FAILED'
+        ? AUDIT_ACTIONS.ADMIN_MARKED_DELIVERY_FAILED
+        : status === 'RETURNED'
+          ? AUDIT_ACTIONS.ADMIN_MARKED_RETURNED
+          : AUDIT_ACTIONS.ADMIN_OVERRODE_ORDER_STATUS;
   await recordAudit({
     orderId: order.id,
     shipmentId: order.shipment?.id,
-    action: AUDIT_ACTIONS.ADMIN_OVERRODE_ORDER_STATUS,
+    action: auditAction,
     actorId: user.id,
     actorRole: 'ADMIN',
     source: 'ADMIN',
@@ -327,6 +336,29 @@ export async function updateStatus(idOrNumber: string, user: User, { status, not
     metadata: note ? { note } : undefined,
   });
 
+  // --- Settlement side-effects (requirements #17/#21/#22/#26) --------------
+  // Order.settlementStatus/`order` here is still the PRE-update snapshot,
+  // which is exactly what these checks need (settlement doesn't change just
+  // because the order status did — these decide whether IT should).
+  if (status === 'DELIVERED' && order.settlementStatus === 'NOT_ELIGIBLE' && order.payment?.status === 'PAID') {
+    // Only auto-settle a single-seller order — a multi-seller order has no
+    // one "the seller" to pay automatically, so it goes to PENDING_REVIEW
+    // for an admin to settle each seller explicitly instead.
+    const sellerIds = [...new Set(order.items.map((item) => item.product?.sellerId).filter((id): id is string => Boolean(id)))];
+    if (sellerIds.length === 1) {
+      await settlementService.createAutomaticSettlement(order.id, order, sellerIds[0]);
+    } else {
+      await settlementService.moveSettlementToReview(order.id, order, 'Order has items from multiple sellers — needs a per-seller settlement decision.', {
+        id: user.id,
+        role: 'ADMIN',
+      });
+    }
+  } else if (status === 'DELIVERY_FAILED' || status === 'RETURNED') {
+    await settlementService.moveSettlementToReview(order.id, order, `Order marked ${status}.`, { id: user.id, role: 'ADMIN' });
+  }
+
+  const updated = await prisma.order.findUniqueOrThrow({ where: { id: order.id }, include: ORDER_INCLUDE_DETAIL });
+  emitOrderUpdate(updated);
   return updated;
 }
 
@@ -345,20 +377,40 @@ export async function cancelOrder(idOrNumber: string, user: User, { reason }: Ca
     throw ApiError.badRequest(`Order can no longer be cancelled once it is ${order.status.toLowerCase()}.`);
   }
 
-  const updated = await prisma.$transaction(async (tx) => {
-    const result = await tx.order.update({
+  await prisma.$transaction(async (tx) => {
+    await tx.order.update({
       where: { id: orderId },
       data: {
         status: 'CANCELLED',
         cancelReason: reason,
         statusHistory: { create: { status: 'CANCELLED', note: reason || 'Cancelled by request.', changedById: user.id } },
       },
-      include: ORDER_INCLUDE_DETAIL,
     });
     await restoreStockForOrder(tx, order);
-    return result;
   });
 
+  await recordAudit({
+    orderId,
+    action: AUDIT_ACTIONS.ORDER_CANCELLED,
+    actorId: user.id,
+    actorRole: user.role === 'ADMIN' ? 'ADMIN' : 'CUSTOMER',
+    source: user.role === 'ADMIN' ? 'ADMIN' : 'CUSTOMER',
+    previousState: order.status,
+    newState: 'CANCELLED',
+    metadata: reason ? { reason } : undefined,
+  });
+
+  // A cancelled order that had already been paid for still owes the buyer
+  // their money back — that's a settlement decision (requirement #17), not
+  // an automatic refund.
+  if (order.payment?.status === 'PAID') {
+    await settlementService.moveSettlementToReview(orderId, order, reason || 'Order was cancelled after payment.', {
+      id: user.id,
+      role: user.role === 'ADMIN' ? 'ADMIN' : 'CUSTOMER',
+    });
+  }
+
+  const updated = await prisma.order.findUniqueOrThrow({ where: { id: orderId }, include: ORDER_INCLUDE_DETAIL });
   emitOrderUpdate(updated);
   return updated;
 }

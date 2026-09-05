@@ -73,34 +73,123 @@ export interface Payout {
   paidBy?: { id: string; name: string }
 }
 
-// --- Shipment management (requirement #10) & disputes (requirement #9) ---
+// --- All-orders management (requirement #11/#12/#13) & settlement (requirement #18-#25) ---
 
-export type AdminShipmentStatus = 'AWB_SUBMITTED' | 'AWB_VERIFIED' | 'PICKUP_CONFIRMED' | 'IN_TRANSIT' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'DELIVERY_FAILED' | 'RETURNED' | 'EXCEPTION'
+export type AdminOrderStatus =
+  | 'PENDING'
+  | 'CONFIRMED'
+  | 'PROCESSING'
+  | 'SHIPPED'
+  | 'OUT_FOR_DELIVERY'
+  | 'DELIVERED'
+  | 'DELIVERY_FAILED'
+  | 'CANCELLED'
+  | 'RETURNED'
+  | 'DISPUTED'
 
-export interface AdminShipmentListItem {
+export type AdminSettlementStatus =
+  | 'NOT_ELIGIBLE'
+  | 'PENDING_REVIEW'
+  | 'SELLER_PAYOUT_PENDING'
+  | 'SELLER_PAID'
+  | 'BUYER_REFUND_PENDING'
+  | 'BUYER_REFUNDED'
+
+export type AdminPaymentStatus = 'CREATED' | 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED'
+
+export interface AdminOrderListItem {
   id: string
-  carrierCode: string
-  carrierName?: string | null
-  awb: string
-  status: AdminShipmentStatus
-  verified: boolean
-  pickupConfirmedAt?: string | null
-  deliveredAt?: string | null
-  lastSyncedAt?: string | null
-  flaggedForReview: boolean
-  riskFlags: string[]
-  riskNote?: string | null
-  updatedAt: string
-  order: {
+  orderNumber: string
+  status: AdminOrderStatus
+  settlementStatus: AdminSettlementStatus
+  totalAmount: number | string
+  createdAt: string
+  user: { id: string; name: string; email: string }
+  shipment?: { carrierCode: string; carrierName?: string | null; awb: string; sellerId: string } | null
+  payment?: { status: AdminPaymentStatus; method?: string | null } | null
+  disputes: { id: string; status: string }[]
+  sellers: { id: string; name: string }[]
+}
+
+export interface AdminOrderDetailItem {
+  productId: string
+  productName: string
+  quantity: number
+  unitPrice: number | string
+  totalPrice: number | string
+  product?: {
     id: string
-    orderNumber: string
-    status: string
-    user: { id: string; name: string; email: string }
-    items: { productName: string }[]
-    disputes: { id: string; status: string }[]
+    name: string
+    sellerId: string
+    seller?: { id: string; name: string; email: string; phone?: string | null }
+    images?: { url: string }[]
+  } | null
+}
+
+export interface AdminOrderDetailOrder {
+  id: string
+  orderNumber: string
+  status: AdminOrderStatus
+  settlementStatus: AdminSettlementStatus
+  subtotal: number | string
+  shippingFee: number | string
+  tax: number | string
+  totalAmount: number | string
+  createdAt: string
+  updatedAt: string
+  cancelReason?: string | null
+  user: { id: string; name: string; email: string; phone?: string | null }
+  address: {
+    fullName: string
+    phone: string
+    addressLine1: string
+    addressLine2?: string | null
+    city: string
+    state: string
+    postalCode: string
   }
+  items: AdminOrderDetailItem[]
+  payment?: { id: string; razorpayOrderId: string; amount: number | string; status: AdminPaymentStatus; method?: string | null } | null
+  shipment?: {
+    carrierCode: string
+    carrierName?: string | null
+    awb: string
+    shipmentDate?: string | null
+    note?: string | null
+    submittedAt: string
+    seller?: { id: string; name: string; email: string; phone?: string | null } | null
+    trackingUrl?: string | null
+    trackingUrlIsDirect?: boolean
+  } | null
+  disputes: { id: string; reason: string; details?: string | null; status: AdminDisputeStatus; adminNote?: string | null; createdAt: string }[]
+  statusHistory: { status: AdminOrderStatus; note?: string | null; changedAt: string }[]
+}
+
+export interface AdminSettlementRecord {
+  id: string
+  orderId: string
+  status: AdminSettlementStatus
+  decision?: 'REFUND_BUYER' | 'PAY_SELLER' | null
+  sellerId?: string | null
   seller?: { id: string; name: string; email: string } | null
-  events: { id: string; status: string; description: string; eventTime: string }[]
+  buyerPaidTotal: number | string
+  productAmount: number | string
+  platformAmount: number | string
+  amount: number | string
+  reason?: string | null
+  isAutomatic: boolean
+  isCurrent: boolean
+  paymentReference?: string | null
+  resolvedById?: string | null
+  resolvedByRole?: string | null
+  resolvedAt: string
+  createdAt: string
+}
+
+export interface AdminOrderDetail {
+  order: AdminOrderDetailOrder
+  settlementHistory: AdminSettlementRecord[]
+  auditLog: AdminAuditLogEntry[]
 }
 
 export interface AdminAuditLogEntry {
@@ -117,11 +206,6 @@ export interface AdminAuditLogEntry {
   createdAt: string
 }
 
-export interface AdminShipmentDetail {
-  order: unknown
-  auditLog: AdminAuditLogEntry[]
-}
-
 export type AdminDisputeStatus = 'OPEN' | 'UNDER_REVIEW' | 'RESOLVED' | 'REJECTED'
 
 export interface AdminDispute {
@@ -132,17 +216,8 @@ export interface AdminDispute {
   adminNote?: string | null
   createdAt: string
   resolvedAt?: string | null
-  order: { id: string; orderNumber: string; status: string }
+  order: { id: string; orderNumber: string; status: string; settlementStatus?: string }
   user: { id: string; name: string; email: string }
-}
-
-export interface AdminRiskSignal {
-  id: string
-  orderId: string
-  action: string
-  createdAt: string
-  metadata?: { reason?: string; count?: number; windowDays?: number } | null
-  actor?: { id: string; name: string; email: string } | null
 }
 
 export const adminService = {
@@ -203,28 +278,51 @@ export const adminService = {
     return res.data.data
   },
 
-  // --- Shipment management (requirement #10) ------------------------------
+  // --- All-orders management (requirement #11/#12/#13) -------------------
 
-  async listShipments(
-    params: { page?: number; limit?: number; status?: AdminShipmentStatus; flagged?: boolean; disputed?: boolean; search?: string } = {},
-  ): Promise<{ items: AdminShipmentListItem[]; totalItems: number }> {
-    const res = await api.get<{ data: AdminShipmentListItem[]; meta: { pagination: { totalItems: number } } }>('/admin/shipments', { params })
+  async listAllOrders(
+    params: {
+      page?: number
+      limit?: number
+      status?: AdminOrderStatus
+      settlementStatus?: AdminSettlementStatus
+      paymentStatus?: AdminPaymentStatus
+      carrierCode?: string
+      search?: string
+    } = {},
+  ): Promise<{ items: AdminOrderListItem[]; totalItems: number }> {
+    const res = await api.get<{ data: AdminOrderListItem[]; meta: { pagination: { totalItems: number } } }>('/admin/orders', { params })
     return { items: res.data.data, totalItems: res.data.meta.pagination.totalItems }
   },
 
-  async getShipmentDetail(orderIdOrNumber: string): Promise<AdminShipmentDetail> {
-    const res = await api.get<{ data: AdminShipmentDetail }>(`/admin/shipments/${orderIdOrNumber}`)
+  async getOrderDetail(idOrNumber: string): Promise<AdminOrderDetail> {
+    const res = await api.get<{ data: AdminOrderDetail }>(`/admin/orders/${idOrNumber}`)
     return res.data.data
   },
 
-  /** The ONLY shipment write available to admins — courier-derived status/events/timestamps are never editable. */
-  async flagShipment(orderIdOrNumber: string, note: string): Promise<AdminShipmentListItem> {
-    const res = await api.post<{ data: AdminShipmentListItem }>(`/admin/shipments/${orderIdOrNumber}/flag`, { note })
+  /** Admin-only manual status override — hits the same endpoint as the buyer-facing order service, but works directly in backend status strings so nothing gets lost round-tripping through the frontend's lowercase OrderStatus. */
+  async updateOrderStatus(idOrNumber: string, status: AdminOrderStatus, note?: string): Promise<AdminOrderDetailOrder> {
+    const res = await api.patch<{ data: AdminOrderDetailOrder }>(`/orders/${idOrNumber}/status`, { status, note })
     return res.data.data
   },
 
-  async listRiskSignals(): Promise<AdminRiskSignal[]> {
-    const res = await api.get<{ data: AdminRiskSignal[] }>('/admin/shipments/risk-signals')
+  // --- Settlement decisions (requirement #18-#25) -------------------------
+
+  async decideSettlement(
+    idOrNumber: string,
+    input: { decision: 'REFUND_BUYER' | 'PAY_SELLER'; sellerId?: string; reason: string },
+  ): Promise<AdminSettlementRecord> {
+    const res = await api.post<{ data: AdminSettlementRecord }>(`/admin/orders/${idOrNumber}/settlement`, input)
+    return res.data.data
+  },
+
+  async confirmBuyerRefund(idOrNumber: string, input: { reference?: string } = {}): Promise<AdminSettlementRecord> {
+    const res = await api.post<{ data: AdminSettlementRecord }>(`/admin/orders/${idOrNumber}/settlement/refund-confirm`, input)
+    return res.data.data
+  },
+
+  async correctSettlement(idOrNumber: string, input: { reason: string }): Promise<AdminSettlementRecord> {
+    const res = await api.post<{ data: AdminSettlementRecord }>(`/admin/orders/${idOrNumber}/settlement/correct`, input)
     return res.data.data
   },
 

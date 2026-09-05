@@ -13,8 +13,11 @@ interface SellerContextValue {
   sellerOrders: SellerOrder[]
   isLoadingOrders: boolean
   isUpdatingOrder: boolean
-  /** The seller's ENTIRE shipment-management action: submit the AWB for verification. Every status change after this comes from the courier. */
-  submitShipmentForOrder: (id: string, shipment: { carrierCode: string; awb: string; carrierName?: string }) => Promise<void>
+  /** The seller's ENTIRE shipment-management action: submit courier + AWB. This moves the order straight to "shipped". */
+  submitShipmentForOrder: (
+    id: string,
+    shipment: { carrierCode: string; awb: string; carrierName?: string; shipmentDate?: string; note?: string },
+  ) => Promise<void>
   refreshSellerOrders: () => Promise<void>
 }
 
@@ -91,30 +94,32 @@ export function SellerProvider({ children }: { children: ReactNode }) {
   }, [])
 
   // This is the seller's ONLY write action on an order's shipment — no
-  // status field, nothing courier-derived. The backend verifies the AWB
-  // against the carrier before accepting it; pickup/transit/delivery are
-  // then reported exclusively by the courier from here on.
-  const submitShipmentForOrder = useCallback(async (id: string, shipment: { carrierCode: string; awb: string; carrierName?: string }) => {
-    setIsUpdatingOrder(true)
-    try {
-      const updated = await orderService.submitShipment(id, shipment)
-      setSellerOrders((prev) =>
-        prev.map((o) =>
-          o.id === id
-            ? {
-                ...o,
-                status: updated.status,
-                shipment: updated.shipment
-                  ? { carrierCode: updated.shipment.carrierCode, awb: updated.shipment.awb, status: updated.shipment.status, verified: updated.shipment.verified, flaggedForReview: updated.shipment.flaggedForReview }
-                  : o.shipment,
-              }
-            : o,
-        ),
-      )
-    } finally {
-      setIsUpdatingOrder(false)
-    }
-  }, [])
+  // status field, nothing else. Submitting moves the order straight to
+  // "shipped"; every status after that is a manual admin action.
+  const submitShipmentForOrder = useCallback(
+    async (id: string, shipment: { carrierCode: string; awb: string; carrierName?: string; shipmentDate?: string; note?: string }) => {
+      setIsUpdatingOrder(true)
+      try {
+        const updated = await orderService.submitShipment(id, shipment)
+        setSellerOrders((prev) =>
+          prev.map((o) =>
+            o.id === id
+              ? {
+                  ...o,
+                  status: updated.status,
+                  shipment: updated.shipment
+                    ? { carrierCode: updated.shipment.carrierCode, carrierName: updated.shipment.carrierName, awb: updated.shipment.awb }
+                    : o.shipment,
+                }
+              : o,
+          ),
+        )
+      } finally {
+        setIsUpdatingOrder(false)
+      }
+    },
+    [],
+  )
 
   const value = useMemo(
     () => ({

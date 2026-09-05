@@ -4,14 +4,16 @@ import ApiError from '../../common/utils/ApiError';
 import { emitOrderUpdate } from '../../config/socket';
 import { notifyUser } from '../notification/notification.service';
 import { recordAudit } from './auditLog.service';
-import { AUDIT_ACTIONS, RISK_FLAGS, REPEATED_DISPUTE_THRESHOLD, REPEATED_DISPUTE_WINDOW_DAYS } from './shipment.constants';
+import { AUDIT_ACTIONS } from './shipment.constants';
+import * as settlementService from './settlement.service';
 import type { CreateDisputeInput } from './order.validation';
 
 /**
- * Buyer reports a delivery problem on an order the courier has already
- * marked delivered (requirement #9). Puts the order on hold (DISPUTED) so
- * it stops being treated as successfully completed, without touching any
- * existing shipment/tracking evidence.
+ * Buyer reports a delivery problem on an order the admin has already marked
+ * delivered (requirement #9). Puts the order on hold (DISPUTED) so it stops
+ * being treated as successfully completed, and — if it had already been
+ * auto-settled in the seller's favor — reopens the settlement for admin
+ * review instead of letting a disputed order's money quietly stay decided.
  */
 export async function createDispute(idOrNumber: string, user: User, input: CreateDisputeInput) {
   const order = await prisma.order.findFirst({
@@ -51,36 +53,22 @@ export async function createDispute(idOrNumber: string, user: User, input: Creat
     metadata: { reason: input.reason },
   });
 
-  // Requirement #11: repeated disputes against the same seller(s) is a risk
-  // signal. This order may have items from multiple sellers, so flag each.
-  const sellerIds: string[] = [...new Set(order.items.map((i) => i.product.sellerId as string))];
-  await Promise.all(
-    sellerIds.map(async (sellerId: string) => {
-      const since = new Date(Date.now() - REPEATED_DISPUTE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
-      const recentDisputeCount = await prisma.dispute.count({
-        where: {
-          createdAt: { gte: since },
-          order: { items: { some: { product: { sellerId } } } },
-        },
-      });
-      if (recentDisputeCount >= REPEATED_DISPUTE_THRESHOLD) {
-        await recordAudit({
-          orderId: order.id,
-          action: AUDIT_ACTIONS.SHIPMENT_FLAGGED,
-          actorId: sellerId,
-          actorRole: 'SYSTEM',
-          source: 'SYSTEM',
-          metadata: { reason: RISK_FLAGS.REPEATED_DISPUTES_SELLER, count: recentDisputeCount, windowDays: REPEATED_DISPUTE_WINDOW_DAYS },
-        });
-      }
-    })
-  );
+  // Requirement #17/#22: a dispute means this order's money can no longer
+  // be treated as a closed, successful case — put it back under review
+  // even if it had already been auto-settled to the seller.
+  if (order.settlementStatus === 'SELLER_PAYOUT_PENDING' || order.settlementStatus === 'SELLER_PAID') {
+    await settlementService.moveSettlementToReview(order.id, order, `Buyer opened a delivery dispute: ${input.reason}`, {
+      id: user.id,
+      role: 'CUSTOMER',
+    });
+  }
 
   const refreshedOrder = await prisma.order.findUniqueOrThrow({ where: { id: order.id } });
   emitOrderUpdate(refreshedOrder);
 
   // Notify the seller(s) — they can't act on it directly (admin owns
   // dispute resolution) but should know their delivery is being questioned.
+  const sellerIds = [...new Set(order.items.map((i) => i.product?.sellerId).filter((id): id is string => Boolean(id)))];
   await Promise.all(
     sellerIds.map((sellerId: string) =>
       notifyUser({

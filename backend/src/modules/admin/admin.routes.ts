@@ -14,19 +14,19 @@ import {
   sellerBalancesQuerySchema,
   createPayoutSchema,
   listPayoutsQuerySchema,
-  listShipmentsQuerySchema,
-  flagShipmentSchema,
+  listAllOrdersQuerySchema,
   listDisputesQuerySchema,
   reviewDisputeSchema,
 } from './admin.validation';
+import { decideSettlementSchema, confirmRefundSchema, correctSettlementSchema } from '../order/order.validation';
 
 const router = Router();
 
 const idParamSchema = z.object({ id: z.string().uuid() });
-// Shipment/dispute endpoints below take an order id/number or a dispute
-// id — not always a UUID (orders can be addressed by their human-readable
-// order number, same as everywhere else in the order module), so these use
-// a looser param schema than idParamSchema above.
+// Order/dispute endpoints below take an order id/number or a dispute id —
+// not always a UUID (orders can be addressed by their human-readable order
+// number, same as everywhere else in the order module), so these use a
+// looser param schema than idParamSchema above.
 const looseIdParamSchema = z.object({ id: z.string().trim().min(1) });
 
 // Every route in this module is admin-only.
@@ -93,7 +93,7 @@ router.get('/sellers/:id/balance', validate({ params: idParamSchema }), controll
  * /admin/sellers/{id}/payouts:
  *   post:
  *     tags: [Admin]
- *     summary: Record a payout sent to a seller (server re-validates the amount against their current balance)
+ *     summary: Record a payout sent to a seller (server re-validates the amount against their current balance, then reconciles it against their oldest pending settlements)
  */
 router.post(
   '/sellers/:id/payouts',
@@ -113,32 +113,48 @@ router.get('/payouts', validate({ query: listPayoutsQuerySchema }), controller.l
 /** PATCH /admin/payouts/:id/reverse — correct a mistaken payout entry without deleting the audit row */
 router.patch('/payouts/:id/reverse', validate({ params: idParamSchema }), controller.reversePayout);
 
-// --- Shipment management (requirement #10) --------------------------------
+// --- All-orders management (requirement #11/#12/#13) ------------------------
 
 /**
  * @openapi
- * /admin/shipments:
+ * /admin/orders:
  *   get:
  *     tags: [Admin]
- *     summary: Platform-wide shipment list — order/product/buyer/seller/courier/AWB, status, pickup confirmation, last event, last sync, delivery, dispute status, risk flags
+ *     summary: Every order on the platform, server-side paginated — searchable by order number/AWB/seller/buyer, filterable by
+ *       order status, settlement status, payment status, and courier.
  */
-router.get('/shipments', validate({ query: listShipmentsQuerySchema }), controller.listShipments);
+router.get('/orders', validate({ query: listAllOrdersQuerySchema }), controller.listAllOrders);
 
-/** GET /admin/shipments/risk-signals — recent repeated-invalid-AWB / repeated-dispute flags by seller (requirement #11) */
-router.get('/shipments/risk-signals', controller.listRiskSignals);
-
-/** GET /admin/shipments/:id — full tracking timeline + audit trail for one order's shipment */
-router.get('/shipments/:id', validate({ params: looseIdParamSchema }), controller.getShipmentDetail);
+/** GET /admin/orders/:id — full order detail: buyer, seller, payment breakdown, shipment, settlement history, audit trail */
+router.get('/orders/:id', validate({ params: looseIdParamSchema }), controller.getOrderAdminDetail);
 
 /**
  * @openapi
- * /admin/shipments/{id}/flag:
+ * /admin/orders/{id}/settlement:
  *   post:
  *     tags: [Admin]
- *     summary: Flag a shipment for investigation. Deliberately the ONLY shipment field an admin can write — courier-derived
- *       status/events/timestamps are never editable here.
+ *     summary: Decide an order's settlement — REFUND_BUYER (full amount paid) or PAY_SELLER (product amount only). Only valid
+ *       while the order's settlement is PENDING_REVIEW; requires a reason.
  */
-router.post('/shipments/:id/flag', validate({ params: looseIdParamSchema, body: flagShipmentSchema }), controller.flagShipment);
+router.post(
+  '/orders/:id/settlement',
+  validate({ params: looseIdParamSchema, body: decideSettlementSchema }),
+  controller.decideSettlement
+);
+
+/** POST /admin/orders/:id/settlement/refund-confirm — mark an approved buyer refund as actually issued */
+router.post(
+  '/orders/:id/settlement/refund-confirm',
+  validate({ params: looseIdParamSchema, body: confirmRefundSchema }),
+  controller.confirmBuyerRefund
+);
+
+/** POST /admin/orders/:id/settlement/correct — reopen a decided settlement for review (requirement #25: never silently overwrite) */
+router.post(
+  '/orders/:id/settlement/correct',
+  validate({ params: looseIdParamSchema, body: correctSettlementSchema }),
+  controller.correctSettlement
+);
 
 // --- Dispute review (requirement #9) ---------------------------------------
 

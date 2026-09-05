@@ -1,4 +1,4 @@
-import { PackageCheck, User, X, ChevronRight, AlertTriangle, Clock } from 'lucide-react'
+import { PackageCheck, User, X, ChevronRight } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/common/Button'
@@ -17,6 +17,7 @@ const STATUS_STYLES: Record<string, string> = {
   shipped: 'bg-brand-50 text-brand-700',
   out_for_delivery: 'bg-amber-100 text-amber-800',
   delivered: 'bg-brand-100 text-brand-800',
+  delivery_failed: 'bg-danger-50 text-danger-600',
   disputed: 'bg-amber-100 text-amber-800',
 }
 
@@ -27,6 +28,7 @@ export default function SellerOrdersPage() {
   const [selectedCarrierCode, setSelectedCarrierCode] = useState('')
   const [customCarrierName, setCustomCarrierName] = useState('')
   const [trackingNumber, setTrackingNumber] = useState('')
+  const [shipmentNote, setShipmentNote] = useState('')
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -62,10 +64,12 @@ export default function SellerOrdersPage() {
         carrierCode: selectedCarrierCode,
         awb: trackingNumber.trim(),
         carrierName: selectedCarrierCode === 'OTHER' ? customCarrierName.trim() : undefined,
+        note: shipmentNote.trim() || undefined,
       })
       setConfirmingOrderId(null)
       setTrackingNumber('')
       setCustomCarrierName('')
+      setShipmentNote('')
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not submit this AWB. Double-check the carrier and number.'))
     }
@@ -110,20 +114,9 @@ export default function SellerOrdersPage() {
                 <p className="mt-1 text-xs text-ink-500">{order.itemsLabel}</p>
                 {order.shipment && (
                   <div className="mt-1.5 flex items-center gap-1.5 text-[11px]">
-                    {order.shipment.verified ? (
-                      <span className="flex items-center gap-1 font-medium text-brand-700">AWB {order.shipment.awb} · verified</span>
-                    ) : (
-                      <span className="flex items-center gap-1 font-medium text-amber-700">
-                        <Clock className="h-3 w-3" aria-hidden="true" />
-                        AWB {order.shipment.awb} · verifying…
-                      </span>
-                    )}
-                    {order.shipment.flaggedForReview && (
-                      <span className="flex items-center gap-1 font-medium text-danger-500">
-                        <AlertTriangle className="h-3 w-3" aria-hidden="true" />
-                        Flagged
-                      </span>
-                    )}
+                    <span className="flex items-center gap-1 font-medium text-brand-700">
+                      Shipped via {order.shipment.carrierName ?? order.shipment.carrierCode} · AWB {order.shipment.awb}
+                    </span>
                   </div>
                 )}
                 <div className="mt-3 grid grid-cols-[1fr,auto] gap-x-4 gap-y-1">
@@ -148,7 +141,7 @@ export default function SellerOrdersPage() {
                   <div className="mb-3 flex items-start justify-between gap-3">
                     <div>
                       <p className="text-sm font-semibold text-ink-900">Enter AWB & Ship Order</p>
-                      <p className="mt-0.5 text-xs text-ink-600">Select the delivery carrier and enter the AWB / tracking number. We'll verify it with the carrier before confirming the order.</p>
+                      <p className="mt-0.5 text-xs text-ink-600">Select the delivery carrier and enter the AWB / tracking number. The order will be marked shipped and the buyer notified right away.</p>
                     </div>
                     <button type="button" aria-label="Close confirmation form" onClick={() => setConfirmingOrderId(null)} className="text-ink-500 hover:text-ink-900">
                       <X className="h-4 w-4" aria-hidden="true" />
@@ -192,12 +185,23 @@ export default function SellerOrdersPage() {
                     value={trackingNumber}
                     onChange={(event) => setTrackingNumber(event.target.value.toUpperCase())}
                     placeholder="e.g. 1234567890"
-                    minLength={6}
+                    minLength={4}
                     maxLength={40}
                     required
-                    hint="6–40 characters"
+                    hint="4–40 characters"
                     error={error || undefined}
                   />
+
+                  <div className="mt-3">
+                    <TextField
+                      id={`shipment-note-${order.id}`}
+                      label="Note (optional)"
+                      value={shipmentNote}
+                      onChange={(event) => setShipmentNote(event.target.value)}
+                      placeholder="e.g. Handed to courier at the local branch"
+                      maxLength={500}
+                    />
+                  </div>
 
                   <div className="mt-3 flex gap-2">
                     <Button type="submit" className="h-9 px-4 text-xs" loading={isUpdatingOrder}>

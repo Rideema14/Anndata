@@ -22,23 +22,9 @@ const router = Router();
 // service layer resolves whichever one it gets.
 const idParamSchema = z.object({ id: z.string().trim().min(1) });
 
-/**
- * @openapi
- * /orders/webhooks/track17:
- *   post:
- *     tags: [Orders]
- *     summary: 17TRACK push-webhook (not user-authenticated; verified via a shared token query param — see tracking.service.ts)
- */
-// No `authenticate` here — 17TRACK's servers call this directly. 17TRACK
-// doesn't sign its webhook payloads, so authentication is a shared-secret
-// token in the query string instead (see verifyTrack17WebhookToken in
-// tracking.service.ts). Mirrors payment.routes.ts's Razorpay webhook,
-// registered before `authenticate` for the same reason.
-router.post('/webhooks/track17', controller.track17Webhook);
-
 router.use(authenticate);
 
-/** GET /orders/carriers — list supported carriers for the dropdown */
+/** GET /orders/carriers — list supported delivery platforms for the seller shipment-form dropdown (requirement #4) */
 router.get('/carriers', controller.getCarriers);
 
 /** GET /orders/disputes/mine — the current user's own disputes (must be registered before the generic /:id routes below) */
@@ -58,24 +44,22 @@ router.post('/checkout', validate({ body: checkoutSchema }), controller.checkout
  * /orders:
  *   get:
  *     tags: [Orders]
- *     summary: List the current user's orders (or all orders, for admins)
+ *     summary: List the current user's orders (or all orders, for admins — see also GET /admin/orders for the full admin management view)
  */
 router.get('/', validate({ query: listOrdersQuerySchema }), controller.list);
-
-/** GET /orders/:id/tracking — shipment event timeline */
-router.get('/:id/tracking', validate({ params: idParamSchema }), controller.getTracking);
 
 /** GET /orders/:id/seller-detail — seller/admin fulfillment view, items filtered to the requesting seller's own products */
 router.get('/:id/seller-detail', authorize('SELLER', 'ADMIN'), validate({ params: idParamSchema }), controller.getSellerOrderDetail);
 
-/** GET /orders/:id/shipment — full shipment detail (status, verification, courier timeline) */
+/** GET /orders/:id/shipment — shipment detail (courier, AWB, official tracking link) */
 router.get('/:id/shipment', validate({ params: idParamSchema }), controller.getShipment);
 
 /**
- * POST /orders/:id/shipment — seller submits the AWB for an order
- * (requirement #2/#18). This is the seller's ONLY write path for shipment
- * data; every subsequent status change (pickup, transit, delivery) comes
- * exclusively from the courier via tracking.service.ts.
+ * POST /orders/:id/shipment — seller submits the courier + AWB for an order
+ * (requirement #2/#3). This is the seller's ONLY write path for shipment
+ * data — submitting moves the order straight to SHIPPED. Every subsequent
+ * status change is a manual admin action (PATCH /orders/:id/status or the
+ * admin order-detail screen) since there is no automatic tracking provider.
  */
 router.post(
   '/:id/shipment',
@@ -94,8 +78,8 @@ router.get('/:id', validate({ params: idParamSchema }), controller.getOne);
  * /orders/{id}/status:
  *   patch:
  *     tags: [Orders]
- *     summary: Admin-only manual order status override — pushes a live update over Socket.IO. Sellers no longer have access to
- *       this endpoint; see POST /orders/{id}/shipment for their (courier-verified) shipment submission flow instead.
+ *     summary: Admin-only manual order status override. Sellers have no access to this endpoint; see POST /orders/{id}/shipment for
+ *       their shipment submission flow instead.
  */
 router.patch(
   '/:id/status',

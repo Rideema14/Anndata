@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { AlertTriangle, Check, ChevronLeft, ExternalLink, MapPin, Radio, Truck, Wallet } from 'lucide-react'
+import { AlertTriangle, Check, CheckCircle2, ChevronLeft, ExternalLink, MapPin, Truck, Wallet } from 'lucide-react'
 import { Button } from '@/components/common/Button'
 import { STATUS_SEQUENCE, useOrders } from '@/context/OrderContext'
 import { orderService } from '@/services/orderService'
 import { getApiErrorMessage } from '@/services/api'
-import type { Order, ShipmentEvent } from '@/types'
+import type { Order } from '@/types'
 import { useLanguage, type TranslationKey } from '@/context/LanguageContext'
-import { formatINR, formatDateLabel, formatDateTimeLabel } from '@/utils/format'
+import { formatINR, formatDateLabel } from '@/utils/format'
 import { cn } from '@/utils/cn'
 
 const STAGE_KEYS: Record<string, TranslationKey> = {
@@ -23,32 +23,17 @@ const ORDER_STATUS_KEYS: Record<string, TranslationKey> = {
   disputed: 'orders.statusDisputed',
   cancelled: 'orders.statusCancelled',
   returned: 'orders.statusReturned',
+  delivery_failed: 'orders.statusDeliveryFailed',
 }
 
-const CARRIER_NAMES: Record<string, string> = {
-  DELHIVERY: 'Delhivery',
-  BLUEDART: 'BlueDart',
-  DTDC: 'DTDC',
-  INDIA_POST: 'India Post',
-  EKART: 'Ekart Logistics',
-  XPRESSBEES: 'XpressBees',
-  SHADOWFAX: 'Shadowfax',
-  ECOM_EXPRESS: 'Ecom Express',
-  PROFESSIONAL: 'Professional Couriers',
-}
-
-function formatCarrierName(carrier?: string | null): string {
-  if (!carrier || carrier.toUpperCase() === 'OTHER') return 'Delivery Partner'
-  const key = carrier.toUpperCase().replace(/\s+/g, '_')
-  return CARRIER_NAMES[key] || carrier
-}
+/** Off-the-happy-path statuses shown as a plain message instead of the stepper — every one of these needs (or already got) an admin decision, not a customer-visible progress bar. */
+const OFF_PATH_STATUSES = ['cancelled', 'returned', 'delivery_failed']
 
 export default function OrderDetailsPage() {
   const { id } = useParams<{ id: string }>()
   const { refresh: refreshOrders } = useOrders()
   const { t } = useLanguage()
   const [order, setOrder] = useState<Order | null>(null)
-  const [events, setEvents] = useState<ShipmentEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [cancelling, setCancelling] = useState(false)
   const [error, setError] = useState('')
@@ -58,21 +43,14 @@ export default function OrderDetailsPage() {
   const [disputeSubmitting, setDisputeSubmitting] = useState(false)
   const [disputeError, setDisputeError] = useState('')
 
-  // Fetch order and tracking timeline
   useEffect(() => {
     if (!id) return
     let cancelled = false
 
-    async function loadData() {
+    async function loadOrder() {
       try {
         const fetchedOrder = await orderService.getOne(id!)
-        if (cancelled) return
-        setOrder(fetchedOrder)
-
-        if (fetchedOrder.trackingNumber) {
-          const fetchedEvents = await orderService.getTracking(id!)
-          if (!cancelled) setEvents(fetchedEvents)
-        }
+        if (!cancelled) setOrder(fetchedOrder)
       } catch (err) {
         if (!cancelled) setError(getApiErrorMessage(err, 'Failed to load order details.'))
       } finally {
@@ -80,20 +58,22 @@ export default function OrderDetailsPage() {
       }
     }
 
-    loadData()
+    loadOrder()
 
-    // Poll for live updates every 8 seconds if order is active and tracked
+    // Light periodic refresh so an admin's manual status update (e.g. marking
+    // delivered, or a settlement decision) shows up without a manual reload —
+    // there's no live courier feed anymore, just occasional admin actions.
     const interval = setInterval(() => {
-      if (order && !['delivered', 'disputed', 'cancelled', 'returned'].includes(order.status) && order.trackingNumber) {
-        loadData()
+      if (order && !OFF_PATH_STATUSES.includes(order.status) && order.status !== 'delivered') {
+        loadOrder()
       }
-    }, 8000)
+    }, 15000)
 
     return () => {
       cancelled = true
       clearInterval(interval)
     }
-  }, [id, order?.status, order?.trackingNumber])
+  }, [id, order?.status])
 
   async function handleCancel() {
     if (!id) return
@@ -142,16 +122,16 @@ export default function OrderDetailsPage() {
     )
   }
 
-  const isTerminalOffPath = order.status === 'cancelled' || order.status === 'returned'
-  // A dispute can only ever be opened on an order the courier already
-  // marked delivered — treat it as "delivered" for the stepper so the
-  // buyer still sees their full delivery journey, with the dispute called
-  // out separately below rather than resetting the progress bar.
+  const isOffPath = OFF_PATH_STATUSES.includes(order.status)
+  // A dispute can only ever be opened on an order already marked delivered —
+  // treat it as "delivered" for the stepper so the buyer still sees their
+  // full delivery journey, with the dispute called out separately below
+  // rather than resetting the progress bar.
   const currentIndex = STATUS_SEQUENCE.indexOf(order.status === 'disputed' ? 'delivered' : order.status)
   const canCancel = order.status === 'placed'
-  const carrierName = formatCarrierName(order.trackingCarrier)
   const openDispute = order.disputes?.find((d) => d.status === 'OPEN' || d.status === 'UNDER_REVIEW')
   const canReportProblem = order.status === 'delivered' && !openDispute
+  const carrierName = order.shipment?.carrierName || order.shipment?.carrierCode
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-5 md:px-6 md:py-8">
@@ -168,71 +148,68 @@ export default function OrderDetailsPage() {
         <p className="text-lg font-bold text-ink-900">{formatINR(order.total)}</p>
       </div>
 
-      {/* Tracking Card */}
-      {order.trackingNumber && (
-        <section className="mb-5 rounded-2xl border-2 border-brand-200 bg-brand-50/70 p-5" aria-label="Shipment tracking">
+      {/* Refund status — only shown once a settlement decision has actually been made in the buyer's favor */}
+      {(order.settlementStatus === 'buyer_refund_pending' || order.settlementStatus === 'buyer_refunded') && (
+        <section
+          className={cn(
+            'mb-5 flex items-start gap-3 rounded-2xl border-2 p-4',
+            order.settlementStatus === 'buyer_refunded' ? 'border-brand-200 bg-brand-50' : 'border-sky-200 bg-sky-50',
+          )}
+        >
+          {order.settlementStatus === 'buyer_refunded' ? (
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-brand-600" aria-hidden="true" />
+          ) : (
+            <Wallet className="mt-0.5 h-5 w-5 shrink-0 text-sky-600" aria-hidden="true" />
+          )}
+          <div className="min-w-0 flex-1 text-sm">
+            <p className={cn('font-semibold', order.settlementStatus === 'buyer_refunded' ? 'text-brand-900' : 'text-sky-900')}>
+              {order.settlementStatus === 'buyer_refunded' ? 'Refund issued' : 'Refund approved'}
+            </p>
+            <p className={cn('mt-0.5', order.settlementStatus === 'buyer_refunded' ? 'text-brand-800' : 'text-sky-800')}>
+              {order.settlementStatus === 'buyer_refunded'
+                ? `A full refund of ${formatINR(order.total)} for this order has been issued.`
+                : `A full refund of ${formatINR(order.total)} has been approved for this order and will be processed shortly.`}
+            </p>
+          </div>
+        </section>
+      )}
+
+      {/* Shipping / tracking */}
+      {order.shipment && (
+        <section className="mb-5 rounded-2xl border-2 border-brand-200 bg-brand-50/70 p-5" aria-label="Shipment details">
           <div className="flex items-start gap-3.5">
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand-600 text-white shadow-sm">
               <Truck className="h-5 w-5" aria-hidden="true" />
             </span>
             <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-bold uppercase tracking-wider text-brand-700">Shipment Tracking</p>
-                {!['delivered', 'cancelled', 'returned'].includes(order.status) && (
-                  <span className="flex items-center gap-1.5 rounded-full bg-brand-200/60 px-2 py-0.5 text-[10px] font-semibold text-brand-800">
-                    <Radio className="h-3 w-3 animate-pulse text-brand-600" />
-                    Live Updates
-                  </span>
-                )}
-              </div>
-              <p className="mt-1 text-sm font-semibold text-ink-900">{carrierName} Shipment</p>
-              <p className="mt-0.5 break-all text-xl font-extrabold tracking-wide text-brand-900">{order.trackingNumber}</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-brand-700">Delivery Information</p>
+              <p className="mt-1 text-sm font-semibold text-ink-900">{carrierName}</p>
+              <p className="mt-0.5 break-all text-xl font-extrabold tracking-wide text-brand-900">{order.shipment.awb}</p>
 
-              {order.trackingUrl && (
+              {order.shipment.trackingUrl && (
                 <a
-                  href={order.trackingUrl}
+                  href={order.shipment.trackingUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-brand-700 hover:underline"
                 >
-                  {carrierName !== 'Delivery Partner' ? `Track on ${carrierName} website` : 'Open Official Tracking Page'} <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                  {order.shipment.trackingUrlIsDirect ? `Track on ${carrierName}` : 'Open Official Tracking Page'} <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
                 </a>
               )}
+              {order.shipment.trackingUrl && !order.shipment.trackingUrlIsDirect && (
+                <p className="mt-1 text-[11px] text-ink-500">Enter AWB {order.shipment.awb} on that page to check status.</p>
+              )}
+              <p className="mt-3 text-[11px] text-ink-500">
+                Delivery is confirmed by our team once verified with the courier — this page will update automatically.
+              </p>
             </div>
           </div>
-
-          {/* Granular Tracking Events Timeline */}
-          {events.length > 0 && (
-            <div className="mt-5 border-t border-brand-200/60 pt-4">
-              <p className="mb-3 text-xs font-bold uppercase tracking-wider text-ink-700">Tracking Activity</p>
-              <div className="relative pl-4 space-y-4 before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-brand-200">
-                {events.map((evt, idx) => {
-                  const isLatest = idx === events.length - 1
-                  return (
-                    <div key={evt.id || idx} className="relative flex items-start gap-3 text-xs">
-                      <span
-                        className={cn(
-                          'absolute -left-4 top-1 h-3 w-3 rounded-full border-2 border-white',
-                          isLatest ? 'bg-brand-600 ring-2 ring-brand-300' : 'bg-brand-400',
-                        )}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className={cn('font-semibold', isLatest ? 'text-brand-900' : 'text-ink-800')}>{evt.description}</p>
-                        {evt.location && <p className="text-[11px] text-ink-500">{evt.location}</p>}
-                        <p className="mt-0.5 text-[10px] text-ink-400">{formatDateTimeLabel(evt.eventTime)}</p>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
         </section>
       )}
 
       {/* Main Stepper Tracker */}
       <div className="mb-6 rounded-2xl border border-ink-100 bg-surface p-4">
-        {isTerminalOffPath ? (
+        {isOffPath ? (
           <p className={cn('text-sm font-semibold', order.status === 'cancelled' ? 'text-danger-500' : 'text-ink-500')}>
             {t('orders.orderWas')} {t(ORDER_STATUS_KEYS[order.status]).toLowerCase()}.
           </p>

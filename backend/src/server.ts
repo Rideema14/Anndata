@@ -21,7 +21,6 @@ const { initSocket } = require('./config/socket');
 const logger = require('./common/utils/logger').default;
 
 const {startMetadataSync} = require("./jobs/metadataSync")
-const {startTrackingCron} = require("./jobs/trackingCron")
 const {startMandiDailyCron} = require("./jobs/mandiDailyCron")
 
 const server = http.createServer(app);
@@ -30,9 +29,10 @@ initSocket(server);
 server.listen(env.port, () => {
   logger.info(`Agri Marketplace API listening on port ${env.port} [${env.nodeEnv}]`);
   logger.info(`Swagger docs: http://localhost:${env.port}/api-docs`);
-  
-  // Start tracking cron in all environments (simulation mode works locally)
-  startTrackingCron();
+
+  // NOTE: there is no more shipment-tracking cron job — 17TRACK has been
+  // removed. Shipments are seller-submitted and manually verified by
+  // admins (see order/courier.config.ts and order/shipment.service.ts).
 
   if (env.nodeEnv === 'production') {
     // startMetadataSync();

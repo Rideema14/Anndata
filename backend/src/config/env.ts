@@ -128,42 +128,11 @@ export const env = {
     baseUrl: process.env.DATA_GOV_IN_BASE_URL || 'https://api.data.gov.in/resource',
   },
 
-  tracking: {
-    // Provider: 17TRACK (17track.net) — not TrackingMore, not KeyDelivery.
-    // TrackingMore's live Tracking API/Webhook access moved off its
-    // permanent Free plan in mid-2026. KeyDelivery's registration flow
-    // stopped working reliably after that. 17TRACK still offers a real
-    // Tracking API + webhook on a free quota with no card required — sign
-    // up at https://api.17track.net, then get your key at
-    // https://api.17track.net/admin/settings. Unlike KeyDelivery, there's no
-    // per-account carrier-ID lookup step: 17TRACK's carrier codes are a
-    // fixed public list, hardcoded in tracking.service.ts.
-    // Leave TRACK17_API_KEY blank in dev to run with format-validation only
-    // (AWBs won't be verified against a real carrier, and shipments stay
-    // flagged "provider unavailable" until synced). Set TRACKING_SIMULATE=true
-    // instead to auto-verify AWBs and generate a fake but internally-
-    // consistent tracking timeline for development/testing — this is the
-    // same simulation the seed script uses, and it never runs when
-    // TRACK17_API_KEY is set.
-    apiKey: process.env.TRACK17_API_KEY,
-    simulate: process.env.TRACKING_SIMULATE === 'true',
-    pollIntervalMinutes: parseInt(process.env.TRACKING_POLL_MINUTES || '10', 10),
-    // 17TRACK pushes to a single webhook URL you register once in its
-    // dashboard (Settings page) — unlike KeyDelivery, it's not passed
-    // per-request. Set this to your public webhook endpoint including the
-    // shared token below as a query param, e.g.
-    // https://api.yourapp.com/api/v1/orders/webhooks/track17?token=<TRACKING_WEBHOOK_TOKEN>,
-    // and paste that exact URL into the 17TRACK dashboard once. Leave both
-    // unset to run on scheduled polling only (the cron job is the fallback
-    // either way).
-    webhookUrl: process.env.TRACKING_WEBHOOK_URL,
-    // 17TRACK's webhook payload carries NO signature of its own (same
-    // situation as KeyDelivery) — see tracking.service.ts's
-    // verifyTrack17WebhookToken(). We authenticate inbound webhook calls
-    // ourselves via this shared-secret token appended to webhookUrl above.
-    // Generate any random string for it.
-    webhookToken: process.env.TRACKING_WEBHOOK_TOKEN,
-  },
+  // NOTE: there is no third-party shipment-tracking provider integration
+  // anymore (17TRACK has been fully removed). Shipment tracking is now
+  // seller-submitted (courier + AWB — see order/courier.config.ts) and
+  // manually verified by admins via the official courier tracking link;
+  // there is no API key, webhook, or cron config left to set for it.
 
   gemini: {
     apiKey: process.env.GEMINI_API_KEY as string,

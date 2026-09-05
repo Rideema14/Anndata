@@ -36,6 +36,12 @@ enum OrderStatus {
   SHIPPED
   OUT_FOR_DELIVERY
   DELIVERED
+  // Seller shipped, but the shipment could not be successfully delivered
+  // (courier attempt failed, lost parcel, refused, etc.) — surfaced by the
+  // admin while manually monitoring the shipment (no more automatic
+  // tracking provider). Always pushes the order's settlement into
+  // PENDING_REVIEW; see SettlementStatus below.
+  DELIVERY_FAILED
   CANCELLED
   RETURNED
   // Set only when a customer opens a delivery dispute on a DELIVERED order
@@ -45,21 +51,25 @@ enum OrderStatus {
   DISPUTED
 }
 
-// Courier-derived shipment lifecycle — deliberately separate from the
-// coarser OrderStatus above. This is the fine-grained state the tracking
-// provider reports; Order.status is derived from it (see
-// tracking.service.ts) but customers/sellers still see this level of
-// detail on the shipment timeline.
-enum ShipmentStatus {
-  AWB_SUBMITTED // Seller has entered the AWB; not yet verified with the carrier.
-  AWB_VERIFIED // Tracking provider (or simulation) confirms the AWB exists.
-  PICKUP_CONFIRMED // Carrier has scanned the package as picked up from the seller.
-  IN_TRANSIT
-  OUT_FOR_DELIVERY
-  DELIVERED
-  DELIVERY_FAILED
-  RETURNED
-  EXCEPTION
+// ---------------------------------------------------------------------------
+// Settlement — who ultimately gets the money for an order (see Settlement
+// model below). Deliberately kept separate from OrderStatus (courier/
+// fulfillment outcome) and PaymentStatus (gateway state): an order can be
+// DELIVERY_FAILED + PAID + PENDING_REVIEW all at once, and that's valid.
+// ---------------------------------------------------------------------------
+
+enum SettlementStatus {
+  NOT_ELIGIBLE // Nothing to settle yet (order unpaid, or still in flight).
+  PENDING_REVIEW // Order needs an admin decision (failed/returned/cancelled-after-payment/disputed).
+  SELLER_PAYOUT_PENDING // Decided in the seller's favor — counted in their payable balance, not yet paid out.
+  SELLER_PAID // Seller has actually been paid out (see Payout) for this order's eligible amount.
+  BUYER_REFUND_PENDING // Decided in the buyer's favor — refund owed, not yet issued.
+  BUYER_REFUNDED // Buyer has actually been refunded.
+}
+
+enum SettlementDecision {
+  REFUND_BUYER
+  PAY_SELLER
 }
 
 enum DisputeStatus {
@@ -232,6 +242,7 @@ model User {
   payoutsRecorded        Payout[]                        @relation("PayoutRecordedBy")
   shipmentsAsSeller      Shipment[]                      @relation("ShipmentSeller")
   disputesRaised         Dispute[]                       @relation("DisputeRaisedBy")
+  settlementsReceived    Settlement[]                    @relation("SettlementSeller")
 
   @@index([email])
   @@map("users")
@@ -484,30 +495,28 @@ model Order {
   discount    Decimal @default(0) @db.Decimal(12, 2)
   totalAmount Decimal @db.Decimal(12, 2)
 
-  notes            String?
-  cancelReason     String?
-  trackingCarrier  String?
-  trackingNumber   String?
-  lastTrackingSync DateTime?
+  notes        String?
+  cancelReason String?
+
+  // Cached "current" settlement state for this order — always equal to the
+  // most recent Settlement row's status (see Settlement below), kept here
+  // too purely so listing/filtering orders doesn't need a join/subquery.
+  settlementStatus SettlementStatus @default(NOT_ELIGIBLE)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  items          OrderItem[]
-  statusHistory  OrderStatusHistory[]
-  shipmentEvents ShipmentEvent[]
-  payment        Payment?
-  // Authoritative shipment record (courier, AWB, verification, pickup/
-  // delivery confirmation) — see Shipment below. The trackingCarrier/
-  // trackingNumber/lastTrackingSync columns above are kept in sync from it
-  // purely so existing reads of the Order object don't break; new code
-  // should read/write through `shipment`.
-  shipment       Shipment?
-  disputes       Dispute[]
+  items         OrderItem[]
+  statusHistory OrderStatusHistory[]
+  payment       Payment?
+  // Seller-submitted shipment record (courier + AWB) — see Shipment below.
+  shipment      Shipment?
+  disputes      Dispute[]
+  settlements   Settlement[]
 
   @@index([userId])
   @@index([status])
-  @@index([trackingNumber])
+  @@index([settlementStatus])
   @@map("orders")
 }
 
@@ -542,89 +551,38 @@ model OrderStatusHistory {
   @@map("order_status_history")
 }
 
-model ShipmentEvent {
-  id          String    @id @default(uuid())
-  orderId     String
-  order       Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  // Nullable only so the migration can backfill this column onto historical
-  // rows created before the Shipment table existed; every event created by
-  // the app from here on always sets it.
-  shipmentId  String?
-  shipment    Shipment? @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
-  status      String // e.g. "InTransit", "OutForDelivery", "Delivered"
-  description String // e.g. "Shipment arrived at Mumbai Hub"
-  location    String? // e.g. "Mumbai, Maharashtra"
-  eventTime   DateTime // When the event actually happened at the carrier
-  source      String    @default("TRACKING_API") // "TRACKING_API" | "SIMULATION" | "ADMIN"
-  // Raw provider payload for this event, kept for audit/debugging — never
-  // shown to buyers/sellers, never used to let anyone rewrite history.
-  raw         Json?
-  createdAt   DateTime  @default(now())
-
-  @@index([orderId])
-  @@index([shipmentId])
-  @@map("shipment_events")
-}
-
-// The authoritative shipment record for an order. One shipment per order —
-// this project's Order (like the rest of the marketplace) is not split
-// per-seller, so "the seller who shipped it" is recorded on the shipment
-// itself (sellerId) rather than implying every item necessarily belongs to
-// one seller. Courier-reported fields (status, pickupConfirmedAt,
-// deliveredAt, ...) are only ever written by tracking.service.ts —
-// never directly by a seller-facing endpoint.
+// The seller-submitted shipment record for an order. One shipment per
+// order (matches this project's Order model, which is not split
+// per-seller) — courier + AWB, submitted exactly once by the seller and
+// never auto-updated by any tracking provider (17TRACK integration has
+// been removed — see courier.config.ts). The admin verifies delivery
+// manually via the official courier tracking link and moves the order
+// through OrderStatus/Settlement themselves; this row is never written to
+// after creation.
 model Shipment {
   id      String @id @default(uuid())
   orderId String @unique
   order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
-  // The seller who submitted the AWB (whichever seller on the order acted
-  // first) — nullable to tolerate the historical-data backfill in this
-  // feature's migration, where the original seller can't be reconstructed
-  // with certainty from the old flat orders.trackingCarrier/trackingNumber
-  // columns.
-  sellerId String?
-  seller   User?   @relation("ShipmentSeller", fields: [sellerId], references: [id])
+  sellerId String
+  seller   User   @relation("ShipmentSeller", fields: [sellerId], references: [id])
 
-  carrierCode String // one of tracking.service.ts's SUPPORTED_CARRIERS codes (incl. "OTHER" for local/unlisted couriers)
+  carrierCode String // one of courier.config.ts's SUPPORTED_COURIERS codes (incl. "OTHER" for local/unlisted couriers)
   carrierName String? // free-text display name, only meaningful when carrierCode = "OTHER"
   awb         String // seller-entered AWB/tracking number, as typed
   normalizedAwb String // uppercased/trimmed form of `awb`, used for duplicate-AWB detection
 
-  status ShipmentStatus @default(AWB_SUBMITTED)
+  shipmentDate DateTime? // optional — when the seller says the parcel was handed to the courier
+  note         String? // optional free-text note from the seller
 
-  // --- AWB verification (requirement: never trust seller input alone) -----
-  verified              Boolean   @default(false)
-  verifiedCarrierCode   String? // courier the tracking provider actually detected, if any
-  verificationAttempts  Int       @default(0)
-  lastVerificationError String?
-
-  // --- Pickup / delivery confirmation — courier-derived only --------------
-  pickupConfirmedAt DateTime?
-  deliveredAt       DateTime?
-  deliverySource    String? // "TRACKING_API" | "SIMULATION" — never "SELLER"
-  deliveryEvidence  Json? // OTP/recipient-confirmation details from the provider, when available
-
-  // --- Sync bookkeeping -----------------------------------------------------
-  lastSyncedAt     DateTime?
-  lastSyncError    String?
-  syncFailureCount Int       @default(0)
-
-  // --- Fraud / risk (rule-based — see shipment.constants.ts) --------------
-  flaggedForReview Boolean  @default(false)
-  riskFlags        String[] @default([])
-  riskNote         String?
-
-  metadata Json?
-
-  events ShipmentEvent[]
+  submittedById String // same as sellerId today, kept as its own column so an admin-entered correction is distinguishable later
+  submittedAt   DateTime @default(now())
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([normalizedAwb])
   @@index([carrierCode])
-  @@index([status])
   @@index([sellerId])
   @@map("shipments")
 }
@@ -684,6 +642,57 @@ model ShipmentAuditLog {
   @@index([action])
   @@index([createdAt])
   @@map("shipment_audit_logs")
+}
+
+// Who ultimately receives the money for an order. Append-only: every
+// settlement decision AND every correction/reversal of one creates a new
+// row (never edits/deletes a prior one — see settlement.service.ts), so the
+// full financial history survives. `isCurrent` marks the single latest row
+// for an order, which is what Order.settlementStatus always mirrors — kept
+// denormalized purely so seller-balance/reporting queries don't need a
+// window function to find "the" settlement for an order.
+model Settlement {
+  id      String @id @default(uuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  status   SettlementStatus
+  decision SettlementDecision?
+
+  // Recipient when decision = PAY_SELLER. Null for REFUND_BUYER (the
+  // recipient there is simply order.userId) and null while still
+  // PENDING_REVIEW (no decision made yet).
+  sellerId String?
+  seller   User?   @relation("SettlementSeller", fields: [sellerId], references: [id])
+
+  // Snapshot of the order's money at the moment of this settlement record,
+  // so the audit trail reads correctly even if something upstream changes.
+  buyerPaidTotal Decimal @db.Decimal(12, 2) // subtotal + platform charge + tax (+ shipping if any)
+  productAmount  Decimal @db.Decimal(12, 2) // the seller's eligible product-only amount
+  platformAmount Decimal @db.Decimal(12, 2) // platform's retained cut (never paid to the seller, never refunded from a partial settlement)
+  amount         Decimal @db.Decimal(12, 2) // the actual amount for THIS record's decision/recipient
+
+  reason String? // required for manual/exceptional decisions; optional for the automatic happy-path settlement
+
+  // True only for the automatic settlement created when an order is marked
+  // DELIVERED with no dispute/failure history — every other row here was
+  // an explicit admin decision.
+  isAutomatic Boolean @default(false)
+  isCurrent   Boolean @default(true)
+
+  paymentReference String? // e.g. the Payout.id or refund reference, once actually paid/refunded
+
+  resolvedById   String?
+  resolvedByRole String? // "ADMIN" | "SYSTEM"
+  resolvedAt     DateTime @default(now())
+
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+  @@index([status])
+  @@index([sellerId])
+  @@index([isCurrent])
+  @@map("settlements")
 }
 
 // ---------------------------------------------------------------------------

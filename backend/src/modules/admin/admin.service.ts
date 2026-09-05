@@ -5,6 +5,8 @@ import { parsePagination, buildPaginationMeta } from '../../common/utils/paginat
 import { notifyUser } from '../notification/notification.service';
 import { recordAudit } from '../order/auditLog.service';
 import { AUDIT_ACTIONS } from '../order/shipment.constants';
+import * as settlementService from '../order/settlement.service';
+import { getCourierTrackingLink } from '../order/courier.config';
 import type {
   ListUsersQuery,
   PlatformAnalyticsQuery,
@@ -13,8 +15,7 @@ import type {
   SellerBalancesQuery,
   CreatePayoutInput,
   ListPayoutsQuery,
-  ListShipmentsQuery,
-  FlagShipmentInput,
+  ListAllOrdersQuery,
   ListDisputesQuery,
   ReviewDisputeInput,
 } from './admin.validation';
@@ -196,10 +197,12 @@ export async function listAllProducts(query: AdminProductsQuery) {
 // There's no payment-gateway payout API wired up (e.g. Razorpay Route), so
 // an admin transfers a seller's earnings manually (bank transfer/UPI) and
 // records it here as an audit trail. A seller's outstanding "balance" is
-// defined as: revenue from their DELIVERED product orders + DELIVERED seed
-// orders + COMPLETED machinery bookings, minus the sum of their PAID
-// payouts. Cancelled/pending/in-flight sales don't count yet — only revenue
-// that's actually landed.
+// now defined by the settlement system (requirement #26): revenue from
+// their product orders + DELIVERED seed orders + COMPLETED machinery
+// bookings ONLY counts once a settlement has decided PAY_SELLER for that
+// order (either the automatic happy-path settlement, or an explicit admin
+// decision) — a merely-DELIVERED order with an open dispute or a
+// DELIVERY_FAILED order no longer counts on its own.
 
 interface SellerBalance {
   totalEarned: number;
@@ -210,11 +213,9 @@ interface SellerBalance {
 async function computeSellerBalance(sellerId: string): Promise<SellerBalance> {
   const rows = await prisma.$queryRaw<SellerBalance[]>`
     WITH product_revenue AS (
-      SELECT COALESCE(SUM(oi."totalPrice"), 0) AS revenue
-      FROM order_items oi
-      JOIN orders o ON o.id = oi."orderId"
-      JOIN products p ON p.id = oi."productId"
-      WHERE p."sellerId" = ${sellerId} AND o.status = 'DELIVERED'
+      SELECT COALESCE(SUM(amount), 0) AS revenue
+      FROM settlements
+      WHERE "sellerId" = ${sellerId} AND "isCurrent" = true AND decision = 'PAY_SELLER' AND status IN ('SELLER_PAYOUT_PENDING', 'SELLER_PAID')
     ),
     seed_revenue AS (
       SELECT COALESCE(SUM(soi."totalPrice"), 0) AS revenue
@@ -265,12 +266,10 @@ export async function getSellerBalances(query: SellerBalancesQuery) {
   const [items, countRows] = await Promise.all([
     prisma.$queryRaw<SellerBalanceRow[]>`
       WITH product_revenue AS (
-        SELECT p."sellerId" AS "sellerId", SUM(oi."totalPrice") AS revenue
-        FROM order_items oi
-        JOIN orders o ON o.id = oi."orderId"
-        JOIN products p ON p.id = oi."productId"
-        WHERE o.status = 'DELIVERED'
-        GROUP BY p."sellerId"
+        SELECT "sellerId", SUM(amount) AS revenue
+        FROM settlements
+        WHERE "isCurrent" = true AND decision = 'PAY_SELLER' AND status IN ('SELLER_PAYOUT_PENDING', 'SELLER_PAID')
+        GROUP BY "sellerId"
       ),
       seed_revenue AS (
         SELECT s."sellerId" AS "sellerId", SUM(soi."totalPrice") AS revenue
@@ -376,6 +375,13 @@ export async function createPayout(adminId: string, sellerId: string, input: Cre
     include: { paidBy: { select: { id: true, name: true } } },
   });
 
+  // Requirement #26: reconcile this payout against the seller's oldest
+  // eligible per-order settlements so the admin order table's "Settlement"
+  // column reflects SELLER_PAID instead of sitting at "pending" forever.
+  // Only covers product-order settlements — seed/machinery revenue has no
+  // per-order settlement row to reconcile against, same as before.
+  await settlementService.reconcilePayoutAgainstSettlements(sellerId, payout.id, input.amount);
+
   notifyUser({
     userId: sellerId,
     type: 'PAYMENT',
@@ -429,109 +435,103 @@ export async function reversePayout(payoutId: string) {
   return prisma.payout.update({ where: { id: payoutId }, data: { status: 'REVERSED' } });
 }
 
-// --- Shipment management (requirement #10) ------------------------------
+// --- All-orders management (requirement #11/#12/#13) -----------------------
+// Replaces the old 17TRACK-era shipment-only admin view. Every order on the
+// platform, searchable/filterable, server-side paginated — the admin never
+// gets a flat unpaginated dump (requirement #11).
 
-const ADMIN_SHIPMENT_INCLUDE = {
-  order: {
-    select: {
-      id: true,
-      orderNumber: true,
-      status: true,
-      user: { select: { id: true, name: true, email: true } },
-      items: { select: { productName: true, product: { select: { name: true } } } },
-      disputes: { select: { id: true, status: true }, orderBy: { createdAt: 'desc' as const }, take: 1 },
-    },
-  },
-  seller: { select: { id: true, name: true, email: true } },
-  events: { orderBy: { eventTime: 'desc' as const }, take: 1 },
-} satisfies Prisma.ShipmentInclude;
+const ADMIN_ORDER_LIST_INCLUDE = {
+  user: { select: { id: true, name: true, email: true } },
+  shipment: { select: { carrierCode: true, carrierName: true, awb: true, sellerId: true } },
+  payment: { select: { status: true, method: true } },
+  items: { select: { productName: true, product: { select: { sellerId: true, seller: { select: { id: true, name: true } } } } } },
+  disputes: { select: { id: true, status: true }, orderBy: { createdAt: 'desc' as const }, take: 1 },
+} satisfies Prisma.OrderInclude;
 
-export async function listShipments(query: ListShipmentsQuery) {
+export async function listAllOrders(query: ListAllOrdersQuery) {
   const { page, limit, skip, take } = parsePagination(query);
 
-  const where: Prisma.ShipmentWhereInput = {};
+  const where: Prisma.OrderWhereInput = {};
   if (query.status) where.status = query.status;
-  if (query.flagged !== undefined) where.flaggedForReview = query.flagged;
-  if (query.disputed !== undefined) {
-    where.order = { disputes: query.disputed ? { some: { status: { in: ['OPEN', 'UNDER_REVIEW'] } } } : { none: { status: { in: ['OPEN', 'UNDER_REVIEW'] } } } };
-  }
+  if (query.settlementStatus) where.settlementStatus = query.settlementStatus;
+  if (query.paymentStatus) where.payment = { status: query.paymentStatus };
+  if (query.carrierCode) where.shipment = { carrierCode: query.carrierCode };
   if (query.search) {
+    const search = query.search;
     where.OR = [
-      { normalizedAwb: { contains: query.search.toUpperCase() } },
-      { order: { orderNumber: { contains: query.search, mode: 'insensitive' } } },
+      { orderNumber: { contains: search, mode: 'insensitive' } },
+      { shipment: { normalizedAwb: { contains: search.toUpperCase() } } },
+      { user: { name: { contains: search, mode: 'insensitive' } } },
+      { items: { some: { product: { seller: { name: { contains: search, mode: 'insensitive' } } } } } },
     ];
   }
 
   const [items, totalItems] = await Promise.all([
-    prisma.shipment.findMany({
+    prisma.order.findMany({
       where,
-      include: ADMIN_SHIPMENT_INCLUDE,
-      orderBy: [{ flaggedForReview: 'desc' }, { updatedAt: 'desc' }],
+      include: ADMIN_ORDER_LIST_INCLUDE,
+      orderBy: [{ settlementStatus: 'asc' }, { createdAt: 'desc' }],
       skip,
       take,
     }),
-    prisma.shipment.count({ where }),
+    prisma.order.count({ where }),
   ]);
 
-  return { items, meta: buildPaginationMeta(page, limit, totalItems) };
+  // Flatten the distinct seller(s) per order for the table's "Seller" column.
+  const withSellers = items.map((order) => ({
+    ...order,
+    sellers: [...new Map(order.items.map((i) => [i.product?.seller?.id, i.product?.seller]).filter(([id]) => id)).values()],
+  }));
+
+  return { items: withSellers, meta: buildPaginationMeta(page, limit, totalItems) };
 }
 
-/** Full shipment detail for one order — complete tracking timeline plus the shipment audit trail (requirement #10/#12). */
-export async function getShipmentDetail(orderIdOrNumber: string) {
+/** Full order detail for the admin order-management screen (requirement #13) — buyer, seller, payment, shipment, settlement history, audit trail. */
+export async function getOrderAdminDetail(idOrNumber: string) {
   const order = await prisma.order.findFirst({
-    where: { OR: [{ id: orderIdOrNumber }, { orderNumber: orderIdOrNumber }] },
+    where: { OR: [{ id: idOrNumber }, { orderNumber: idOrNumber }] },
     include: {
       user: { select: { id: true, name: true, email: true, phone: true } },
-      items: { include: { product: { select: { id: true, name: true, sellerId: true } } } },
-      shipment: { include: { events: { orderBy: { eventTime: 'asc' } }, seller: { select: { id: true, name: true, email: true } } } },
+      address: true,
+      items: { include: { product: { select: { id: true, name: true, sellerId: true, seller: { select: { id: true, name: true, email: true, phone: true } }, images: { take: 1, orderBy: { sortOrder: 'asc' } } } }, variant: true } },
+      payment: true,
+      shipment: { include: { seller: { select: { id: true, name: true, email: true, phone: true } } } },
       disputes: { orderBy: { createdAt: 'desc' } },
       statusHistory: { orderBy: { changedAt: 'asc' } },
     },
   });
   if (!order) throw ApiError.notFound('Order not found.');
 
-  const auditLog = await prisma.shipmentAuditLog.findMany({
-    where: { orderId: order.id },
-    orderBy: { createdAt: 'asc' },
-  });
+  const [settlementHistory, auditLog] = await Promise.all([
+    settlementService.getSettlementHistory(order.id),
+    prisma.shipmentAuditLog.findMany({ where: { orderId: order.id }, orderBy: { createdAt: 'asc' } }),
+  ]);
 
-  return { order, auditLog };
+  // Requirement #13 — the admin order-detail screen gets the same ready-made
+  // official tracking link the buyer sees, so verifying delivery is one
+  // click away instead of the admin having to build the URL themselves.
+  const orderWithTrackingLink = order.shipment
+    ? {
+        ...order,
+        shipment: {
+          ...order.shipment,
+          trackingUrl: getCourierTrackingLink(order.shipment.carrierCode, order.shipment.awb).url || null,
+          trackingUrlIsDirect: getCourierTrackingLink(order.shipment.carrierCode, order.shipment.awb).isDirect,
+        },
+      }
+    : order;
+
+  return { order: orderWithTrackingLink, settlementHistory, auditLog };
 }
 
-/**
- * Admin manually flags a shipment for investigation (requirement #10/#11).
- * Deliberately the ONLY shipment write available to admins — status,
- * pickupConfirmedAt, deliveredAt, and every ShipmentEvent stay
- * courier-derived and are never exposed for direct editing here.
- */
-export async function flagShipmentForReview(orderIdOrNumber: string, admin: { id: string }, { note }: FlagShipmentInput) {
-  const order = await prisma.order.findFirst({
-    where: { OR: [{ id: orderIdOrNumber }, { orderNumber: orderIdOrNumber }] },
-    include: { shipment: true },
-  });
-  if (!order) throw ApiError.notFound('Order not found.');
-  if (!order.shipment) throw ApiError.badRequest('This order has no shipment yet.');
+// --- Settlement decisions (requirement #18–#25) -----------------------------
+// Thin HTTP-facing wrappers — all the actual state-machine logic lives in
+// settlement.service.ts, alongside the automatic happy-path settlement it
+// shares code with.
 
-  const updated = await prisma.shipment.update({
-    where: { id: order.shipment.id },
-    data: {
-      flaggedForReview: true,
-      riskNote: order.shipment.riskNote ? `${order.shipment.riskNote}\n---\n${note}` : note,
-    },
-  });
-
-  await recordAudit({
-    orderId: order.id,
-    shipmentId: order.shipment.id,
-    action: AUDIT_ACTIONS.ADMIN_FLAGGED_SHIPMENT,
-    actorId: admin.id,
-    actorRole: 'ADMIN',
-    source: 'ADMIN',
-    metadata: { note },
-  });
-
-  return updated;
-}
+export const decideSettlement = settlementService.decideSettlement;
+export const confirmBuyerRefund = settlementService.confirmBuyerRefund;
+export const correctSettlement = settlementService.correctSettlement;
 
 // --- Dispute review (requirement #9) -------------------------------------
 
@@ -545,7 +545,7 @@ export async function listDisputes(query: ListDisputesQuery) {
     prisma.dispute.findMany({
       where,
       include: {
-        order: { select: { id: true, orderNumber: true, status: true, shipment: { select: { deliveredAt: true } } } },
+        order: { select: { id: true, orderNumber: true, status: true, settlementStatus: true } },
         user: { select: { id: true, name: true, email: true } },
       },
       orderBy: { createdAt: 'desc' },
@@ -561,11 +561,12 @@ export async function listDisputes(query: ListDisputesQuery) {
 /**
  * Admin resolves (or moves to review) a delivery dispute. RESOLVED/REJECTED
  * both close it out and take the order out of DISPUTED — the distinction is
- * business meaning admins record via adminNote (e.g. refund issued vs.
- * delivery evidence upheld), not a different order-status outcome, since
- * that downstream action (refund, replacement, ...) is outside the scope of
- * this shipment-tracking system. Never touches prior shipment/tracking
- * evidence.
+ * business meaning admins record via adminNote. RESOLVED (the buyer's
+ * complaint is upheld) does NOT itself decide a refund — it simply confirms
+ * the order's settlement is under review (dispute.service.ts already put it
+ * there when the dispute was opened) so the admin makes that call explicitly
+ * from the settlement screen. REJECTED (delivery evidence upheld) leaves any
+ * existing settlement exactly as it was.
  */
 export async function reviewDispute(disputeId: string, admin: { id: string }, { status, adminNote }: ReviewDisputeInput) {
   const dispute = await prisma.dispute.findUnique({ where: { id: disputeId }, include: { order: true } });
@@ -608,29 +609,4 @@ export async function reviewDispute(disputeId: string, admin: { id: string }, { 
   });
 
   return updatedDispute;
-}
-
-/**
- * Recent seller-level risk signals (requirement #11) — repeated invalid AWB
- * submissions or repeated disputes against the same seller, raised by
- * shipment.service.ts / dispute.service.ts as SHIPMENT_FLAGGED audit
- * entries with no shipmentId (since a rejected AWB attempt never creates a
- * Shipment row to attach a per-shipment flag to). Kept intentionally simple
- * — a recent list, not a paginated report — since this is meant as an
- * admin "worth a look" feed, not a full audit query surface.
- */
-export async function listRiskSignals(limit = 50) {
-  const logs = await prisma.shipmentAuditLog.findMany({
-    where: { action: AUDIT_ACTIONS.SHIPMENT_FLAGGED },
-    orderBy: { createdAt: 'desc' },
-    take: limit,
-  });
-
-  const actorIds = [...new Set(logs.map((l) => l.actorId).filter((id): id is string => Boolean(id)))];
-  const actors = actorIds.length
-    ? await prisma.user.findMany({ where: { id: { in: actorIds } }, select: { id: true, name: true, email: true } })
-    : [];
-  const actorById = new Map(actors.map((a) => [a.id, a]));
-
-  return logs.map((log) => ({ ...log, actor: log.actorId ? (actorById.get(log.actorId) ?? null) : null }));
 }

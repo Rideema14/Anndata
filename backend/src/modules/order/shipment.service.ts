@@ -1,78 +1,30 @@
-import { Prisma } from '@prisma/client';
 import type { User } from '@prisma/client';
 import prisma from '../../config/prisma';
 import ApiError from '../../common/utils/ApiError';
 import { emitOrderUpdate } from '../../config/socket';
 import { notifyUser } from '../notification/notification.service';
 import { recordAudit } from './auditLog.service';
-import {
-  isPlausibleAwbFormat,
-  normalizeAwb,
-  getCarrier,
-  getTrackingUrl,
-  verifyAwbWithProvider,
-  syncTracking,
-} from './tracking.service';
-import {
-  AUDIT_ACTIONS,
-  RISK_FLAGS,
-  REPEATED_INVALID_AWB_THRESHOLD,
-  REPEATED_INVALID_AWB_WINDOW_DAYS,
-} from './shipment.constants';
+import { AUDIT_ACTIONS, PRE_SHIPMENT_STATUSES } from './shipment.constants';
+import { getCourier, normalizeAwb, validateAwbFormat, getCourierTrackingLink } from './courier.config';
 import type { SubmitShipmentInput } from './order.validation';
 
 const ORDER_FOR_SHIPMENT_INCLUDE = {
-  items: { include: { product: { select: { sellerId: true } } } },
-  shipment: { include: { events: { orderBy: { eventTime: 'asc' as const } } } },
-  payment: { select: { status: true } },
-} satisfies Prisma.OrderInclude;
-
-type OrderForShipment = Prisma.OrderGetPayload<{ include: typeof ORDER_FOR_SHIPMENT_INCLUDE }>;
-
-function assertSellerOnOrder(order: OrderForShipment, user: User) {
-  if (user.role === 'ADMIN') return;
-  const isSellerOnOrder = order.items.some((item) => item.product?.sellerId === user.id);
-  if (!isSellerOnOrder) throw ApiError.forbidden('You do not have permission to manage shipping for this order.');
-}
-
-/** Logs a rejected AWB attempt (no Shipment row — nothing valid to persist) and checks the repeated-invalid-AWB risk rule. */
-async function recordRejectedAwbAttempt(orderId: string, sellerId: string, reason: string, metadata: Record<string, unknown>) {
-  await recordAudit({
-    orderId,
-    action: AUDIT_ACTIONS.SELLER_AWB_REJECTED,
-    actorId: sellerId,
-    actorRole: 'SELLER',
-    source: 'SELLER',
-    metadata: { reason, ...metadata },
-  });
-
-  const since = new Date(Date.now() - REPEATED_INVALID_AWB_WINDOW_DAYS * 24 * 60 * 60 * 1000);
-  const recentRejections = await prisma.shipmentAuditLog.count({
-    where: { action: AUDIT_ACTIONS.SELLER_AWB_REJECTED, actorId: sellerId, createdAt: { gte: since } },
-  });
-
-  if (recentRejections >= REPEATED_INVALID_AWB_THRESHOLD) {
-    // No shipment row exists for a rejected attempt, so there's nowhere to
-    // attach a per-shipment flag — this is a seller-level signal for the
-    // admin dashboard's risk view, surfaced via the audit trail itself
-    // (admin.service.ts's risky-shipment query looks at recent
-    // SELLER_AWB_REJECTED counts per seller, same as this one).
-    await recordAudit({
-      orderId,
-      action: AUDIT_ACTIONS.SHIPMENT_FLAGGED,
-      actorId: sellerId,
-      actorRole: 'SELLER',
-      source: 'SYSTEM',
-      metadata: { reason: RISK_FLAGS.REPEATED_INVALID_AWB_SELLER, count: recentRejections, windowDays: REPEATED_INVALID_AWB_WINDOW_DAYS },
-    });
-  }
-}
+  items: { include: { product: { select: { id: true, name: true, slug: true, sellerId: true } } } },
+  payment: true,
+  shipment: true,
+  user: { select: { id: true, name: true, email: true } },
+} as const;
 
 /**
- * Seller submits the AWB for an order (requirement #2/#3). This is the
- * seller's ENTIRE surface area for shipment management — no status field,
- * no courier-derived fields. Everything from here on (pickup, transit,
- * delivery) is written exclusively by tracking.service.ts from courier data.
+ * The seller's shipment form (requirement #3): courier + AWB, submitted
+ * exactly once. Validates the AWB's shape against courier.config.ts,
+ * rejects a duplicate AWB across other active orders (requirement #5), then
+ * moves the order straight to SHIPPED (requirement #6) — there is no
+ * automatic tracking provider left to confirm pickup separately, so
+ * "shipment submitted" and "order shipped" happen in the same step. The
+ * seller cannot mark an order delivered/returned or touch settlement from
+ * here or anywhere else (requirement #3/#29) — this function is their
+ * entire shipment-related surface.
  */
 export async function submitShipment(idOrNumber: string, user: User, input: SubmitShipmentInput) {
   const order = await prisma.order.findFirst({
@@ -80,169 +32,158 @@ export async function submitShipment(idOrNumber: string, user: User, input: Subm
     include: ORDER_FOR_SHIPMENT_INCLUDE,
   });
   if (!order) throw ApiError.notFound('Order not found.');
-  assertSellerOnOrder(order, user);
 
-  if (['CANCELLED', 'DELIVERED', 'RETURNED', 'DISPUTED'].includes(order.status)) {
-    throw ApiError.badRequest(`Order is ${order.status.toLowerCase()} and can no longer accept shipment information.`);
-  }
-  if (order.payment && order.payment.status !== 'PAID') {
-    throw ApiError.badRequest('This order has not been paid for yet — shipment tracking can only be added once payment is confirmed.');
+  const isSellerOnOrder = order.items.some((item) => item.product?.sellerId === user.id);
+  if (user.role !== 'ADMIN' && !isSellerOnOrder) {
+    throw ApiError.forbidden('You do not have permission to manage shipment for this order.');
   }
 
-  // Allow submitting once, and allow a correction only while still
-  // unverified (provider hadn't confirmed it yet) — once verified or
-  // further along, the AWB is locked (courier is now the source of truth).
-  if (order.shipment && (order.shipment.verified || order.shipment.status !== 'AWB_SUBMITTED')) {
-    throw ApiError.conflict('A shipment has already been submitted and verified for this order. Contact support if the AWB was entered incorrectly.');
+  if (order.payment?.status !== 'PAID') {
+    throw ApiError.badRequest('This order has not been paid for yet.');
+  }
+  if (order.shipment) {
+    throw ApiError.conflict('Shipment information has already been submitted for this order.');
+  }
+  if (!PRE_SHIPMENT_STATUSES.includes(order.status)) {
+    throw ApiError.badRequest(`Shipment can no longer be submitted — this order is already ${order.status.toLowerCase()}.`);
   }
 
-  const carrier = getCarrier(input.carrierCode);
-  if (!carrier) throw ApiError.badRequest('Unknown carrier selected.');
+  const courier = getCourier(input.carrierCode);
+  if (!courier) throw ApiError.badRequest('Unsupported courier selected.');
 
-  const awb = input.awb.trim();
-  const normalizedAwb = normalizeAwb(awb);
-
-  if (!isPlausibleAwbFormat(normalizedAwb)) {
-    await recordRejectedAwbAttempt(order.id, user.id, 'AWB_INVALID_FORMAT', { carrierCode: input.carrierCode, awbLength: awb.length });
-    throw ApiError.badRequest('That doesn\'t look like a valid AWB / tracking number.');
+  const normalizedAwb = normalizeAwb(input.awb);
+  const validation = validateAwbFormat(input.carrierCode, normalizedAwb);
+  if (!validation.valid) {
+    await recordAudit({
+      orderId: order.id,
+      action: AUDIT_ACTIONS.SELLER_AWB_REJECTED,
+      actorId: user.id,
+      actorRole: user.role === 'ADMIN' ? 'ADMIN' : 'SELLER',
+      source: user.role === 'ADMIN' ? 'ADMIN' : 'SELLER',
+      metadata: { carrierCode: input.carrierCode, awb: input.awb, reason: validation.reason },
+    });
+    throw ApiError.badRequest(validation.reason ?? 'Invalid AWB / tracking number.');
   }
 
-  // Requirement #3: prevent the same AWB being attached to more than one
-  // active order (excluding this one, if we're correcting an unverified
-  // submission on retry).
+  // Requirement #5: the same AWB (for the same courier) can't be attached
+  // to another order that's still active — a returned/cancelled order
+  // freeing up its AWB is a legitimate edge case (e.g. the seller re-ships
+  // the same parcel under the same tracking number after a courier mixup),
+  // so those are excluded from the duplicate check.
   const duplicate = await prisma.shipment.findFirst({
     where: {
       normalizedAwb,
       carrierCode: input.carrierCode,
       orderId: { not: order.id },
-      order: { status: { notIn: ['CANCELLED'] } },
-      status: { notIn: ['RETURNED'] },
+      order: { status: { notIn: ['CANCELLED', 'RETURNED'] } },
     },
-    select: { id: true, orderId: true },
+    select: { orderId: true },
   });
   if (duplicate) {
-    await recordRejectedAwbAttempt(order.id, user.id, 'DUPLICATE_AWB', { carrierCode: input.carrierCode, conflictingOrderId: duplicate.orderId });
-    throw ApiError.conflict('This AWB is already associated with another active order. Each shipment needs its own tracking number.');
+    await recordAudit({
+      orderId: order.id,
+      action: AUDIT_ACTIONS.SELLER_AWB_REJECTED,
+      actorId: user.id,
+      actorRole: user.role === 'ADMIN' ? 'ADMIN' : 'SELLER',
+      source: user.role === 'ADMIN' ? 'ADMIN' : 'SELLER',
+      metadata: { carrierCode: input.carrierCode, normalizedAwb, reason: 'DUPLICATE_AWB', conflictingOrderId: duplicate.orderId },
+    });
+    throw ApiError.conflict('This tracking number is already associated with another active order.');
   }
 
-  const verification = await verifyAwbWithProvider(input.carrierCode, normalizedAwb, input.carrierName);
+  const submittingSellerId = user.role === 'ADMIN' ? (order.items.find((i) => i.product?.sellerId)?.product?.sellerId ?? user.id) : user.id;
 
-  if (verification.outcome === 'not_found') {
-    await recordRejectedAwbAttempt(order.id, user.id, 'AWB_NOT_FOUND', { carrierCode: input.carrierCode });
-    throw ApiError.badRequest('The tracking provider could not find this AWB with the selected carrier. Double-check the number and try again.');
-  }
-  if (verification.outcome === 'mismatch') {
-    await recordRejectedAwbAttempt(order.id, user.id, 'CARRIER_MISMATCH', { carrierCode: input.carrierCode, detected: verification.detectedCarrierNames });
-    throw ApiError.badRequest(
-      `This AWB appears to belong to ${verification.detectedCarrierNames.join(' or ')}, not ${carrier.name}. Please select the correct carrier.`
-    );
-  }
-
-  const verified = verification.outcome === 'verified';
-  const shipmentData = {
-    orderId: order.id,
-    sellerId: user.id,
-    carrierCode: input.carrierCode,
-    carrierName: input.carrierName ?? carrier.name,
-    awb,
-    normalizedAwb,
-    status: (verified ? 'AWB_VERIFIED' : 'AWB_SUBMITTED') as 'AWB_VERIFIED' | 'AWB_SUBMITTED',
-    verified,
-    verifiedCarrierCode: verified ? verification.verifiedCarrierCode : null,
-    verificationAttempts: 1,
-    lastVerificationError: verification.outcome === 'deferred' ? verification.reason : null,
-    flaggedForReview: verification.outcome === 'deferred',
-    riskFlags: verification.outcome === 'deferred' ? [RISK_FLAGS.PROVIDER_UNAVAILABLE] : [],
-  };
-
-  const shipment = order.shipment
-    ? await prisma.shipment.update({ where: { id: order.shipment.id }, data: shipmentData })
-    : await prisma.shipment.create({ data: shipmentData });
-
-  await prisma.order.update({
-    where: { id: order.id },
-    data: {
-      status: 'CONFIRMED',
-      trackingCarrier: input.carrierCode,
-      trackingNumber: awb,
-      lastTrackingSync: verified ? new Date() : null,
-      statusHistory: {
-        create: { status: 'CONFIRMED', note: `Seller submitted AWB ${awb} via ${carrier.name}.`, changedById: user.id },
+  const updated = await prisma.$transaction(async (tx) => {
+    const shipment = await tx.shipment.create({
+      data: {
+        orderId: order.id,
+        sellerId: submittingSellerId,
+        carrierCode: input.carrierCode,
+        carrierName: input.carrierCode === 'OTHER' ? input.carrierName : courier.name,
+        awb: input.awb.trim(),
+        normalizedAwb,
+        shipmentDate: input.shipmentDate ? new Date(input.shipmentDate) : undefined,
+        note: input.note,
+        submittedById: user.id,
       },
-    },
+    });
+
+    const result = await tx.order.update({
+      where: { id: order.id },
+      data: {
+        status: 'SHIPPED',
+        statusHistory: {
+          create: {
+            status: 'SHIPPED',
+            note: `Shipped via ${shipment.carrierName ?? courier.name} — AWB ${shipment.awb}.`,
+            changedById: user.id,
+          },
+        },
+      },
+      include: { shipment: true },
+    });
+
+    return { shipment, order: result };
   });
 
   await recordAudit({
     orderId: order.id,
-    shipmentId: shipment.id,
+    shipmentId: updated.shipment.id,
     action: AUDIT_ACTIONS.SELLER_SUBMITTED_AWB,
     actorId: user.id,
-    actorRole: 'SELLER',
-    source: 'SELLER',
-    newState: 'AWB_SUBMITTED',
-    metadata: { carrierCode: input.carrierCode, awb },
+    actorRole: user.role === 'ADMIN' ? 'ADMIN' : 'SELLER',
+    source: user.role === 'ADMIN' ? 'ADMIN' : 'SELLER',
+    previousState: order.status,
+    newState: 'SHIPPED',
+    metadata: { carrierCode: input.carrierCode, normalizedAwb },
   });
 
-  if (verified) {
-    await recordAudit({
-      orderId: order.id,
-      shipmentId: shipment.id,
-      action: AUDIT_ACTIONS.AWB_VERIFIED,
-      actorId: user.id,
-      actorRole: 'SYSTEM',
-      source: 'SYSTEM',
-      previousState: 'AWB_SUBMITTED',
-      newState: 'AWB_VERIFIED',
-    });
-  } else {
-    await recordAudit({
-      orderId: order.id,
-      shipmentId: shipment.id,
-      action: AUDIT_ACTIONS.AWB_VERIFICATION_DEFERRED,
-      actorRole: 'SYSTEM',
-      source: 'SYSTEM',
-      metadata: { reason: shipmentData.lastVerificationError },
-    });
-  }
+  emitOrderUpdate(updated.order);
 
-  const refreshed = await prisma.order.findUniqueOrThrow({ where: { id: order.id }, include: ORDER_FOR_SHIPMENT_INCLUDE });
-  emitOrderUpdate(refreshed);
-
-  const trackUrl = getTrackingUrl(input.carrierCode, awb);
-  notifyUser({
+  // Requirement #10 — buyer email + in-app notification, exactly once
+  // (guaranteed by the shipment.orderId unique constraint above: a retried
+  // request fails at shipment creation with a 409 before ever reaching
+  // this notification call).
+  const { url: trackingUrl } = getCourierTrackingLink(input.carrierCode, updated.shipment.awb);
+  await notifyUser({
     userId: order.userId,
     type: 'ORDER_STATUS',
-    title: `Order #${order.orderNumber} shipped`,
-    message: verified
-      ? `Your order has been handed to ${carrier.name} (AWB ${awb}). We'll update you as it moves.`
-      : `Your seller has submitted tracking for your order (AWB ${awb}, ${carrier.name}). We're confirming it with the carrier now.`,
+    title: `Your order has been shipped!`,
+    message: `Order #${order.orderNumber} has been shipped via ${updated.shipment.carrierName ?? courier.name}. Tracking number: ${updated.shipment.awb}.`,
     relatedEntityType: 'ORDER',
     relatedEntityId: order.id,
     email: {
-      subject: `Your order #${order.orderNumber} is on its way`,
-      html: `<p>Your order has been shipped.</p><p><b>Carrier:</b> ${carrier.name}</p><p><b>AWB:</b> ${awb}</p>${trackUrl ? `<p><a href="${trackUrl}">Track your shipment</a></p>` : ''}`,
+      subject: `Your order #${order.orderNumber} has been shipped!`,
+      html: `
+        <p>Hi ${order.user.name},</p>
+        <p>Good news — your order <b>#${order.orderNumber}</b> has been shipped.</p>
+        <p><b>Courier:</b> ${updated.shipment.carrierName ?? courier.name}<br/>
+        <b>Tracking number:</b> ${updated.shipment.awb}</p>
+        ${trackingUrl ? `<p><a href="${trackingUrl}">Track Your Shipment</a></p>` : ''}
+        <p>You can also view this anytime from "My Orders" on your account.</p>
+      `,
     },
-  }).catch(() => {});
+  });
 
-  // Kick an immediate sync so the buyer doesn't have to wait for the next
-  // cron tick to see the first courier-confirmed event, if any exist yet.
-  if (verified) syncTracking(order.id).catch(() => {});
-
-  return refreshed;
+  return updated.order;
 }
 
-/** Full shipment detail (status, verification, events) for an order — buyer, the order's seller, or admin. */
+/** GET /orders/:id/shipment — read-only shipment detail, including the buyer/admin-facing tracking link (requirement #9/#13). */
 export async function getShipmentForOrder(idOrNumber: string, user: User) {
   const order = await prisma.order.findFirst({
     where: { OR: [{ id: idOrNumber }, { orderNumber: idOrNumber }] },
-    include: ORDER_FOR_SHIPMENT_INCLUDE,
+    include: { items: { include: { product: { select: { sellerId: true } } } }, shipment: true },
   });
   if (!order) throw ApiError.notFound('Order not found.');
 
-  if (user.role !== 'ADMIN' && order.userId !== user.id) {
-    assertSellerOnOrder(order, user);
+  const isSellerOnOrder = order.items.some((item) => item.product?.sellerId === user.id);
+  const isOwner = order.userId === user.id;
+  if (user.role !== 'ADMIN' && !isOwner && !isSellerOnOrder) {
+    throw ApiError.forbidden('You do not have permission to view this shipment.');
   }
 
   if (!order.shipment) return null;
-  return order.shipment;
+
+  const { url, isDirect } = getCourierTrackingLink(order.shipment.carrierCode, order.shipment.awb);
+  return { ...order.shipment, trackingUrl: url || null, trackingUrlIsDirect: isDirect };
 }

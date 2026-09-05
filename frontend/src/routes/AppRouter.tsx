@@ -1,12 +1,13 @@
-import { lazy } from "react";
-import { createBrowserRouter, Navigate, RouterProvider } from "react-router-dom";
+import { createBrowserRouter, Navigate, Outlet, RouterProvider } from "react-router-dom";
 
 import { AppLayout } from "@/layouts/AppLayout";
 import { AuthLayout } from "@/layouts/AuthLayout";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { RequireAuth } from "@/routes/RequireAuth";
 import { GuestOnly } from "@/routes/GuestOnly";
+import { RouteErrorBoundary } from "@/routes/RouteErrorBoundary";
 import { useAuth } from "@/context/AuthContext";
+import { lazyWithRetry as lazy } from "@/utils/lazyWithRetry";
 
 // Always-loaded
 import HomePage from "@/pages/home/HomePage";
@@ -168,8 +169,11 @@ const AdminAnalyticsPage = lazy(
 const AdminPayoutsPage = lazy(
   () => import("@/pages/admin/AdminPayoutsPage"),
 );
-const AdminShipmentsPage = lazy(
-  () => import("@/pages/admin/AdminShipmentsPage"),
+const AdminOrdersPage = lazy(
+  () => import("@/pages/admin/AdminOrdersPage"),
+);
+const AdminOrderDetailPage = lazy(
+  () => import("@/pages/admin/AdminOrderDetailPage"),
 );
 
 // =====================================================
@@ -190,6 +194,15 @@ function LandingOrHome() {
 // =====================================================
 
 const router = createBrowserRouter([
+  {
+    // Root layout route: no path, so it wraps every route below with one
+    // shared errorElement — any render error, failed loader, or (as a
+    // second line of defense behind lazyWithRetry) stale chunk-load
+    // failure lands on a friendly recovery screen instead of React
+    // Router's bare default "Unexpected Application Error!" page.
+    element: <Outlet />,
+    errorElement: <RouteErrorBoundary />,
+    children: [
   // ===================================================
   // PUBLIC LANDING PAGE (skipped straight to /home if already logged in,
   // so a returning, still-signed-in visitor never has to hit "Login" again)
@@ -518,8 +531,12 @@ const router = createBrowserRouter([
         element: <AdminPayoutsPage />,
       },
       {
-        path: "/admin/shipments",
-        element: <AdminShipmentsPage />,
+        path: "/admin/orders",
+        element: <AdminOrdersPage />,
+      },
+      {
+        path: "/admin/orders/:id",
+        element: <AdminOrderDetailPage />,
       },
       // Application fallback
       {
@@ -529,6 +546,8 @@ const router = createBrowserRouter([
         ],
       },
     ],
+  },
+    ], // end root layout children
   },
 ]);
 

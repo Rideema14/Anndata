@@ -59,6 +59,13 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
         navigateFallbackDenylist: [/^\/api\//],
+        // Immediately drop any previously-cached JS/CSS/HTML from an older
+        // deploy once the new service worker takes over, instead of
+        // leaving them around — stale cached chunks are the other common
+        // cause of the "old bundle references a chunk that no longer
+        // exists" error, on top of the browser-cache case lazyWithRetry
+        // already handles.
+        cleanupOutdatedCaches: true,
       },
     }),
   ],
